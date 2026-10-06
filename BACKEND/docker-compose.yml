@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: pikva-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: pikva
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pikva_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  pikva_postgres_data:

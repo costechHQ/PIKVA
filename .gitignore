@@ -1,27 +1,24 @@
-# Environment variables
 .env
 .env.*
 !.env.example
 
-# Dependencies
 node_modules/
 .venv/
 
-# Build output
+
 .next/
 dist/
 build/
 
-# Python cache
+
 __pycache__/
 *.py[cod]
 
-# Testing / coverage
+
 .coverage
 htmlcov/
 .pytest_cache/
 
-# IDE
 .vscode/
 .idea/
 
