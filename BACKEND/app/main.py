@@ -1,4 +1,6 @@
 from fastapi import FastAPI
+from app.routes import router
+
 
 app = FastAPI(
     title="Pikva API",
@@ -6,9 +8,4 @@ app = FastAPI(
     version="0.1.0",
 )
 
-
-@app.get("/health")
-async def health_check():
-    """Return the health status of the API."""
-
-    return {"status": "ok"}
+app.include_router(router)
