@@ -17,7 +17,7 @@ class Pupil(Base):
     )
 
     parent_id:Mapped[int] = mapped_column(
-        ForeignKey("users_id"),
+        ForeignKey("users.id"),
         nullable=False,
     )
 

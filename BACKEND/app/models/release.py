@@ -16,7 +16,7 @@ class ReleaseRecord(Base):
     )
 
     authorisation_id: Mapped[int] = mapped_column(
-        ForeignKey("pickup_authorisation.id"),
+        ForeignKey("pickup_authorisations.id"),
         nullable=False,
     )
 
