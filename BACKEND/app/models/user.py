@@ -25,15 +25,21 @@ class User(Base):
         nullable=False,
     )
     name: Mapped[str] = mapped_column(String(150), nullable=False)
+
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+
     phone: Mapped[str] = mapped_column(String(30), nullable=False)
+
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+
     role: Mapped[UserRole] = mapped_column(SQLEnum(UserRole), nullable=False)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=datetime.utcnow,
         nullable=False,
     )
+    
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=datetime.utcnow,
