@@ -12,15 +12,20 @@ class School(Base):
     __tablename__= "schools"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+
     name: Mapped[str] = mapped_column(String(150), nullable=False)
+
     address: Mapped[str] = mapped_column(String(255), nullable=False)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=datetime.utcnow,
         nullable=False,
-        )
+    )
+    
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
+        default=datetime.utcnow,
         onupdate=datetime.utcnow,
         nullable=False,
-        )
+    )
