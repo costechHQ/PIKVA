@@ -1,4 +1,6 @@
 from pydantic import BaseModel, EmailStr
+from app.models.user import UserRole
+
 class UserRegister(BaseModel):
     """Define the data required to register a Pikva user."""
 
@@ -31,3 +33,13 @@ class TokenResponse(BaseModel):
 
     access_token: str
     token_type: str
+
+
+class SchoolUserCreate(BaseModel):
+    """Define the data required to create a user within a school."""
+
+    name: str = "Christopher Onyedika Simon"
+    email: EmailStr = "parent@test.com"
+    phone: str = "07032303470"
+    password: str = "ParentPass123!"
+    role: UserRole
