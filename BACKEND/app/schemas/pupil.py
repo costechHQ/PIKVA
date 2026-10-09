@@ -21,3 +21,11 @@ class PupilResponse(BaseModel):
     last_name: str
     photo_url: str | None
     date_of_birth: date
+
+
+class PupilUpdate(BaseModel):
+    """Define the editable fields for an existing pupil."""
+    first_name: str | None = None
+    last_name: str | None = None
+    photo_url: str | None = None
+    date_of_birth: date | None = None
