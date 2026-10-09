@@ -6,6 +6,9 @@ from app.db.session import get_session
 from app.core.dependencies import get_current_user
 from app.models.user import User
 
+from app.core.dependencies import require_role
+from app.models.user import UserRole
+
 router = APIRouter()
 
 
@@ -30,3 +33,13 @@ async def authentication_health_check(
         "authenticated": True,
         "user_id": current_user.id,
     }
+
+
+@router.get(
+    "/health/admin",
+    dependencies=[Depends(require_role(UserRole.SCHOOL_ADMIN))],
+)
+async def admin_health_check():
+    """Verify that school-admin authorization is working."""
+
+    return {"authorized": True, "role": "school_admin"}
