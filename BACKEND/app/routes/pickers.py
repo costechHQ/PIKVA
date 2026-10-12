@@ -12,7 +12,7 @@ from app.services.pickup_authorisation_service import (
     create_pickup_authorisation,
 )
 
-router = APIRouter(prefix="/pickup-authorizations", tags=["Pickup authorisations"])
+router = APIRouter(prefix="/pickers", tags=["Pickup authorisations"])
 
 
 @router.post(
