@@ -7,7 +7,11 @@ from app.services.auth_service import register_school_admin, login_user
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-@router.post("/register", response_model=UserResponse)
+@router.post(
+        "/register", 
+        response_model=UserResponse,
+        status_code=status.HTTP_201_CREATED
+        )
 async def register(
     data: UserRegister,
     session: AsyncSession = Depends(get_session),
