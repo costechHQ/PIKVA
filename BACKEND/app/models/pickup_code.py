@@ -1,10 +1,9 @@
 from app.db.base import Base
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import Date, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from datetime import date, datetime, timezone
 
-from sqlalchemy import Date, DateTime, ForeignKey, String
 
 class DailyPickupCode(Base):
     """Represent a hashed pickup verification code for a day."""
