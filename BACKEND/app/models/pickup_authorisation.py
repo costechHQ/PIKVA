@@ -30,7 +30,7 @@ class PickupAuthorisation(Base):
         nullable=False,
     )
 
-    expires_at: Mapped[datetime | None] = mapped_column(
+    expires_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,
     )

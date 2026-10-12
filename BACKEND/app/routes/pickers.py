@@ -40,8 +40,14 @@ async def create_pickup_authorisation_endpoint(
 
     except ValueError as exc:
         raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+
+    if authorisation is None:
+        raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Pupil not found"
+            detail="Pupil not found",
         )
 
     return authorisation

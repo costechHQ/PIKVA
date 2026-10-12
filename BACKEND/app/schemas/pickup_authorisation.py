@@ -23,6 +23,7 @@ class PickupAuthorisationResponse(BaseModel):
     pupil_id: int
     picker_name: str
     picker_phone: str
+    relationship: str
     photo_url: str | None
     type: str
     starts_at: datetime
