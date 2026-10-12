@@ -1,5 +1,5 @@
-from datetime import datetime
-from pydantic import BaseModel, ConfigDict
+from datetime import datetime, timezone
+from pydantic import AwareDatetime, BaseModel, ConfigDict, field_validator
 
 class PickupAuthorisationCreate(BaseModel):
     """Define the data required to authorise a pickup person."""
@@ -10,8 +10,15 @@ class PickupAuthorisationCreate(BaseModel):
     relationship: str
     photo_url: str | None = None
     type: str
-    starts_at: datetime
-    expires_at: datetime
+    starts_at: AwareDatetime
+    expires_at: AwareDatetime
+
+    @field_validator("starts_at", "expires_at")
+    @classmethod
+    def normalise_to_utc(cls, value: datetime) -> datetime:
+        """Convert timezone-aware timestamps to UTC."""
+
+        return value.astimezone(timezone.utc)
 
 
 class PickupAuthorisationResponse(BaseModel):

@@ -5,7 +5,7 @@ from sqlalchemy import text
 
 engine = create_async_engine(
     settings.database_url,
-    echo=True,
+    echo=settings.database_echo,
 )
 
 async_session = async_sessionmaker(

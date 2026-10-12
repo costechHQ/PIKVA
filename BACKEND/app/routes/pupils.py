@@ -121,7 +121,7 @@ async def update_parent_endpoint(
             data = data,
         )
     except Exception as exc:
-        await session.rollbacl()
+        await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Unable to update pupil",

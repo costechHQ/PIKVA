@@ -28,16 +28,17 @@ async def get_current_user(
             detail = "Invalid or expired token",
         )
     
-    user_id = payload.get("sub")
+    try:
+        user_id = int(payload.get("sub"))
 
-    if user_id is None:
+    except (TypeError, ValueError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            details= "Invalid authentication credentials",
+            detail="Invalid authentication credentials",
         )
 
     result = await session.execute(
-        select(User).where(User.id == int(user_id))
+        select(User).where(User.id == user_id)
     )
 
     user = result.scalar_one_or_none()

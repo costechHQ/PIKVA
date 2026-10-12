@@ -2,7 +2,7 @@ from app.db.base import Base
 from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from sqlalchemy import Date, DateTime, ForeignKey, String
 
@@ -28,17 +28,17 @@ class DailyPickupCode(Base):
     code_date: Mapped[date] = mapped_column(Date, nullable=False)
 
     expires_at: Mapped[datetime] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         nullable=False,
     )
 
     used_at: Mapped[datetime | None] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         nullable=True,
     )
 
-    created_at: Mapped[DateTime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow,
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )

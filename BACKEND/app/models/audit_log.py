@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, String, ForeignKey, JSON
 from sqlalchemy.orm import Mapped, mapped_column
@@ -29,13 +29,14 @@ class AuditLog(Base):
 
     entity_id: Mapped[int | None] = mapped_column(nullable=True)
 
-    metadata: Mapped[dict | None] = mapped_column(
+    metadata_: Mapped[dict | None] = mapped_column(
+        "metadata",
         JSON,
         nullable=True,
     )
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow,
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
