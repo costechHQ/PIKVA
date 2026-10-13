@@ -12,5 +12,15 @@ services:
     volumes:
       - pikva_postgres_data:/var/lib/postgresql/data
 
+  # Rate-limit counters (SRS 11.3 repeated attempts). Counters expire on
+  # their own, so nothing is persisted to disk. Bound to localhost only.
+  redis:
+    image: redis:7-alpine
+    container_name: pikva-redis
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:6379:6379"
+
 volumes:
   pikva_postgres_data:
