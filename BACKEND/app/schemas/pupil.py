@@ -12,7 +12,7 @@ class PupilCreate(BaseModel):
 class PupilResponse(BaseModel):
     """Define the safe pupil data returned by the API."""
 
-    model_config = ConfigDict(from_attricbute=True)
+    model_config = ConfigDict(from_attributes=True)
 
     id: int
     school_id: int

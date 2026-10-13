@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from app.models.pickup_authorisation import PickupAuthorisation
 from app.models.pickup_code import PickupCodeCheckResult
 from app.models.pupil import Pupil
+from app.schemas.pupil import PupilResponse
 from app.schemas.pickup import (
     GatePicker,
     GatePupil,
@@ -81,3 +82,16 @@ def test_verify_response_failure_is_not_verified():
 
     assert body["verified"] is False
     assert body["pupil"] is None and body["authorisation"] is None
+
+
+def test_pupil_response_builds_from_database_object():
+    """PupilResponse reads a Pupil model directly (from_attributes)."""
+
+    pupil = Pupil(
+        id=7, school_id=1, parent_id=3, first_name="Ada", last_name="Obi",
+        photo_url=None, date_of_birth=date(2018, 1, 1),
+    )
+
+    response = PupilResponse.model_validate(pupil)
+
+    assert (response.id, response.first_name, response.parent_id) == (7, "Ada", 3)

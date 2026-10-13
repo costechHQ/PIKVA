@@ -12,6 +12,13 @@ from app.models.user import UserRole
 router = APIRouter()
 
 
+@router.get("/health")
+async def health_check():
+    """Report that the API process is running (no database access)."""
+
+    return {"status": "ok"}
+
+
 @router.get("/health/db")
 async def database_health_check(
     session: AsyncSession = Depends(get_session),
