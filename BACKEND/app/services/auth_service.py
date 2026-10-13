@@ -8,7 +8,7 @@ from app.core.security import (
 )
 from app.models.school import School
 from app.models.user import User, UserRole
-from app.schemas.auth import UserRegister
+from app.schemas.auth import UserLogin, UserRegister
 from app.services.audit_service import USER_CREATED, record_audit
 
 

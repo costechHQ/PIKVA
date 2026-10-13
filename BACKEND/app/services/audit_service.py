@@ -1,8 +1,11 @@
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.audit_log import AuditLog
+from app.models.user import User
+from app.schemas.audit_log import AuditActor, AuditLogResponse
 
 # Audit actions (SRS 14).
 USER_CREATED = "user.created"
@@ -85,3 +88,49 @@ async def record_audit(
     await session.flush()
 
     return audit
+
+
+async def list_audit_logs(
+        session: AsyncSession,
+        school_id: int,
+        action: str | None = None,
+        entity_type: str | None = None,
+        entity_id: int | None = None,
+        limit: int = 50,
+        offset: int = 0,
+) -> list[AuditLogResponse]:
+    """List a school's audit records, newest first, with optional filters."""
+
+    query = (
+        select(AuditLog, User)
+        .outerjoin(User, AuditLog.user_id == User.id)
+        .where(AuditLog.school_id == school_id)
+    )
+
+    if action is not None:
+        query = query.where(AuditLog.action == action)
+
+    if entity_type is not None:
+        query = query.where(AuditLog.entity_type == entity_type)
+
+    if entity_id is not None:
+        query = query.where(AuditLog.entity_id == entity_id)
+
+    rows = await session.execute(
+        query.order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+
+    return [
+        AuditLogResponse(
+            id=audit.id,
+            user=AuditActor.model_validate(user) if user is not None else None,
+            action=audit.action,
+            entity_type=audit.entity_type,
+            entity_id=audit.entity_id,
+            metadata=audit.metadata_,
+            created_at=audit.created_at,
+        )
+        for audit, user in rows
+    ]
