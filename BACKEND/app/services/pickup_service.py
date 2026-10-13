@@ -1,4 +1,5 @@
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, time, timedelta, timezone
 
@@ -28,6 +29,9 @@ from app.services.pickup_authorisation_service import get_pickup_authorisation
 
 # A hash collision is astronomically unlikely; retry a few times, then fail.
 MAX_CODE_ATTEMPTS = 5
+
+# Called with (school_id, alert_ids) after new security alerts are committed.
+AlertNotifier = Callable[[int, list[int]], None]
 
 
 _AUTHORISATION_FAILURES = {
@@ -272,10 +276,11 @@ async def record_failed_check(
         check: PickupCodeCheck,
         method: VerificationMethod,
         stage: str,
-) -> None:
+) -> list[int]:
     """Record security alerts and an audit entry for a failed check.
 
-    stage is "verify" or "release". Does not commit.
+    stage is "verify" or "release". Returns the new alert IDs. Does not
+    commit.
     """
 
     # Link alerts to the code's own records, never to client-supplied IDs.
@@ -292,6 +297,7 @@ async def record_failed_check(
         authorisation_id=authorisation_id,
     )
     await session.flush()
+    alert_ids = [alert.id for alert in alerts]
 
     await record_audit(
         session=session,
@@ -306,9 +312,11 @@ async def record_failed_check(
             "stage": stage,
             "pupil_id": pupil_id,
             "authorisation_id": authorisation_id,
-            "alert_ids": [alert.id for alert in alerts],
+            "alert_ids": alert_ids,
         },
     )
+
+    return alert_ids
 
 
 async def verify_pickup(
@@ -316,10 +324,12 @@ async def verify_pickup(
         school_id: int,
         staff_id: int,
         data: PickupVerifyRequest,
+        notify: AlertNotifier | None = None,
 ) -> PickupVerifyResponse:
     """Verify a pickup code presented at the gate.
 
-    Failures record security alerts and return only the reason. Success
+    Failures record security alerts and return only the reason; once they
+    are committed, notify (if given) is told about the new alerts. Success
     returns the minimum pupil and picker details for the staff member to
     confirm the person; nothing is changed until the release step.
     """
@@ -327,8 +337,13 @@ async def verify_pickup(
     check = await check_presented_code(session, school_id, data)
 
     if check.result != PickupCodeCheckResult.VALID:
-        await record_failed_check(session, school_id, staff_id, check, data.method, "verify")
+        alert_ids = await record_failed_check(
+            session, school_id, staff_id, check, data.method, "verify"
+        )
         await session.commit()
+
+        if notify is not None:
+            notify(school_id, alert_ids)
 
         return PickupVerifyResponse(result=check.result, method=data.method)
 

@@ -18,6 +18,7 @@ from app.services.alert_service import (
     REPEATED_FAILURE_WINDOW,
     get_alert,
     list_alerts,
+    notify_security_alerts,
     record_failed_verification,
     resolve_alert,
 )
@@ -220,3 +221,110 @@ async def test_resolving_twice_is_rejected(session):
 
     with pytest.raises(ValueError, match="already resolved"):
         await resolve_alert(session, staff.school_id, alert.id, actor_id=staff.id)
+
+
+# --- Security alert emails to admins (SRS 3.1, 20) ---
+
+
+class FakeSender:
+    """Capture emails instead of sending them."""
+
+    def __init__(self, fail: bool = False):
+        self.sent = []
+        self.fail = fail
+
+    async def send(self, message):
+        if self.fail:
+            raise RuntimeError("provider down")
+        self.sent.append(message)
+
+
+async def make_admin(session, school_id: int, name: str) -> User:
+    """Create a school admin."""
+
+    admin = User(
+        school_id=school_id,
+        name=f"{name} Admin",
+        email=f"admin-{name.lower()}@example.com",
+        phone="0700000000",
+        password_hash="not-used",
+        role=UserRole.SCHOOL_ADMIN,
+    )
+    session.add(admin)
+    await session.commit()
+
+    return admin
+
+
+async def test_alert_email_goes_to_school_admins_only(session):
+    """Admins of the alert's school are emailed; gate staff and other schools are not."""
+
+    staff = await make_staff(session, "Lima")
+    await make_admin(session, staff.school_id, "Lima1")
+    await make_admin(session, staff.school_id, "Lima2")
+    other = await make_staff(session, "Mike")
+    await make_admin(session, other.school_id, "Mike")
+    [alert] = await fail(session, staff, PickupCodeCheckResult.USED_CODE)
+    sender = FakeSender()
+
+    assert await notify_security_alerts(staff.school_id, [alert.id], sender) is True
+
+    [message] = sender.sent
+    assert message.to == ("admin-lima1@example.com", "admin-lima2@example.com")
+    assert message.subject == "Pikva security alert: used_code"
+    assert "Lima School" in message.text
+    assert "Pickup code has already been used (manual verification)" in message.text
+    assert f"Alert #{alert.id}" in message.text
+    assert f"Staff #{staff.id}" in message.text
+    assert " UTC: " in message.text
+
+
+async def test_failure_and_repeated_alert_arrive_in_one_email(session):
+    """The fifth failure's two alerts are sent together."""
+
+    staff = await make_staff(session, "November")
+    await make_admin(session, staff.school_id, "November")
+    for _ in range(REPEATED_FAILURE_LIMIT - 1):
+        await fail(session, staff)
+    alerts = await fail(session, staff)
+    sender = FakeSender()
+
+    await notify_security_alerts(staff.school_id, [a.id for a in alerts], sender)
+
+    [message] = sender.sent
+    assert message.subject == "Pikva security alerts: invalid_code, repeated_failed_attempts"
+    assert "2 security alert(s)" in message.text
+
+
+async def test_other_school_alert_ids_send_nothing(session):
+    """Alert IDs from another school are ignored."""
+
+    staff = await make_staff(session, "Oscar")
+    other = await make_staff(session, "Papa")
+    await make_admin(session, other.school_id, "Papa")
+    [alert] = await fail(session, staff)
+    sender = FakeSender()
+
+    assert await notify_security_alerts(other.school_id, [alert.id], sender) is False
+    assert sender.sent == []
+
+
+async def test_school_without_admin_email_sends_nothing(session):
+    """With no admins to tell, nothing is sent."""
+
+    staff = await make_staff(session, "Quebec")
+    [alert] = await fail(session, staff)
+    sender = FakeSender()
+
+    assert await notify_security_alerts(staff.school_id, [alert.id], sender) is False
+    assert sender.sent == []
+
+
+async def test_provider_failure_never_raises(session):
+    """A failing email provider returns False instead of raising."""
+
+    staff = await make_staff(session, "Romeo")
+    await make_admin(session, staff.school_id, "Romeo")
+    [alert] = await fail(session, staff)
+
+    assert await notify_security_alerts(staff.school_id, [alert.id], FakeSender(fail=True)) is False

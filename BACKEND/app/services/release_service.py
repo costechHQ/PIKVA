@@ -12,6 +12,7 @@ from app.schemas.pickup import GatePicker, GatePupil, PickupVerifyRequest
 from app.schemas.release import PickupReleaseResponse, ReleaseHistoryItem, ReleaseStaff
 from app.services.audit_service import PUPIL_RELEASED, record_audit
 from app.services.pickup_service import (
+    AlertNotifier,
     PickupCodeCheck,
     check_presented_code,
     mark_code_used,
@@ -24,6 +25,7 @@ async def release_pupil(
         school_id: int,
         staff_id: int,
         data: PickupVerifyRequest,
+        notify: AlertNotifier | None = None,
 ) -> PickupReleaseResponse:
     """Release a pupil after gate staff confirm the pickup person.
 
@@ -31,7 +33,8 @@ async def release_pupil(
     verification. Marking the code used, the release record and the audit
     entry are committed together, so a pupil is never released without a
     record and a code can release only once. Failures record security alerts
-    and release nobody.
+    and release nobody; once they are committed, notify (if given) is told
+    about the new alerts.
     """
 
     check = await check_presented_code(session, school_id, data)
@@ -48,8 +51,13 @@ async def release_pupil(
             check = PickupCodeCheck(reason, check.code, check.authorisation)
 
     if check.result != PickupCodeCheckResult.VALID:
-        await record_failed_check(session, school_id, staff_id, check, data.method, "release")
+        alert_ids = await record_failed_check(
+            session, school_id, staff_id, check, data.method, "release"
+        )
         await session.commit()
+
+        if notify is not None:
+            notify(school_id, alert_ids)
 
         return PickupReleaseResponse(result=check.result, method=data.method)
 

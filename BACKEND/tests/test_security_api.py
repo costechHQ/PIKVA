@@ -1,9 +1,10 @@
-"""API tests for role restrictions, alerts and the audit log (SRS 6.5, 13, 14, 23.2, 23.7)."""
+"""API tests for role restrictions, alerts, alert emails and the audit log (SRS 6.5, 13, 14, 20, 23.2, 23.7)."""
 
 import pytest
 
 import test_pickup_code_api as api
 from app.main import app
+from app.services import notification_service
 
 ROLES = ("admin", "parent", "gate_staff")
 STAFF = ("admin",)
@@ -205,3 +206,93 @@ async def test_audit_log_rejects_bad_paging(client, school, params):
     )
 
     assert response.status_code == 422
+
+
+# --- Security alert emails from the gate (SRS 3.1, 20) ---
+
+
+class Outbox:
+    """Capture emails the app sends, optionally failing like a provider outage."""
+
+    def __init__(self):
+        self.sent = []
+        self.fail = False
+
+    async def send(self, message):
+        if self.fail:
+            raise RuntimeError("provider down")
+        self.sent.append(message)
+
+
+@pytest.fixture
+def outbox(monkeypatch):
+    """Replace the real email sender with a capturing one."""
+
+    box = Outbox()
+    monkeypatch.setattr(notification_service, "get_email_sender", lambda: box)
+
+    return box
+
+
+async def test_failed_verify_emails_school_admin(client, school, outbox):
+    """A failed gate check emails the admin, without the code."""
+
+    issued = await api.issue(client, school)
+    await api.release(client, school, {"method": "manual", "code": issued["code"]}, 201)
+
+    await api.verify(client, school, {"method": "manual", "code": issued["code"]})
+
+    [message] = outbox.sent
+    assert message.to == ("admin-alpha@example.com",)
+    assert message.subject == "Pikva security alert: used_code"
+    assert "alpha School" in message.text
+    assert issued["code"] not in message.text
+    assert issued["code"] not in message.subject
+
+
+async def test_failed_release_emails_school_admin(client, school, outbox):
+    """A refused release emails the admin too."""
+
+    issued = await api.issue(client, school)
+    body = {"method": "manual", "code": issued["code"]}
+    await api.release(client, school, body, 201)
+
+    await api.release(client, school, body, 200)
+
+    [message] = outbox.sent
+    assert message.subject == "Pikva security alert: used_code"
+
+
+async def test_successful_gate_flow_sends_no_email(client, school, outbox):
+    """Verifying and releasing a valid code emails nobody."""
+
+    issued = await api.issue(client, school)
+    body = {"method": "qr", "qr_data": issued["qr_data"]}
+
+    await api.verify(client, school, body)
+    await api.release(client, school, body, 201)
+
+    assert outbox.sent == []
+
+
+async def test_repeated_attempts_email_includes_both_alerts(client, school, outbox):
+    """The fifth failure's email covers the failure and the repeated-attempts alert."""
+
+    for _ in range(5):
+        await api.verify(client, school, {"method": "manual", "code": "ZZZZ9999"})
+
+    assert len(outbox.sent) == 5
+    assert outbox.sent[-1].subject == (
+        "Pikva security alerts: invalid_code, repeated_failed_attempts"
+    )
+
+
+async def test_email_outage_does_not_affect_gate(client, school, outbox):
+    """If the provider is down, the gate still gets its answer and the alert is kept."""
+
+    outbox.fail = True
+
+    result = await api.verify(client, school, {"method": "manual", "code": "ZZZZ9999"})
+
+    assert result["result"] == "invalid_code"
+    assert [a[0] for a in await api.alerts(school["school_id"])] == ["invalid_code"]

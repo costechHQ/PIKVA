@@ -12,6 +12,9 @@ settings.database_url = make_url(settings.database_url).set(
     database=TEST_DATABASE
 ).render_as_string(hide_password=False)
 
+# Never send real email from tests, even when .env holds a Resend key.
+settings.resend_api_key = None
+
 import httpx  # noqa: E402
 import pytest  # noqa: E402
 

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, require_role
@@ -11,10 +11,20 @@ from app.schemas.pickup import (
     PickupVerifyResponse,
 )
 from app.schemas.release import PickupReleaseResponse
-from app.services.pickup_service import issue_pickup_code, verify_pickup
+from app.services.alert_service import notify_security_alerts
+from app.services.pickup_service import AlertNotifier, issue_pickup_code, verify_pickup
 from app.services.release_service import release_pupil
 
 router = APIRouter(prefix="/pickup", tags=["Pickup"])
+
+
+def _email_admins_later(background_tasks: BackgroundTasks) -> AlertNotifier:
+    """Email school admins about new alerts after the response is sent (SRS 20)."""
+
+    def notify(school_id: int, alert_ids: list[int]) -> None:
+        background_tasks.add_task(notify_security_alerts, school_id, alert_ids)
+
+    return notify
 
 
 @router.post(
@@ -63,6 +73,7 @@ async def issue_pickup_code_endpoint(
 
 async def verify_pickup_endpoint(
     data: PickupVerifyRequest,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
@@ -77,6 +88,7 @@ async def verify_pickup_endpoint(
         school_id=current_user.school_id,
         staff_id=current_user.id,
         data=data,
+        notify=_email_admins_later(background_tasks),
     )
 
 
@@ -96,6 +108,7 @@ async def verify_pickup_endpoint(
 async def release_pupil_endpoint(
     data: PickupVerifyRequest,
     response: Response,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
@@ -111,6 +124,7 @@ async def release_pupil_endpoint(
         school_id=current_user.school_id,
         staff_id=current_user.id,
         data=data,
+        notify=_email_admins_later(background_tasks),
     )
 
     if result.released:

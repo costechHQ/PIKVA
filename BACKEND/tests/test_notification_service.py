@@ -127,3 +127,10 @@ def test_api_key_is_hidden_when_settings_are_printed(monkeypatch):
     assert "re_live_key" not in repr(settings)
     assert "re_live_key" not in str(settings.resend_api_key)
     assert notification_service.settings is settings
+
+
+def test_tests_never_use_real_resend():
+    """The test setup disables Resend even if .env configures it."""
+
+    assert settings.resend_api_key is None
+    assert isinstance(get_email_sender(), LogEmailSender)
