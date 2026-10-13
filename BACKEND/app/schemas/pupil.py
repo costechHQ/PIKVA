@@ -1,11 +1,12 @@
 from datetime import date
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 class PupilCreate(BaseModel):
     """Define the data required to create a pupil."""
 
-    first_name: str = "Simon"
-    last_name: str = "Christopher"
+    # Examples document Swagger only; missing names are rejected.
+    first_name: str = Field(examples=["Chidi"])
+    last_name: str = Field(examples=["Eze"])
     photo_url: str | None = None
     date_of_birth: date
     # Required for school admins (the pupil's parent); parents must omit it.

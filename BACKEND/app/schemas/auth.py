@@ -1,15 +1,19 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from app.models.user import UserRole
+
+# Examples only document the API in Swagger; they are never used as values,
+# so a missing field is always rejected (SRS 6.2, 21.1).
+
 
 class UserRegister(BaseModel):
     """Define the data required to register a Pikva user."""
 
-    name: str = "Pikva Admin"
-    email: EmailStr = "admin2@pikvatest.com"
-    phone: str = "08012345678"
-    password: str = "TestPassword123"
-    school_name: str = "Pikva Test School" 
-    school_address: str = "Enugu, Enugu State"
+    name: str = Field(examples=["Ada Obi"])
+    email: EmailStr = Field(examples=["admin@sunrise-school.example"])
+    phone: str = Field(examples=["08012345678"])
+    password: str = Field(examples=["choose-a-strong-password"])
+    school_name: str = Field(examples=["Sunrise School"])
+    school_address: str = Field(examples=["Enugu, Enugu State"])
 
 class UserResponse(BaseModel):
     """Define the safe user data retured by the API"""
@@ -25,8 +29,8 @@ class UserResponse(BaseModel):
 class UserLogin(BaseModel):
     """Define the credentials required to log in"""
 
-    email: EmailStr = "admin2@pikvatest.com"
-    password: str = "TestPassword123"
+    email: EmailStr = Field(examples=["admin@sunrise-school.example"])
+    password: str = Field(examples=["choose-a-strong-password"])
 
 class TokenResponse(BaseModel):
     """Define the access token return after login."""
@@ -38,8 +42,8 @@ class TokenResponse(BaseModel):
 class SchoolUserCreate(BaseModel):
     """Define the data required to create a user within a school."""
 
-    name: str = "Christopher Onyedika Simon"
-    email: EmailStr = "parent@test.com"
-    phone: str = "07032303470"
-    password: str = "ParentPass123!"
+    name: str = Field(examples=["Bayo Adeyemi"])
+    email: EmailStr = Field(examples=["parent@sunrise-school.example"])
+    phone: str = Field(examples=["07000000000"])
+    password: str = Field(examples=["choose-a-strong-password"])
     role: UserRole
