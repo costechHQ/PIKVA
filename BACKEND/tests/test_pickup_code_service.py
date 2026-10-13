@@ -1,4 +1,4 @@
-"""Service tests for issuing daily pickup codes (SRS 10, 23.5)."""
+"""Service tests for issuing, checking and verifying pickup codes (SRS 10, 11, 23.5)."""
 
 from datetime import date, datetime, time, timedelta, timezone
 
@@ -11,13 +11,16 @@ from app.models.pickup_authorisation import PickupAuthorisation
 from app.models.pickup_code import DailyPickupCode
 from app.models.pupil import Pupil
 from app.models.school import School
+from app.models.security_alert import SecurityAlert
 from app.models.user import User, UserRole
+from app.schemas.pickup import PickupVerifyRequest
 from app.services import pickup_service
 from app.services.pickup_service import (
     PickupCodeCheckResult,
     check_pickup_code,
     issue_pickup_code,
     mark_code_used,
+    verify_pickup,
 )
 
 
@@ -403,3 +406,148 @@ async def test_mark_code_used_rejects_other_school(session):
     [code] = await stored_codes(session, own.id)
 
     assert await mark_code_used(session, await school_of(session, other), code.id) is False
+
+
+async def make_gate_staff(session, school_id: int, name: str) -> User:
+    """Create a gate staff member in a school."""
+
+    staff = User(
+        school_id=school_id,
+        name=f"{name} Gate",
+        email=f"gate-{name.lower()}@example.com",
+        phone="0700000000",
+        password_hash="not-used",
+        role=UserRole.GATE_STAFF,
+    )
+    session.add(staff)
+    await session.commit()
+
+    return staff
+
+
+async def alerts_for(session, staff: User) -> list[SecurityAlert]:
+    """Return the alerts caused by a staff member, oldest first."""
+
+    result = await session.scalars(
+        select(SecurityAlert)
+        .where(SecurityAlert.attempted_by == staff.id)
+        .order_by(SecurityAlert.id)
+    )
+
+    return list(result.all())
+
+
+async def test_verify_valid_manual_code_shows_minimal_details(session):
+    """A valid code returns pupil and picker details and changes nothing."""
+
+    authorisation = await make_family(session, "Whiskey")
+    issued = await issue_for(session, authorisation)
+    staff = await make_gate_staff(session, await school_of(session, authorisation), "Whiskey")
+
+    response = await verify_pickup(
+        session, staff.school_id, staff.id,
+        PickupVerifyRequest(method="manual", code=issued.code),
+    )
+
+    assert response.verified is True
+    assert response.pupil.id == authorisation.pupil_id
+    assert response.pupil.first_name == "Whiskey"
+    assert response.authorisation.picker_name == "Aunt Ada"
+    assert response.code_expires_at == issued.expires_at
+    assert await alerts_for(session, staff) == []
+    [code] = await stored_codes(session, authorisation.id)
+    assert code.used_at is None
+
+
+async def test_verify_valid_qr_code(session):
+    """The QR payload issued to the parent verifies at the gate."""
+
+    authorisation = await make_family(session, "Xray")
+    issued = await issue_for(session, authorisation)
+    staff = await make_gate_staff(session, await school_of(session, authorisation), "Xray")
+
+    response = await verify_pickup(
+        session, staff.school_id, staff.id,
+        PickupVerifyRequest(method="qr", qr_data=issued.qr_data),
+    )
+
+    assert response.result == PickupCodeCheckResult.VALID
+    assert response.method == "qr"
+
+
+async def test_verify_malformed_qr_is_invalid_and_alerted(session):
+    """Unreadable QR data fails as invalid_code and raises an alert."""
+
+    authorisation = await make_family(session, "Yankee")
+    staff = await make_gate_staff(session, await school_of(session, authorisation), "Yankee")
+
+    response = await verify_pickup(
+        session, staff.school_id, staff.id,
+        PickupVerifyRequest(method="qr", qr_data="not a pikva code"),
+    )
+
+    assert response.result == PickupCodeCheckResult.INVALID_CODE
+    assert response.verified is False
+    [alert] = await alerts_for(session, staff)
+    assert alert.alert_type == "invalid_code"
+    assert alert.pupil_id is None and alert.authorisation_id is None
+
+
+async def test_verify_used_code_alerts_with_code_records(session):
+    """A reused code fails without details; the alert links pupil and authorisation."""
+
+    authorisation = await make_family(session, "Zulu")
+    issued = await issue_for(session, authorisation)
+    school_id = await school_of(session, authorisation)
+    staff = await make_gate_staff(session, school_id, "Zulu")
+    [code] = await stored_codes(session, authorisation.id)
+    await mark_code_used(session, school_id, code.id)
+    await session.commit()
+
+    response = await verify_pickup(
+        session, school_id, staff.id,
+        PickupVerifyRequest(method="manual", code=issued.code),
+    )
+
+    assert response.result == PickupCodeCheckResult.USED_CODE
+    assert response.pupil is None and response.authorisation is None
+    [alert] = await alerts_for(session, staff)
+    assert alert.alert_type == "used_code"
+    assert alert.pupil_id == authorisation.pupil_id
+    assert alert.authorisation_id == authorisation.id
+
+
+async def test_verify_wrong_pupil_alerts_against_code_pupil(session):
+    """A code presented for another pupil links the alert to the code's pupil."""
+
+    authorisation = await make_family(session, "Amber")
+    issued = await issue_for(session, authorisation)
+    staff = await make_gate_staff(session, await school_of(session, authorisation), "Amber")
+
+    response = await verify_pickup(
+        session, staff.school_id, staff.id,
+        PickupVerifyRequest(method="manual", code=issued.code, pupil_id=999999),
+    )
+
+    assert response.result == PickupCodeCheckResult.WRONG_PUPIL
+    [alert] = await alerts_for(session, staff)
+    assert alert.pupil_id == authorisation.pupil_id
+
+
+async def test_verify_other_school_code_is_invalid(session):
+    """Another school's gate cannot verify the code or learn who it belongs to."""
+
+    authorisation = await make_family(session, "Bronze")
+    issued = await issue_for(session, authorisation)
+    other = await make_family(session, "Copper")
+    staff = await make_gate_staff(session, await school_of(session, other), "Copper")
+
+    response = await verify_pickup(
+        session, staff.school_id, staff.id,
+        PickupVerifyRequest(method="manual", code=issued.code),
+    )
+
+    assert response.result == PickupCodeCheckResult.INVALID_CODE
+    [alert] = await alerts_for(session, staff)
+    assert alert.school_id == staff.school_id
+    assert alert.pupil_id is None

@@ -10,7 +10,15 @@ from app.core.security import generate_pickup_code, hash_pickup_code
 from app.models.pickup_authorisation import AuthorisationStatus, PickupAuthorisation
 from app.models.pickup_code import DailyPickupCode, PickupCodeCheckResult
 from app.models.pupil import Pupil
-from app.schemas.pickup import PickupCodeResponse
+from app.schemas.pickup import (
+    GatePicker,
+    GatePupil,
+    PickupCodeResponse,
+    PickupVerifyRequest,
+    PickupVerifyResponse,
+    VerificationMethod,
+)
+from app.services.alert_service import record_failed_verification
 from app.services.pickup_authorisation_service import get_pickup_authorisation
 
 # A hash collision is astronomically unlikely; retry a few times, then fail.
@@ -212,3 +220,57 @@ async def mark_code_used(
     )
 
     return marked_id is not None
+
+
+async def verify_pickup(
+        session: AsyncSession,
+        school_id: int,
+        staff_id: int,
+        data: PickupVerifyRequest,
+) -> PickupVerifyResponse:
+    """Verify a pickup code presented at the gate.
+
+    Failures record security alerts and return only the reason. Success
+    returns the minimum pupil and picker details for the staff member to
+    confirm the person; nothing is changed until the release step.
+    """
+
+    if data.method == VerificationMethod.QR:
+        code = code_from_qr_data(data.qr_data)
+    else:
+        code = data.code
+
+    if code is None:
+        check = PickupCodeCheck(PickupCodeCheckResult.INVALID_CODE)
+    else:
+        check = await check_pickup_code(
+            session=session,
+            school_id=school_id,
+            code=code,
+            pupil_id=data.pupil_id,
+        )
+
+    if check.result != PickupCodeCheckResult.VALID:
+        # Link alerts to the code's own records, never to client-supplied IDs.
+        await record_failed_verification(
+            session=session,
+            school_id=school_id,
+            staff_id=staff_id,
+            result=check.result,
+            method=data.method.value,
+            pupil_id=check.code.pupil_id if check.code else None,
+            authorisation_id=check.authorisation.id if check.authorisation else None,
+        )
+        await session.commit()
+
+        return PickupVerifyResponse(result=check.result, method=data.method)
+
+    pupil = await session.get(Pupil, check.code.pupil_id)
+
+    return PickupVerifyResponse(
+        result=check.result,
+        method=data.method,
+        pupil=GatePupil.model_validate(pupil),
+        authorisation=GatePicker.model_validate(check.authorisation),
+        code_expires_at=check.code.expires_at,
+    )
