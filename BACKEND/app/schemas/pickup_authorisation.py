@@ -1,5 +1,19 @@
 from datetime import datetime, timezone
-from pydantic import AwareDatetime, BaseModel, ConfigDict, field_validator
+from typing import Annotated
+
+from pydantic import AfterValidator, AwareDatetime, BaseModel, ConfigDict, model_validator
+
+from app.models.pickup_authorisation import AuthorisationStatus
+
+
+def normalise_to_utc(value: datetime) -> datetime:
+    """Convert a timezone-aware timestamp to UTC."""
+
+    return value.astimezone(timezone.utc)
+
+
+UtcDatetime = Annotated[AwareDatetime, AfterValidator(normalise_to_utc)]
+
 
 class PickupAuthorisationCreate(BaseModel):
     """Define the data required to authorise a pickup person."""
@@ -10,15 +24,34 @@ class PickupAuthorisationCreate(BaseModel):
     relationship: str
     photo_url: str | None = None
     type: str
-    starts_at: AwareDatetime
-    expires_at: AwareDatetime
+    starts_at: UtcDatetime
+    expires_at: UtcDatetime
 
-    @field_validator("starts_at", "expires_at")
-    @classmethod
-    def normalise_to_utc(cls, value: datetime) -> datetime:
-        """Convert timezone-aware timestamps to UTC."""
 
-        return value.astimezone(timezone.utc)
+class PickupAuthorisationUpdate(BaseModel):
+    """Define the pickup authorisation details that may be changed."""
+
+    picker_name: str | None = None
+    picker_phone: str | None = None
+    relationship: str | None = None
+    photo_url: str | None = None
+    type: str | None = None
+    starts_at: UtcDatetime | None = None
+    expires_at: UtcDatetime | None = None
+
+    @model_validator(mode="after")
+    def reject_null_required_fields(self) -> "PickupAuthorisationUpdate":
+        """Reject explicit nulls for fields that cannot be empty."""
+
+        null_fields = sorted(
+            field for field in self.model_fields_set
+            if field != "photo_url" and getattr(self, field) is None
+        )
+
+        if null_fields:
+            raise ValueError(f"Fields cannot be null: {', '.join(null_fields)}")
+
+        return self
 
 
 class PickupAuthorisationResponse(BaseModel):
@@ -36,5 +69,6 @@ class PickupAuthorisationResponse(BaseModel):
     starts_at: datetime
     expires_at: datetime
     is_active: bool
+    status: AuthorisationStatus
     created_at: datetime
     updated_at: datetime
