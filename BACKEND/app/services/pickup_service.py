@@ -1,3 +1,4 @@
+import json
 from dataclasses import dataclass
 from datetime import datetime, time, timedelta, timezone
 from enum import Enum
@@ -126,6 +127,23 @@ async def issue_pickup_code(
         )
 
     raise RuntimeError("Could not generate a unique pickup code")
+
+
+def code_from_qr_data(qr_data: str) -> str | None:
+    """Extract the pickup code from scanned QR data, or None if malformed.
+
+    Only the code is trusted; the date and expiry in the QR payload are
+    ignored because the backend decides validity from the database.
+    """
+
+    try:
+        payload = json.loads(qr_data)
+    except ValueError:
+        return None
+
+    code = payload.get("code") if isinstance(payload, dict) else None
+
+    return code if isinstance(code, str) and code.strip() else None
 
 
 async def check_pickup_code(

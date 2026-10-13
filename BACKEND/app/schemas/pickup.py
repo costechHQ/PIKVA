@@ -1,7 +1,8 @@
 import json
 from datetime import date, datetime
+from enum import Enum
 
-from pydantic import BaseModel, computed_field
+from pydantic import BaseModel, Field, computed_field, model_validator
 
 
 class PickupCodeRequest(BaseModel):
@@ -29,3 +30,36 @@ class PickupCodeResponse(BaseModel):
             self.model_dump(mode="json", include={"code", "code_date", "expires_at"}),
             separators=(",", ":"),
         )
+
+
+class VerificationMethod(str, Enum):
+    """Define how gate staff presented a pickup code for verification."""
+
+    QR = "qr"
+    MANUAL = "manual"
+
+
+class PickupVerifyRequest(BaseModel):
+    """Define the code gate staff submit for verification.
+
+    QR verification sends the scanned qr_data; manual verification sends the
+    typed code. pupil_id is optional and, when given, the code must belong
+    to that pupil.
+    """
+
+    method: VerificationMethod
+    code: str | None = Field(default=None, max_length=64)
+    qr_data: str | None = Field(default=None, max_length=512)
+    pupil_id: int | None = None
+
+    @model_validator(mode="after")
+    def require_input_for_method(self) -> "PickupVerifyRequest":
+        """Require exactly the input that matches the verification method."""
+
+        if self.method == VerificationMethod.QR:
+            if not self.qr_data or self.code is not None:
+                raise ValueError("QR verification requires qr_data only")
+        elif not self.code or self.qr_data is not None:
+            raise ValueError("Manual verification requires code only")
+
+        return self
