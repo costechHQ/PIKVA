@@ -1,4 +1,4 @@
-"""Service tests for issuing, checking and verifying pickup codes (SRS 10, 11, 23.5)."""
+"""Service tests for issuing, checking, verifying and releasing with pickup codes (SRS 10-12, 23.5, 23.6)."""
 
 from datetime import date, datetime, time, timedelta, timezone
 
@@ -7,14 +7,16 @@ from sqlalchemy import select
 
 from app.core.security import hash_pickup_code
 from app.db.session import async_session
+from app.models.audit_log import AuditLog
 from app.models.pickup_authorisation import PickupAuthorisation
 from app.models.pickup_code import DailyPickupCode
 from app.models.pupil import Pupil
+from app.models.release import ReleaseRecord
 from app.models.school import School
 from app.models.security_alert import SecurityAlert
 from app.models.user import User, UserRole
 from app.schemas.pickup import PickupVerifyRequest
-from app.services import pickup_service
+from app.services import pickup_service, release_service
 from app.services.pickup_service import (
     PickupCodeCheckResult,
     check_pickup_code,
@@ -22,6 +24,7 @@ from app.services.pickup_service import (
     mark_code_used,
     verify_pickup,
 )
+from app.services.release_service import release_pupil
 
 
 @pytest.fixture
@@ -551,3 +554,174 @@ async def test_verify_other_school_code_is_invalid(session):
     [alert] = await alerts_for(session, staff)
     assert alert.school_id == staff.school_id
     assert alert.pupil_id is None
+
+
+# --- Release (SRS 11.2, 12, 23.6) ---
+
+
+async def releases_for(session, authorisation: PickupAuthorisation) -> list[ReleaseRecord]:
+    """Return the release records for an authorisation."""
+
+    result = await session.scalars(
+        select(ReleaseRecord)
+        .where(ReleaseRecord.authorisation_id == authorisation.id)
+        .execution_options(populate_existing=True)
+    )
+
+    return list(result.all())
+
+
+async def audits(session) -> list[AuditLog]:
+    """Return all audit records, oldest first."""
+
+    result = await session.scalars(
+        select(AuditLog).order_by(AuditLog.id).execution_options(populate_existing=True)
+    )
+
+    return list(result.all())
+
+
+async def release_setup(session, name: str):
+    """Create a family with an issued code and a gate staff member."""
+
+    authorisation = await make_family(session, name)
+    issued = await issue_for(session, authorisation)
+    staff = await make_gate_staff(session, await school_of(session, authorisation), name)
+
+    return authorisation, issued, staff
+
+
+async def test_release_records_release_marks_code_and_audits(session):
+    """A release writes the record, uses the code and audits it, together."""
+
+    authorisation, issued, staff = await release_setup(session, "Ruby")
+
+    response = await release_pupil(
+        session, staff.school_id, staff.id,
+        PickupVerifyRequest(method="qr", qr_data=issued.qr_data),
+    )
+
+    assert response.released is True
+    assert response.pupil.id == authorisation.pupil_id
+    [release] = await releases_for(session, authorisation)
+    assert response.release_id == release.id
+    assert release.pupil_id == authorisation.pupil_id
+    assert release.verified_by == staff.id
+    assert release.verification_method == "qr"
+    assert release.result == "released"
+    assert abs(release.released_at - datetime.now(timezone.utc)) < timedelta(minutes=1)
+
+    [code] = await stored_codes(session, authorisation.id)
+    assert code.used_at is not None
+
+    [audit] = await audits(session)
+    assert (audit.action, audit.entity_type, audit.entity_id) == (
+        "pupil.released", "release_record", release.id,
+    )
+    assert audit.user_id == staff.id
+    assert issued.code not in str(audit.metadata_)
+    assert await alerts_for(session, staff) == []
+
+
+async def test_code_cannot_release_twice(session):
+    """A second release with the same code fails as used_code and is alerted."""
+
+    authorisation, issued, staff = await release_setup(session, "Sapphire")
+    request = PickupVerifyRequest(method="manual", code=issued.code)
+
+    await release_pupil(session, staff.school_id, staff.id, request)
+    second = await release_pupil(session, staff.school_id, staff.id, request)
+
+    assert second.released is False
+    assert second.result == PickupCodeCheckResult.USED_CODE
+    assert second.release_id is None and second.pupil is None
+    assert len(await releases_for(session, authorisation)) == 1
+    [alert] = await alerts_for(session, staff)
+    assert alert.alert_type == "used_code"
+
+
+async def test_release_refused_after_authorisation_deactivated(session):
+    """A pupil is not released if the authorisation stops being active."""
+
+    authorisation, issued, staff = await release_setup(session, "Topaz")
+    authorisation.is_active = False
+    await session.commit()
+
+    response = await release_pupil(
+        session, staff.school_id, staff.id,
+        PickupVerifyRequest(method="manual", code=issued.code),
+    )
+
+    assert response.result == PickupCodeCheckResult.AUTHORISATION_INACTIVE
+    assert await releases_for(session, authorisation) == []
+    [code] = await stored_codes(session, authorisation.id)
+    assert code.used_at is None
+    assert await audits(session) == []
+
+
+async def test_release_lost_race_is_used_code(session, monkeypatch):
+    """If another gate uses the code first, this release fails safely."""
+
+    authorisation, issued, staff = await release_setup(session, "Opal")
+
+    async def already_used(*args, **kwargs):
+        """Simulate another gate marking the code used first."""
+
+        return False
+
+    monkeypatch.setattr(release_service, "mark_code_used", already_used)
+
+    response = await release_pupil(
+        session, staff.school_id, staff.id,
+        PickupVerifyRequest(method="manual", code=issued.code),
+    )
+
+    assert response.result == PickupCodeCheckResult.USED_CODE
+    assert await releases_for(session, authorisation) == []
+    [alert] = await alerts_for(session, staff)
+    assert alert.alert_type == "used_code"
+
+
+async def test_release_other_school_code_is_invalid(session):
+    """Another school's gate cannot release the pupil."""
+
+    authorisation, issued, _ = await release_setup(session, "Jade")
+    other = await make_family(session, "Onyx")
+    staff = await make_gate_staff(session, await school_of(session, other), "Onyx")
+
+    response = await release_pupil(
+        session, staff.school_id, staff.id,
+        PickupVerifyRequest(method="manual", code=issued.code),
+    )
+
+    assert response.result == PickupCodeCheckResult.INVALID_CODE
+    assert await releases_for(session, authorisation) == []
+
+
+async def test_release_is_all_or_nothing(session, monkeypatch):
+    """If the audit write fails, the code stays unused and no record exists."""
+
+    authorisation, issued, staff = await release_setup(session, "Pearl")
+    # Rollback expires loaded objects; keep the ID instead of reloading lazily.
+    authorisation_id = authorisation.id
+
+    async def broken_audit(*args, **kwargs):
+        """Simulate the audit write failing."""
+
+        raise RuntimeError("audit unavailable")
+
+    monkeypatch.setattr(release_service, "record_audit", broken_audit)
+
+    with pytest.raises(RuntimeError):
+        await release_pupil(
+            session, staff.school_id, staff.id,
+            PickupVerifyRequest(method="manual", code=issued.code),
+        )
+    await session.rollback()
+
+    releases = await session.scalars(
+        select(ReleaseRecord).where(ReleaseRecord.authorisation_id == authorisation_id)
+    )
+    assert releases.all() == []
+    [code] = await stored_codes(session, authorisation_id)
+    assert code.used_at is None

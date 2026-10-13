@@ -222,6 +222,50 @@ async def mark_code_used(
     return marked_id is not None
 
 
+async def check_presented_code(
+        session: AsyncSession,
+        school_id: int,
+        data: PickupVerifyRequest,
+) -> PickupCodeCheck:
+    """Check the code presented at the gate by QR or manual entry."""
+
+    if data.method == VerificationMethod.QR:
+        code = code_from_qr_data(data.qr_data)
+    else:
+        code = data.code
+
+    if code is None:
+        return PickupCodeCheck(PickupCodeCheckResult.INVALID_CODE)
+
+    return await check_pickup_code(
+        session=session,
+        school_id=school_id,
+        code=code,
+        pupil_id=data.pupil_id,
+    )
+
+
+async def record_failed_check(
+        session: AsyncSession,
+        school_id: int,
+        staff_id: int,
+        check: PickupCodeCheck,
+        method: VerificationMethod,
+) -> None:
+    """Record security alerts for a failed check. Does not commit."""
+
+    # Link alerts to the code's own records, never to client-supplied IDs.
+    await record_failed_verification(
+        session=session,
+        school_id=school_id,
+        staff_id=staff_id,
+        result=check.result,
+        method=method.value,
+        pupil_id=check.code.pupil_id if check.code else None,
+        authorisation_id=check.authorisation.id if check.authorisation else None,
+    )
+
+
 async def verify_pickup(
         session: AsyncSession,
         school_id: int,
@@ -235,32 +279,10 @@ async def verify_pickup(
     confirm the person; nothing is changed until the release step.
     """
 
-    if data.method == VerificationMethod.QR:
-        code = code_from_qr_data(data.qr_data)
-    else:
-        code = data.code
-
-    if code is None:
-        check = PickupCodeCheck(PickupCodeCheckResult.INVALID_CODE)
-    else:
-        check = await check_pickup_code(
-            session=session,
-            school_id=school_id,
-            code=code,
-            pupil_id=data.pupil_id,
-        )
+    check = await check_presented_code(session, school_id, data)
 
     if check.result != PickupCodeCheckResult.VALID:
-        # Link alerts to the code's own records, never to client-supplied IDs.
-        await record_failed_verification(
-            session=session,
-            school_id=school_id,
-            staff_id=staff_id,
-            result=check.result,
-            method=data.method.value,
-            pupil_id=check.code.pupil_id if check.code else None,
-            authorisation_id=check.authorisation.id if check.authorisation else None,
-        )
+        await record_failed_check(session, school_id, staff_id, check, data.method)
         await session.commit()
 
         return PickupVerifyResponse(result=check.result, method=data.method)

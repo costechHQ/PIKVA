@@ -2,6 +2,14 @@ from app.db.base import Base
 from datetime import datetime, timezone
 from sqlalchemy import DateTime, ForeignKey, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
+from enum import Enum
+
+
+class ReleaseResult(str, Enum):
+    """Define the recorded outcome of a release (SRS 12)."""
+
+    RELEASED = "released"
+
 
 class ReleaseRecord(Base):
     """Record an attempt to release a pupil at the school gate."""
