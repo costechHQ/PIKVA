@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy import DateTime, ForeignKey, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -8,6 +8,14 @@ class SecurityAlert(Base):
     """Represent a security-related incident in Pikva."""
 
     __tablename__ = "security_alerts"
+    __table_args__ = (
+        # Count a staff member's recent failed attempts (repeated-attempt rule).
+        Index(
+            "ix_security_alerts_attempted_by_created_at",
+            "attempted_by",
+            "created_at",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
@@ -44,4 +52,4 @@ class SecurityAlert(Base):
     resolved_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
-    ) 
+    ) 

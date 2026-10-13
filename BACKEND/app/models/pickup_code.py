@@ -3,6 +3,21 @@ from sqlalchemy import Date, DateTime, ForeignKey, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from datetime import date, datetime, timezone
+from enum import Enum
+
+
+class PickupCodeCheckResult(str, Enum):
+    """Define the outcomes of checking a pickup code at the gate."""
+
+    VALID = "valid"
+    INVALID_CODE = "invalid_code"
+    WRONG_PUPIL = "wrong_pupil"
+    WRONG_AUTHORISATION = "wrong_authorisation"
+    USED_CODE = "used_code"
+    EXPIRED_CODE = "expired_code"
+    AUTHORISATION_INACTIVE = "authorisation_inactive"
+    AUTHORISATION_SCHEDULED = "authorisation_scheduled"
+    AUTHORISATION_EXPIRED = "authorisation_expired"
 
 
 class DailyPickupCode(Base):

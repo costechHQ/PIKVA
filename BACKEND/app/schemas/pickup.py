@@ -2,7 +2,9 @@ import json
 from datetime import date, datetime
 from enum import Enum
 
-from pydantic import BaseModel, Field, computed_field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
+
+from app.models.pickup_code import PickupCodeCheckResult
 
 
 class PickupCodeRequest(BaseModel):
@@ -63,3 +65,46 @@ class PickupVerifyRequest(BaseModel):
             raise ValueError("Manual verification requires code only")
 
         return self
+
+
+class GatePupil(BaseModel):
+    """Define the minimum pupil details shown to gate staff."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    first_name: str
+    last_name: str
+    photo_url: str | None
+
+
+class GatePicker(BaseModel):
+    """Define the minimum pickup person details shown to gate staff."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    picker_name: str
+    relationship: str
+    photo_url: str | None
+
+
+class PickupVerifyResponse(BaseModel):
+    """Define the gate verification result.
+
+    Pupil and picker details are only included when the code is valid, so a
+    failed attempt reveals nothing about who a code belongs to.
+    """
+
+    result: PickupCodeCheckResult
+    method: VerificationMethod
+    pupil: GatePupil | None = None
+    authorisation: GatePicker | None = None
+    code_expires_at: datetime | None = None
+
+    @computed_field
+    @property
+    def verified(self) -> bool:
+        """Return whether every verification check passed."""
+
+        return self.result == PickupCodeCheckResult.VALID

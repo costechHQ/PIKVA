@@ -1,7 +1,6 @@
 import json
 from dataclasses import dataclass
 from datetime import datetime, time, timedelta, timezone
-from enum import Enum
 
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
@@ -9,27 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import generate_pickup_code, hash_pickup_code
 from app.models.pickup_authorisation import AuthorisationStatus, PickupAuthorisation
-from app.models.pickup_code import DailyPickupCode
+from app.models.pickup_code import DailyPickupCode, PickupCodeCheckResult
 from app.models.pupil import Pupil
 from app.schemas.pickup import PickupCodeResponse
 from app.services.pickup_authorisation_service import get_pickup_authorisation
 
 # A hash collision is astronomically unlikely; retry a few times, then fail.
 MAX_CODE_ATTEMPTS = 5
-
-
-class PickupCodeCheckResult(str, Enum):
-    """Define the outcomes of checking a pickup code at the gate."""
-
-    VALID = "valid"
-    INVALID_CODE = "invalid_code"
-    WRONG_PUPIL = "wrong_pupil"
-    WRONG_AUTHORISATION = "wrong_authorisation"
-    USED_CODE = "used_code"
-    EXPIRED_CODE = "expired_code"
-    AUTHORISATION_INACTIVE = "authorisation_inactive"
-    AUTHORISATION_SCHEDULED = "authorisation_scheduled"
-    AUTHORISATION_EXPIRED = "authorisation_expired"
 
 
 _AUTHORISATION_FAILURES = {
