@@ -5,6 +5,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.audit_log import AuditLog
 
 # Audit actions (SRS 14).
+USER_CREATED = "user.created"
+PUPIL_CREATED = "pupil.created"
+PUPIL_UPDATED = "pupil.updated"
+AUTHORISATION_CREATED = "pickup_authorisation.created"
+AUTHORISATION_UPDATED = "pickup_authorisation.updated"
+AUTHORISATION_ACTIVATED = "pickup_authorisation.activated"
+AUTHORISATION_DEACTIVATED = "pickup_authorisation.deactivated"
+PICKUP_CODE_GENERATED = "pickup_code.generated"
 PUPIL_RELEASED = "pupil.released"
 PICKUP_VERIFICATION_FAILED = "pickup.verification_failed"
 

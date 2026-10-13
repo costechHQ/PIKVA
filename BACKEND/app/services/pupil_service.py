@@ -3,6 +3,7 @@ from sqlalchemy import select
 
 from app.models.pupil import Pupil
 from app.schemas.pupil import PupilCreate, PupilUpdate
+from app.services.audit_service import PUPIL_CREATED, PUPIL_UPDATED, record_audit
 
 async def create_pupil(
         session: AsyncSession,
@@ -23,6 +24,18 @@ async def create_pupil(
     )
 
     session.add(pupil)
+    await session.flush()
+
+    await record_audit(
+        session=session,
+        school_id=school_id,
+        user_id=parent_id,
+        action=PUPIL_CREATED,
+        entity_type="pupil",
+        entity_id=pupil.id,
+        metadata={"parent_id": parent_id},
+    )
+
     await session.commit()
     await session.refresh(pupil)
 
@@ -89,6 +102,17 @@ async def update_parent_pupil(
 
     for field, value in update_data.items():
         setattr(pupil, field, value)
+
+    # Record which fields changed, not their personal values.
+    await record_audit(
+        session=session,
+        school_id=school_id,
+        user_id=parent_id,
+        action=PUPIL_UPDATED,
+        entity_type="pupil",
+        entity_id=pupil.id,
+        metadata={"fields": sorted(update_data)},
+    )
 
     await session.commit()
     await session.refresh(pupil)

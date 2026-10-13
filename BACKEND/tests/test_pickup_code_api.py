@@ -521,7 +521,10 @@ async def test_gate_releases_pupil_after_verification(client, school):
     async with async_session() as session:
         audit = (
             await session.execute(
-                text("SELECT action, entity_id, metadata::text FROM audit_logs")
+                text(
+                    "SELECT action, entity_id, metadata::text FROM audit_logs "
+                    "WHERE action = 'pupil.released'"
+                )
             )
         ).one()
     assert audit[:2] == ("pupil.released", released["release_id"])
@@ -630,3 +633,75 @@ async def test_history_rejects_bad_paging(client, school, params):
     response = await client.get(RELEASES_URL, headers=school["headers"]["admin"], params=params)
 
     assert response.status_code == 422
+
+
+# --- Audit coverage for SRS 14 actions (Rule 9) ---
+
+
+async def user_ids(school_id: int) -> dict[str, int]:
+    """Map each user's role to their ID within a school."""
+
+    async with async_session() as session:
+        rows = await session.execute(
+            text("SELECT role::text, id FROM users WHERE school_id = :s"), {"s": school_id}
+        )
+
+    return {role.lower(): user_id for role, user_id in rows}
+
+
+async def test_security_sensitive_actions_are_audited_with_actor(client, school):
+    """Every SRS 14 action writes one audit entry naming who did it."""
+
+    headers = school["headers"]
+    authorisation_id = school["authorisation_id"]
+
+    async with async_session() as session:
+        pupil_id = await session.scalar(
+            text("SELECT pupil_id FROM pickup_authorisations WHERE id = :a"),
+            {"a": authorisation_id},
+        )
+
+    steps = [
+        ("patch", f"/api/v1/pupils/{pupil_id}", "parent", {"first_name": "Adaeze"}),
+        ("patch", f"/api/v1/pickers/{authorisation_id}", "admin", {"relationship": "aunty"}),
+        ("post", f"/api/v1/pickers/{authorisation_id}/deactivate", "admin", None),
+        ("post", f"/api/v1/pickers/{authorisation_id}/activate", "parent", None),
+        ("post", CODES_URL, "parent", {"authorisation_id": authorisation_id}),
+    ]
+    for method, url, role, body in steps:
+        response = await client.request(method, url, headers=headers[role], json=body)
+        assert response.status_code in (200, 201), (url, response.text)
+    code = response.json()["code"]
+
+    ids = await user_ids(school["school_id"])
+    admin, parent, gate = ids["school_admin"], ids["parent"], ids["gate_staff"]
+
+    async with async_session() as session:
+        rows = (
+            await session.execute(
+                text(
+                    "SELECT action, user_id, entity_type, entity_id, metadata::text "
+                    "FROM audit_logs WHERE school_id = :s ORDER BY id"
+                ),
+                {"s": school["school_id"]},
+            )
+        ).all()
+
+    assert [(action, user, entity, entity_id) for action, user, entity, entity_id, _ in rows] == [
+        ("user.created", admin, "user", admin),
+        ("user.created", admin, "user", parent),
+        ("user.created", admin, "user", gate),
+        ("pupil.created", parent, "pupil", pupil_id),
+        ("pickup_authorisation.created", parent, "pickup_authorisation", authorisation_id),
+        ("pupil.updated", parent, "pupil", pupil_id),
+        ("pickup_authorisation.updated", admin, "pickup_authorisation", authorisation_id),
+        ("pickup_authorisation.deactivated", admin, "pickup_authorisation", authorisation_id),
+        ("pickup_authorisation.activated", parent, "pickup_authorisation", authorisation_id),
+        ("pickup_code.generated", parent, "daily_pickup_code", rows[-1][3]),
+    ]
+
+    metadata = [row[4] for row in rows]
+    assert '"via": "registration"' in metadata[0]
+    assert '"fields": ["first_name"]' in metadata[5]
+    assert "Adaeze" not in metadata[5]
+    assert all(PASSWORD not in m and code not in m for m in metadata)

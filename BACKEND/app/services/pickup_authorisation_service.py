@@ -7,6 +7,13 @@ from app.schemas.pickup_authorisation import (
     PickupAuthorisationCreate,
     PickupAuthorisationUpdate,
 )
+from app.services.audit_service import (
+    AUTHORISATION_ACTIVATED,
+    AUTHORISATION_CREATED,
+    AUTHORISATION_DEACTIVATED,
+    AUTHORISATION_UPDATED,
+    record_audit,
+)
 from app.services.pupil_service import get_parent_pupil_by_id
 
 async def create_pickup_authorisation(
@@ -42,6 +49,18 @@ async def create_pickup_authorisation(
     )
 
     session.add(authorisation)
+    await session.flush()
+
+    await record_audit(
+        session=session,
+        school_id=school_id,
+        user_id=parent_id,
+        action=AUTHORISATION_CREATED,
+        entity_type="pickup_authorisation",
+        entity_id=authorisation.id,
+        metadata={"pupil_id": authorisation.pupil_id},
+    )
+
     await session.commit()
     await session.refresh(authorisation)
 
@@ -110,8 +129,12 @@ async def update_pickup_authorisation(
         parent_id: int | None,
         authorisation_id: int,
         data: PickupAuthorisationUpdate,
+        actor_id: int,
 ) -> PickupAuthorisation | None:
-    """Update the details and validity period of an accessible authorisation."""
+    """Update the details and validity period of an accessible authorisation.
+
+    actor_id is the user making the change, recorded in the audit log.
+    """
 
     authorisation = await get_pickup_authorisation(
         session=session,
@@ -134,6 +157,17 @@ async def update_pickup_authorisation(
     for field, value in update_data.items():
         setattr(authorisation, field, value)
 
+    # Record which fields changed, not their personal values.
+    await record_audit(
+        session=session,
+        school_id=school_id,
+        user_id=actor_id,
+        action=AUTHORISATION_UPDATED,
+        entity_type="pickup_authorisation",
+        entity_id=authorisation.id,
+        metadata={"pupil_id": authorisation.pupil_id, "fields": sorted(update_data)},
+    )
+
     await session.commit()
     await session.refresh(authorisation)
 
@@ -146,8 +180,12 @@ async def set_pickup_authorisation_active(
         parent_id: int | None,
         authorisation_id: int,
         is_active: bool,
+        actor_id: int,
 ) -> PickupAuthorisation | None:
-    """Activate or deactivate an accessible pickup authorisation."""
+    """Activate or deactivate an accessible pickup authorisation.
+
+    actor_id is the user making the change, recorded in the audit log.
+    """
 
     authorisation = await get_pickup_authorisation(
         session=session,
@@ -160,6 +198,16 @@ async def set_pickup_authorisation_active(
         return None
 
     authorisation.is_active = is_active
+
+    await record_audit(
+        session=session,
+        school_id=school_id,
+        user_id=actor_id,
+        action=AUTHORISATION_ACTIVATED if is_active else AUTHORISATION_DEACTIVATED,
+        entity_type="pickup_authorisation",
+        entity_id=authorisation.id,
+        metadata={"pupil_id": authorisation.pupil_id},
+    )
 
     await session.commit()
     await session.refresh(authorisation)

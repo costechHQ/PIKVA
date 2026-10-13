@@ -9,6 +9,7 @@ from app.core.security import (
 from app.models.school import School
 from app.models.user import User, UserRole
 from app.schemas.auth import UserRegister
+from app.services.audit_service import USER_CREATED, record_audit
 
 
 async def register_school_admin(
@@ -43,6 +44,18 @@ async def register_school_admin(
     )
 
     session.add(user)
+    await session.flush()
+
+    await record_audit(
+        session=session,
+        school_id=school.id,
+        user_id=user.id,
+        action=USER_CREATED,
+        entity_type="user",
+        entity_id=user.id,
+        metadata={"role": user.role.value, "via": "registration"},
+    )
+
     await session.commit()
     await session.refresh(user)
 

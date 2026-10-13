@@ -19,7 +19,11 @@ from app.schemas.pickup import (
     VerificationMethod,
 )
 from app.services.alert_service import record_failed_verification
-from app.services.audit_service import PICKUP_VERIFICATION_FAILED, record_audit
+from app.services.audit_service import (
+    PICKUP_CODE_GENERATED,
+    PICKUP_VERIFICATION_FAILED,
+    record_audit,
+)
 from app.services.pickup_authorisation_service import get_pickup_authorisation
 
 # A hash collision is astronomically unlikely; retry a few times, then fail.
@@ -95,20 +99,35 @@ async def issue_pickup_code(
     for _ in range(MAX_CODE_ATTEMPTS):
         code = generate_pickup_code()
 
+        pickup_code = DailyPickupCode(
+            pupil_id=authorisation.pupil_id,
+            authorisation_id=authorisation.id,
+            code_hash=hash_pickup_code(code),
+            code_date=code_date,
+            expires_at=expires_at,
+        )
+
         try:
             async with session.begin_nested():
-                session.add(
-                    DailyPickupCode(
-                        pupil_id=authorisation.pupil_id,
-                        authorisation_id=authorisation.id,
-                        code_hash=hash_pickup_code(code),
-                        code_date=code_date,
-                        expires_at=expires_at,
-                    )
-                )
+                session.add(pickup_code)
 
         except IntegrityError:
             continue
+
+        await record_audit(
+            session=session,
+            school_id=school_id,
+            user_id=parent_id,
+            action=PICKUP_CODE_GENERATED,
+            entity_type="daily_pickup_code",
+            entity_id=pickup_code.id,
+            metadata={
+                "authorisation_id": authorisation.id,
+                "pupil_id": authorisation.pupil_id,
+                "code_date": code_date.isoformat(),
+                "expires_at": expires_at.isoformat(),
+            },
+        )
 
         await session.commit()
 

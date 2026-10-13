@@ -147,6 +147,7 @@ async def update_pickup_authorisation_endpoint(
             parent_id=_parent_scope(current_user),
             authorisation_id=authorisation_id,
             data=data,
+            actor_id=current_user.id,
         )
 
     except ValueError as exc:
@@ -179,6 +180,7 @@ async def activate_pickup_authorisation_endpoint(
             parent_id=_parent_scope(current_user),
             authorisation_id=authorisation_id,
             is_active=True,
+            actor_id=current_user.id,
         )
     )
 
@@ -204,5 +206,6 @@ async def deactivate_pickup_authorisation_endpoint(
             parent_id=_parent_scope(current_user),
             authorisation_id=authorisation_id,
             is_active=False,
+            actor_id=current_user.id,
         )
     )

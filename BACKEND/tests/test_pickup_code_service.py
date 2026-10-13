@@ -571,14 +571,15 @@ async def releases_for(session, authorisation: PickupAuthorisation) -> list[Rele
     return list(result.all())
 
 
-async def audits(session) -> list[AuditLog]:
-    """Return all audit records, oldest first."""
+async def audits(session, action: str | None = None) -> list[AuditLog]:
+    """Return audit records, optionally for one action, oldest first."""
 
-    result = await session.scalars(
-        select(AuditLog).order_by(AuditLog.id).execution_options(populate_existing=True)
-    )
+    query = select(AuditLog).order_by(AuditLog.id).execution_options(populate_existing=True)
 
-    return list(result.all())
+    if action is not None:
+        query = query.where(AuditLog.action == action)
+
+    return list((await session.scalars(query)).all())
 
 
 async def release_setup(session, name: str):
@@ -614,7 +615,7 @@ async def test_release_records_release_marks_code_and_audits(session):
     [code] = await stored_codes(session, authorisation.id)
     assert code.used_at is not None
 
-    [audit] = await audits(session)
+    [audit] = await audits(session, "pupil.released")
     assert (audit.action, audit.entity_type, audit.entity_id) == (
         "pupil.released", "release_record", release.id,
     )
@@ -656,7 +657,8 @@ async def test_release_refused_after_authorisation_deactivated(session):
     assert await releases_for(session, authorisation) == []
     [code] = await stored_codes(session, authorisation.id)
     assert code.used_at is None
-    [audit] = await audits(session)
+    assert await audits(session, "pupil.released") == []
+    [audit] = await audits(session, "pickup.verification_failed")
     assert audit.action == "pickup.verification_failed"
     assert audit.metadata_["stage"] == "release"
 
@@ -821,7 +823,8 @@ async def test_failed_verify_is_audited_with_alerts(session):
 
     [code] = await stored_codes(session, authorisation.id)
     [alert] = await alerts_for(session, staff)
-    released, failed = await audits(session)
+    [released] = await audits(session, "pupil.released")
+    [failed] = await audits(session, "pickup.verification_failed")
     assert released.action == "pupil.released"
     assert failed.action == "pickup.verification_failed"
     assert failed.user_id == staff.id

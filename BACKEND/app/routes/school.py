@@ -57,6 +57,7 @@ async def create_user(
             session,
             current_user.school_id,
             data,
+            actor_id=current_user.id,
         )
     except ValueError as exc:
         raise HTTPException(
