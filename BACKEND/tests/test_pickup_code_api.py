@@ -1,4 +1,4 @@
-"""API tests for POST /api/v1/pickup/codes (SRS 17, 21.2, 23.2, 23.5)."""
+"""API tests for pickup codes and gate verification (SRS 11, 13, 17, 21.2, 23.2, 23.5, 23.7)."""
 
 import json
 from datetime import datetime, timedelta, timezone
@@ -255,3 +255,187 @@ async def test_missing_authorisation_id_is_rejected(client, school):
     response = await client.post(CODES_URL, headers=school["headers"]["parent"], json={})
 
     assert response.status_code == 422
+
+
+# --- Gate verification: POST /api/v1/pickup/verify (SRS 11, 13, 23.7) ---
+
+VERIFY_URL = "/api/v1/pickup/verify"
+
+
+async def issue(client, school) -> dict:
+    """Issue a pickup code as the school's parent."""
+
+    response = await client.post(
+        CODES_URL,
+        headers=school["headers"]["parent"],
+        json={"authorisation_id": school["authorisation_id"]},
+    )
+    assert response.status_code == 201
+
+    return response.json()
+
+
+async def verify(client, school, body: dict) -> dict:
+    """Verify a code as the school's gate staff and return the response body."""
+
+    response = await client.post(VERIFY_URL, headers=school["headers"]["gate_staff"], json=body)
+    assert response.status_code == 200
+
+    return response.json()
+
+
+async def alerts(school_id: int) -> list[tuple]:
+    """Return (alert_type, pupil_id, authorisation_id) for a school, oldest first."""
+
+    async with async_session() as session:
+        rows = await session.execute(
+            text(
+                "SELECT alert_type, pupil_id, authorisation_id FROM security_alerts "
+                "WHERE school_id = :school_id ORDER BY id"
+            ),
+            {"school_id": school_id},
+        )
+
+    return [tuple(row) for row in rows]
+
+
+@pytest.mark.parametrize("method", ["manual", "qr"])
+async def test_gate_verifies_valid_code(client, school, method):
+    """A valid code shows only the minimal details and stays unused."""
+
+    issued = await issue(client, school)
+    body = {"method": "manual", "code": issued["code"]}
+    if method == "qr":
+        body = {"method": "qr", "qr_data": issued["qr_data"]}
+
+    result = await verify(client, school, body)
+
+    assert result["verified"] is True
+    assert result["result"] == "valid"
+    assert result["method"] == method
+    assert result["code_expires_at"] == issued["expires_at"]
+    assert result["pupil"]["id"] == issued["pupil_id"]
+    assert set(result["pupil"]) == {"id", "first_name", "last_name", "photo_url"}
+    assert result["authorisation"] == {
+        "id": school["authorisation_id"],
+        "picker_name": "Aunt Ada",
+        "relationship": "aunt",
+        "photo_url": None,
+    }
+    assert await alerts(school["school_id"]) == []
+    assert await check(school["school_id"], issued["code"]) == PickupCodeCheckResult.VALID
+
+
+async def failing_request(client, school, case: str) -> dict:
+    """Prepare a verification request that fails in the given way."""
+
+    issued = await issue(client, school)
+
+    if case == "unknown_code":
+        return {"method": "manual", "code": "ZZZZ9999"}
+    if case == "malformed_qr":
+        return {"method": "qr", "qr_data": "not a pikva code"}
+    if case == "wrong_pupil":
+        return {"method": "manual", "code": issued["code"], "pupil_id": issued["pupil_id"] + 1000}
+    if case == "replaced_code":
+        await issue(client, school)
+        return {"method": "manual", "code": issued["code"]}
+    if case == "deactivated":
+        response = await client.post(
+            f"/api/v1/pickers/{school['authorisation_id']}/deactivate",
+            headers=school["headers"]["parent"],
+        )
+        assert response.status_code == 200
+        return {"method": "manual", "code": issued["code"]}
+
+    raise AssertionError(case)
+
+
+@pytest.mark.parametrize(
+    ("case", "result", "linked"),
+    [
+        ("unknown_code", "invalid_code", False),
+        ("malformed_qr", "invalid_code", False),
+        ("wrong_pupil", "wrong_pupil", True),
+        ("replaced_code", "expired_code", True),
+        ("deactivated", "authorisation_inactive", True),
+    ],
+)
+async def test_failed_verification_reports_reason_and_records_alert(
+    client, school, case, result, linked
+):
+    """Each failure returns its reason without details and records one alert."""
+
+    body = await failing_request(client, school, case)
+
+    response = await verify(client, school, body)
+
+    assert response["verified"] is False
+    assert response["result"] == result
+    assert response["pupil"] is None and response["authorisation"] is None
+
+    [(alert_type, pupil_id, authorisation_id)] = await alerts(school["school_id"])
+    assert alert_type == result
+    assert (pupil_id is not None, authorisation_id is not None) == (linked, linked)
+
+
+async def test_fifth_failure_raises_repeated_attempts_alert(client, school):
+    """Five failures within ten minutes add one repeated-attempts alert."""
+
+    for _ in range(5):
+        await verify(client, school, {"method": "manual", "code": "ZZZZ9999"})
+
+    types = [alert_type for alert_type, _, _ in await alerts(school["school_id"])]
+
+    assert types == ["invalid_code"] * 5 + ["repeated_failed_attempts"]
+
+
+async def test_other_school_gate_cannot_verify_code(client, school):
+    """A code from another school is invalid and reveals nothing."""
+
+    issued = await issue(client, school)
+    other = await create_school(client, "bravo")
+
+    result = await verify(client, other, {"method": "manual", "code": issued["code"]})
+
+    assert result["result"] == "invalid_code"
+    assert result["pupil"] is None
+    assert await alerts(other["school_id"]) == [("invalid_code", None, None)]
+    assert await alerts(school["school_id"]) == []
+
+
+@pytest.mark.parametrize("role", ["parent", "admin"])
+async def test_only_gate_staff_can_verify(client, school, role):
+    """Parents and admins cannot use the gate endpoint."""
+
+    issued = await issue(client, school)
+
+    response = await client.post(
+        VERIFY_URL,
+        headers=school["headers"][role],
+        json={"method": "manual", "code": issued["code"]},
+    )
+
+    assert response.status_code == 403
+    assert await alerts(school["school_id"]) == []
+
+
+async def test_verify_without_token_is_unauthorised(client):
+    """An unauthenticated gate request is rejected."""
+
+    response = await client.post(VERIFY_URL, json={"method": "manual", "code": "ZZZZ9999"})
+
+    assert response.status_code == 401
+
+
+async def test_verify_with_mismatched_input_is_rejected(client, school):
+    """A QR request without qr_data is a 422 and records no alert."""
+
+    response = await client.post(
+        VERIFY_URL,
+        headers=school["headers"]["gate_staff"],
+        json={"method": "qr", "code": "ZZZZ9999"},
+    )
+
+    assert response.status_code == 422
+    assert await alerts(school["school_id"]) == []
