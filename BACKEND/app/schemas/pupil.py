@@ -1,13 +1,15 @@
 from datetime import date
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from app.schemas.fields import PhotoUrl, PupilName
 
 class PupilCreate(BaseModel):
     """Define the data required to create a pupil."""
 
     # Examples document Swagger only; missing names are rejected.
-    first_name: str = Field(examples=["Chidi"])
-    last_name: str = Field(examples=["Eze"])
-    photo_url: str | None = None
+    first_name: PupilName = Field(examples=["Chidi"])
+    last_name: PupilName = Field(examples=["Eze"])
+    photo_url: PhotoUrl | None = None
     date_of_birth: date
     # Required for school admins (the pupil's parent); parents must omit it.
     parent_id: int | None = None
@@ -28,7 +30,21 @@ class PupilResponse(BaseModel):
 
 class PupilUpdate(BaseModel):
     """Define the editable fields for an existing pupil."""
-    first_name: str | None = None
-    last_name: str | None = None
-    photo_url: str | None = None
+    first_name: PupilName | None = None
+    last_name: PupilName | None = None
+    photo_url: PhotoUrl | None = None
     date_of_birth: date | None = None
+
+    @model_validator(mode="after")
+    def reject_null_required_fields(self) -> "PupilUpdate":
+        """Reject explicit nulls for fields that cannot be empty."""
+
+        null_fields = sorted(
+            field for field in self.model_fields_set
+            if field != "photo_url" and getattr(self, field) is None
+        )
+
+        if null_fields:
+            raise ValueError(f"Fields cannot be null: {', '.join(null_fields)}")
+
+        return self

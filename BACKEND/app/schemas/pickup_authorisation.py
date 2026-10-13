@@ -4,6 +4,7 @@ from typing import Annotated
 from pydantic import AfterValidator, AwareDatetime, BaseModel, ConfigDict, model_validator
 
 from app.models.pickup_authorisation import AuthorisationStatus
+from app.schemas.fields import Label, Name, Phone, PhotoUrl
 
 
 def normalise_to_utc(value: datetime) -> datetime:
@@ -19,11 +20,11 @@ class PickupAuthorisationCreate(BaseModel):
     """Define the data required to authorise a pickup person."""
 
     pupil_id: int
-    picker_name: str
-    picker_phone: str
-    relationship: str
-    photo_url: str | None = None
-    type: str
+    picker_name: Name
+    picker_phone: Phone
+    relationship: Label
+    photo_url: PhotoUrl | None = None
+    type: Label
     starts_at: UtcDatetime
     expires_at: UtcDatetime
 
@@ -31,11 +32,11 @@ class PickupAuthorisationCreate(BaseModel):
 class PickupAuthorisationUpdate(BaseModel):
     """Define the pickup authorisation details that may be changed."""
 
-    picker_name: str | None = None
-    picker_phone: str | None = None
-    relationship: str | None = None
-    photo_url: str | None = None
-    type: str | None = None
+    picker_name: Name | None = None
+    picker_phone: Phone | None = None
+    relationship: Label | None = None
+    photo_url: PhotoUrl | None = None
+    type: Label | None = None
     starts_at: UtcDatetime | None = None
     expires_at: UtcDatetime | None = None
 
