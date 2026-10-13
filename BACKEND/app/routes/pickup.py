@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, require_role
@@ -10,7 +10,9 @@ from app.schemas.pickup import (
     PickupVerifyRequest,
     PickupVerifyResponse,
 )
+from app.schemas.release import PickupReleaseResponse
 from app.services.pickup_service import issue_pickup_code, verify_pickup
+from app.services.release_service import release_pupil
 
 router = APIRouter(prefix="/pickup", tags=["Pickup"])
 
@@ -76,3 +78,42 @@ async def verify_pickup_endpoint(
         staff_id=current_user.id,
         data=data,
     )
+
+
+@router.post(
+    "/release",
+    response_model=PickupReleaseResponse,
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_201_CREATED: {
+            "model": PickupReleaseResponse,
+            "description": "Pupil released and release record created",
+        },
+    },
+    dependencies=[Depends(require_role(UserRole.GATE_STAFF))],
+)
+
+async def release_pupil_endpoint(
+    data: PickupVerifyRequest,
+    response: Response,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+
+    """Release a pupil after gate staff confirm the pickup person.
+
+    Returns 201 when the pupil is released and a release record is created,
+    or 200 with released false when any check fails.
+    """
+
+    result = await release_pupil(
+        session=session,
+        school_id=current_user.school_id,
+        staff_id=current_user.id,
+        data=data,
+    )
+
+    if result.released:
+        response.status_code = status.HTTP_201_CREATED
+
+    return result
