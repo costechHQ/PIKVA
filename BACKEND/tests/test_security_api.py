@@ -15,6 +15,7 @@ MANAGERS = ("parent", "admin")
 PUBLIC_ROUTES = {
     ("GET", "/api/v1/health"),
     ("GET", "/api/v1/health/db"),
+    ("GET", "/api/v1/health/redis"),
     ("POST", "/api/v1/auth/register"),
     ("POST", "/api/v1/auth/login"),
 }
