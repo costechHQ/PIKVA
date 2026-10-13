@@ -705,3 +705,25 @@ async def test_security_sensitive_actions_are_audited_with_actor(client, school)
     assert '"fields": ["first_name"]' in metadata[5]
     assert "Adaeze" not in metadata[5]
     assert all(PASSWORD not in m and code not in m for m in metadata)
+
+
+# --- Hardening: duplicate email on admin-created users (SRS 22) ---
+
+
+async def test_admin_cannot_create_user_with_existing_email(client, school):
+    """Reusing an email returns 409 Conflict instead of a server error."""
+
+    response = await client.post(
+        "/api/v1/schools/users",
+        headers=school["headers"]["admin"],
+        json={
+            "name": "Duplicate",
+            "email": "parent-alpha@example.com",
+            "phone": "0755555555",
+            "password": PASSWORD,
+            "role": "parent",
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "A user with this email already exists"

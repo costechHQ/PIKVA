@@ -1,4 +1,5 @@
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.school import School
@@ -6,6 +7,8 @@ from app.core.security import hash_password
 from app.models.user import User, UserRole
 from app.schemas.auth import SchoolUserCreate
 from app.services.audit_service import USER_CREATED, record_audit
+
+DUPLICATE_EMAIL = "A user with this email already exists"
 
 
 async def get_school_by_id(
@@ -32,6 +35,11 @@ async def create_school_user(
     if data.role not in {UserRole.PARENT, UserRole.GATE_STAFF}:
         raise ValueError("School Admins can only create parents or gate staff")
 
+    existing_user = await session.scalar(select(User.id).where(User.email == data.email))
+
+    if existing_user is not None:
+        raise ValueError(DUPLICATE_EMAIL)
+
     user = User(
         school_id=school_id,
         name=data.name,
@@ -42,7 +50,14 @@ async def create_school_user(
     )
 
     session.add(user)
-    await session.flush()
+
+    try:
+        await session.flush()
+
+    except IntegrityError as exc:
+        # Another request created the same email after the check above.
+        await session.rollback()
+        raise ValueError(DUPLICATE_EMAIL) from exc
 
     await record_audit(
         session=session,
