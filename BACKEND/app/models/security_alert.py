@@ -15,6 +15,8 @@ class SecurityAlert(Base):
             "attempted_by",
             "created_at",
         ),
+        # A school's alerts, newest first.
+        Index("ix_security_alerts_school_id_created_at", "school_id", "created_at"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

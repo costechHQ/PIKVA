@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, String, ForeignKey, JSON
+from sqlalchemy import DateTime, String, ForeignKey, Index, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -10,6 +10,10 @@ class AuditLog(Base):
     """Record an auditable action performed in Pikva."""
 
     __tablename__ = "audit_logs"
+    __table_args__ = (
+        # A school's audit log, newest first.
+        Index("ix_audit_logs_school_id_created_at", "school_id", "created_at"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, nullable=False)
 
