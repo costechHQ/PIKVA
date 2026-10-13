@@ -1,4 +1,3 @@
-import logging
 from fastapi import APIRouter, Depends, HTTPException, status 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,12 +9,12 @@ from app.services.pupil_service import (
     create_pupil,
     get_pupil,
     list_pupils,
-    update_parent_pupil,
+    update_pupil,
 )
 
 router = APIRouter(prefix="/pupils", tags=["Pupils"])
 
-VIEWER_ROLES = (UserRole.PARENT, UserRole.SCHOOL_ADMIN)
+MANAGER_ROLES = (UserRole.PARENT, UserRole.SCHOOL_ADMIN)
 
 
 def _parent_scope(current_user: User) -> int | None:
@@ -27,7 +26,7 @@ def _parent_scope(current_user: User) -> int | None:
     "",
     response_model=PupilResponse,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_role(UserRole.PARENT))],
+    dependencies=[Depends(require_role(*MANAGER_ROLES))],
 )
 
 async def create_pupil_endpoint(
@@ -36,28 +35,27 @@ async def create_pupil_endpoint(
     session: AsyncSession = Depends(get_session),
 ):
 
-    """Create a pupil for the authenticated parent."""
+    """Create a pupil: parents for themselves, admins for a parent in their school."""
 
     try:
         return await create_pupil(
             session = session,
             school_id = current_user.school_id,
-            parent_id = current_user.id,
+            parent_id = _parent_scope(current_user),
             data = data,
+            actor_id = current_user.id,
         )
 
-    except Exception as exc:
-        logging.exception("Failed to create pupil")
-        await session.rollback()
+    except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Unable to create pupil",
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
         ) from exc
 
 @router.get(
     "",
     response_model=list[PupilResponse],
-    dependencies=[Depends(require_role(*VIEWER_ROLES))],
+    dependencies=[Depends(require_role(*MANAGER_ROLES))],
 )
 
 async def list_pupils_endpoint(
@@ -77,7 +75,7 @@ async def list_pupils_endpoint(
 @router.get(
     "/{pupil_id}",
     response_model=PupilResponse,
-    dependencies=[Depends(require_role(*VIEWER_ROLES))],
+    dependencies=[Depends(require_role(*MANAGER_ROLES))],
 )
 
 async def get_pupil_endpoint(
@@ -107,32 +105,26 @@ async def get_pupil_endpoint(
 @router.patch(
     "/{pupil_id}",
     response_model = PupilResponse,
-    dependencies = [Depends(require_role(UserRole.PARENT))],
+    dependencies = [Depends(require_role(*MANAGER_ROLES))],
 )
 
-async def update_parent_endpoint(
+async def update_pupil_endpoint(
     pupil_id: int,
     data: PupilUpdate,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
 
-    """Update details of a pupil owned by the authenticated pparent."""
+    """Update a pupil: parents their own, admins any pupil in their school."""
 
-    try:
-        pupil = await update_parent_pupil(
-            session = session,
-            school_id = current_user.school_id,
-            parent_id = current_user.id,
-            pupil_id = pupil_id,
-            data = data,
-        )
-    except Exception as exc:
-        await session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Unable to update pupil",
-        ) from exc
+    pupil = await update_pupil(
+        session = session,
+        school_id = current_user.school_id,
+        parent_id = _parent_scope(current_user),
+        pupil_id = pupil_id,
+        data = data,
+        actor_id = current_user.id,
+    )
 
     if pupil is None:
         raise HTTPException(

@@ -27,9 +27,9 @@ ACCESS = {
     ("GET", "/api/v1/schools/me"): STAFF,
     ("POST", "/api/v1/schools/users"): STAFF,
     ("GET", "/api/v1/pupils"): MANAGERS,
-    ("POST", "/api/v1/pupils"): PARENT,
+    ("POST", "/api/v1/pupils"): MANAGERS,
     ("GET", "/api/v1/pupils/{pupil_id}"): MANAGERS,
-    ("PATCH", "/api/v1/pupils/{pupil_id}"): PARENT,
+    ("PATCH", "/api/v1/pupils/{pupil_id}"): MANAGERS,
     ("POST", "/api/v1/pickers"): PARENT,
     ("GET", "/api/v1/pickers"): MANAGERS,
     ("GET", "/api/v1/pickers/{authorisation_id}"): MANAGERS,
@@ -342,3 +342,92 @@ async def test_admin_cannot_see_other_school_pupils(client, school):
     assert [p["first_name"] for p in listed.json()] == ["Ada"]
     assert all(p["school_id"] != pupil["school_id"] for p in listed.json())
     assert viewed.status_code == 404
+
+
+PUPIL = {"first_name": "Chidi", "last_name": "Eze", "date_of_birth": "2018-05-05"}
+
+
+async def pupil_audits(school_id: int) -> list[tuple]:
+    """Return (action, user_id, parent_id metadata) for pupil audit entries."""
+
+    async with api.async_session() as session:
+        rows = await session.execute(
+            api.text(
+                "SELECT action, user_id, metadata->>'parent_id' FROM audit_logs "
+                "WHERE school_id = :s AND entity_type = 'pupil' ORDER BY id"
+            ),
+            {"s": school_id},
+        )
+
+    return [tuple(row) for row in rows]
+
+
+async def test_admin_creates_pupil_for_school_parent(client, school):
+    """An admin creates a pupil for a parent; the audit names the admin."""
+
+    ids = await api.user_ids(school["school_id"])
+
+    response = await client.post(
+        "/api/v1/pupils",
+        headers=school["headers"]["admin"],
+        json=PUPIL | {"parent_id": ids["parent"]},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["parent_id"] == ids["parent"]
+    assert response.json()["school_id"] == school["school_id"]
+    assert (await pupil_audits(school["school_id"]))[-1] == (
+        "pupil.created", ids["school_admin"], str(ids["parent"]),
+    )
+
+
+async def test_admin_pupil_needs_a_parent_from_own_school(client, school):
+    """Missing, non-parent and other-school parent IDs are refused."""
+
+    ids = await api.user_ids(school["school_id"])
+    other = await api.create_school(client, "bravo")
+    other_parent = (await api.user_ids(other["school_id"]))["parent"]
+    admin = school["headers"]["admin"]
+
+    cases = [
+        ({}, "parent_id is required"),
+        ({"parent_id": ids["gate_staff"]}, "Parent not found in this school"),
+        ({"parent_id": ids["school_admin"]}, "Parent not found in this school"),
+        ({"parent_id": other_parent}, "Parent not found in this school"),
+    ]
+    for extra, detail in cases:
+        response = await client.post("/api/v1/pupils", headers=admin, json=PUPIL | extra)
+        assert (response.status_code, response.json()["detail"]) == (422, detail), extra
+
+
+async def test_parent_cannot_choose_a_parent(client, school):
+    """A parent cannot attach a new pupil to another account."""
+
+    ids = await api.user_ids(school["school_id"])
+
+    response = await client.post(
+        "/api/v1/pupils",
+        headers=school["headers"]["parent"],
+        json=PUPIL | {"parent_id": ids["parent"]},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Parents cannot choose a parent for a pupil"
+
+
+async def test_admin_updates_any_school_pupil(client, school):
+    """Admins update any pupil in the school; other parents get 404."""
+
+    ids = await api.user_ids(school["school_id"])
+    [pupil] = (await client.get("/api/v1/pupils", headers=school["headers"]["parent"])).json()
+    other_parent = await api.add_parent(client, school, "other")
+    url = f"/api/v1/pupils/{pupil['id']}"
+
+    by_admin = await client.patch(url, headers=school["headers"]["admin"], json={"first_name": "Adaora"})
+    by_other = await client.patch(url, headers=other_parent, json={"first_name": "X"})
+
+    assert by_admin.status_code == 200
+    assert by_admin.json()["first_name"] == "Adaora"
+    assert by_admin.json()["parent_id"] == ids["parent"]
+    assert by_other.status_code == 404
+    assert (await pupil_audits(school["school_id"]))[-1][:2] == ("pupil.updated", ids["school_admin"])

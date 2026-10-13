@@ -7,7 +7,9 @@ class PupilCreate(BaseModel):
     first_name: str = "Simon"
     last_name: str = "Christopher"
     photo_url: str | None = None
-    date_of_birth: date 
+    date_of_birth: date
+    # Required for school admins (the pupil's parent); parents must omit it.
+    parent_id: int | None = None
 
 class PupilResponse(BaseModel):
     """Define the safe pupil data returned by the API."""
