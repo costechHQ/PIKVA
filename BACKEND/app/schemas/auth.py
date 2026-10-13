@@ -26,6 +26,12 @@ class UserResponse(BaseModel):
     role: str
 
 
+class CurrentUserResponse(UserResponse):
+    """Define the signed-in user and their school, for client role routing."""
+
+    school_name: str
+
+
 class UserLogin(BaseModel):
     """Define the credentials required to log in"""
 

@@ -22,6 +22,7 @@ PUBLIC_ROUTES = {
 # Which roles may call each protected endpoint. Every route the app exposes
 # must appear here or in PUBLIC_ROUTES, so new endpoints cannot skip review.
 ACCESS = {
+    ("GET", "/api/v1/auth/me"): ROLES,
     ("GET", "/api/v1/health/auth"): ROLES,
     ("GET", "/api/v1/health/admin"): STAFF,
     ("GET", "/api/v1/schools/me"): STAFF,
@@ -471,3 +472,30 @@ async def test_school_users_rejects_bad_query(client, school, params):
     )
 
     assert response.status_code == 422
+
+
+# --- Who am I (SRS 18.2, 19.2) ---
+
+
+@pytest.mark.parametrize("role", ROLES)
+async def test_me_returns_signed_in_user_and_school(client, school, role):
+    """Every role can read its own identity, role and school name."""
+
+    response = await client.get("/api/v1/auth/me", headers=school["headers"][role])
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["role"] == {"admin": "school_admin"}.get(role, role)
+    assert body["school_id"] == school["school_id"]
+    assert body["school_name"] == "alpha School"
+    assert set(body) == {"id", "school_id", "name", "email", "phone", "role", "school_name"}
+
+
+async def test_me_rejects_bad_token(client):
+    """An invalid token is 401, not an error."""
+
+    response = await client.get(
+        "/api/v1/auth/me", headers={"Authorization": "Bearer not-a-real-token"}
+    )
+
+    assert response.status_code == 401
