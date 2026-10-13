@@ -15,6 +15,7 @@ AUTHORISATION_DEACTIVATED = "pickup_authorisation.deactivated"
 PICKUP_CODE_GENERATED = "pickup_code.generated"
 PUPIL_RELEASED = "pupil.released"
 PICKUP_VERIFICATION_FAILED = "pickup.verification_failed"
+ALERT_RESOLVED = "alert.resolved"
 
 # Metadata keys that could carry secrets; audit records must never hold them
 # (SRS 14, 28).

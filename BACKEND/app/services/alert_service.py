@@ -1,10 +1,12 @@
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.pickup_code import PickupCodeCheckResult
 from app.models.security_alert import SecurityAlert
+from app.schemas.alert import AlertStatus
+from app.services.audit_service import ALERT_RESOLVED, record_audit
 
 # Raise a repeated-attempts alert after this many failures by one staff
 # member within the window (SRS 11.3 "suspicious repeated attempts").
@@ -87,3 +89,87 @@ async def record_failed_verification(
         alerts.append(repeated)
 
     return alerts
+
+
+async def list_alerts(
+        session: AsyncSession,
+        school_id: int,
+        status: AlertStatus | None = None,
+        limit: int = 50,
+        offset: int = 0,
+) -> list[SecurityAlert]:
+    """List a school's security alerts, newest first, optionally by status."""
+
+    query = select(SecurityAlert).where(SecurityAlert.school_id == school_id)
+
+    if status == AlertStatus.OPEN:
+        query = query.where(SecurityAlert.resolved_at.is_(None))
+    elif status == AlertStatus.RESOLVED:
+        query = query.where(SecurityAlert.resolved_at.is_not(None))
+
+    result = await session.scalars(
+        query.order_by(SecurityAlert.created_at.desc(), SecurityAlert.id.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+
+    return list(result.all())
+
+
+async def get_alert(
+        session: AsyncSession,
+        school_id: int,
+        alert_id: int,
+) -> SecurityAlert | None:
+    """Retrieve one security alert belonging to the school."""
+
+    return await session.scalar(
+        select(SecurityAlert).where(
+            SecurityAlert.id == alert_id,
+            SecurityAlert.school_id == school_id,
+        )
+    )
+
+
+async def resolve_alert(
+        session: AsyncSession,
+        school_id: int,
+        alert_id: int,
+        actor_id: int,
+) -> SecurityAlert | None:
+    """Resolve an open security alert and audit who resolved it.
+
+    Returns None if the alert is not in the school. Raises ValueError if it
+    is already resolved; the conditional update means only one of several
+    simultaneous resolutions succeeds.
+    """
+
+    alert = await get_alert(session, school_id, alert_id)
+
+    if alert is None:
+        return None
+
+    resolved_id = await session.scalar(
+        update(SecurityAlert)
+        .where(SecurityAlert.id == alert.id, SecurityAlert.resolved_at.is_(None))
+        .values(resolved_at=datetime.now(timezone.utc))
+        .returning(SecurityAlert.id)
+    )
+
+    if resolved_id is None:
+        raise ValueError("Security alert is already resolved")
+
+    await record_audit(
+        session=session,
+        school_id=school_id,
+        user_id=actor_id,
+        action=ALERT_RESOLVED,
+        entity_type="security_alert",
+        entity_id=alert.id,
+        metadata={"alert_type": alert.alert_type},
+    )
+
+    await session.commit()
+    await session.refresh(alert)
+
+    return alert

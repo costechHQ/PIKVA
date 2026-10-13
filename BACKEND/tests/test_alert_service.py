@@ -1,4 +1,4 @@
-"""Service tests for security alerts on failed verification (SRS 11.3, 13, 23.7)."""
+"""Service tests for security alerts: recording, listing and resolving (SRS 11.3, 13, 23.7)."""
 
 from datetime import datetime, timedelta, timezone
 
@@ -6,15 +6,20 @@ import pytest
 from sqlalchemy import select
 
 from app.db.session import async_session
+from app.models.audit_log import AuditLog
 from app.models.pickup_code import PickupCodeCheckResult
 from app.models.school import School
 from app.models.security_alert import SecurityAlert
 from app.models.user import User, UserRole
+from app.schemas.alert import AlertStatus
 from app.services.alert_service import (
     REPEATED_FAILED_ATTEMPTS,
     REPEATED_FAILURE_LIMIT,
     REPEATED_FAILURE_WINDOW,
+    get_alert,
+    list_alerts,
     record_failed_verification,
+    resolve_alert,
 )
 
 
@@ -155,3 +160,63 @@ async def test_other_staff_failures_do_not_count(session):
         await fail(session, first)
 
     assert len(await fail(session, second)) == 1
+
+
+# --- Alert management (SRS 13, 18.7, 23.7) ---
+
+
+async def test_list_alerts_newest_first_with_status_filter(session):
+    """Alerts list newest first and filter by open or resolved."""
+
+    staff = await make_staff(session, "Golf")
+    await fail(session, staff, PickupCodeCheckResult.INVALID_CODE)
+    await fail(session, staff, PickupCodeCheckResult.USED_CODE)
+    newest, oldest = await list_alerts(session, staff.school_id)
+
+    await resolve_alert(session, staff.school_id, oldest.id, actor_id=staff.id)
+
+    assert (newest.alert_type, oldest.alert_type) == ("used_code", "invalid_code")
+    assert [a.id for a in await list_alerts(session, staff.school_id, AlertStatus.OPEN)] == [newest.id]
+    assert [a.id for a in await list_alerts(session, staff.school_id, AlertStatus.RESOLVED)] == [oldest.id]
+    assert [a.id for a in await list_alerts(session, staff.school_id, limit=1, offset=1)] == [oldest.id]
+
+
+async def test_alerts_are_limited_to_the_school(session):
+    """Another school's admin cannot list, view or resolve these alerts."""
+
+    staff = await make_staff(session, "Hotel")
+    other = await make_staff(session, "India")
+    [alert] = await fail(session, staff)
+
+    assert await list_alerts(session, other.school_id) == []
+    assert await get_alert(session, other.school_id, alert.id) is None
+    assert await resolve_alert(session, other.school_id, alert.id, actor_id=other.id) is None
+    assert (await get_alert(session, staff.school_id, alert.id)).resolved_at is None
+
+
+async def test_resolve_alert_sets_time_and_audits_resolver(session):
+    """Resolving records when, and the audit log records who."""
+
+    staff = await make_staff(session, "Juliet")
+    [alert] = await fail(session, staff)
+
+    resolved = await resolve_alert(session, staff.school_id, alert.id, actor_id=staff.id)
+
+    assert resolved.resolved_at is not None
+    [audit] = (
+        await session.scalars(select(AuditLog).where(AuditLog.action == "alert.resolved"))
+    ).all()
+    assert audit.user_id == staff.id
+    assert (audit.entity_type, audit.entity_id) == ("security_alert", alert.id)
+    assert audit.metadata_ == {"alert_type": "invalid_code"}
+
+
+async def test_resolving_twice_is_rejected(session):
+    """An alert can only be resolved once."""
+
+    staff = await make_staff(session, "Kilo")
+    [alert] = await fail(session, staff)
+    await resolve_alert(session, staff.school_id, alert.id, actor_id=staff.id)
+
+    with pytest.raises(ValueError, match="already resolved"):
+        await resolve_alert(session, staff.school_id, alert.id, actor_id=staff.id)
