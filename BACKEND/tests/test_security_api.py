@@ -25,6 +25,7 @@ ACCESS = {
     ("GET", "/api/v1/health/auth"): ROLES,
     ("GET", "/api/v1/health/admin"): STAFF,
     ("GET", "/api/v1/schools/me"): STAFF,
+    ("GET", "/api/v1/schools/users"): STAFF,
     ("POST", "/api/v1/schools/users"): STAFF,
     ("GET", "/api/v1/pupils"): MANAGERS,
     ("POST", "/api/v1/pupils"): MANAGERS,
@@ -431,3 +432,42 @@ async def test_admin_updates_any_school_pupil(client, school):
     assert by_admin.json()["parent_id"] == ids["parent"]
     assert by_other.status_code == 404
     assert (await pupil_audits(school["school_id"]))[-1][:2] == ("pupil.updated", ids["school_admin"])
+
+
+# --- Admin lists school users (SRS 5.1) ---
+
+
+async def test_admin_lists_school_users_by_role(client, school):
+    """Admins list their school's users, filtered by role, without secrets."""
+
+    await api.add_parent(client, school, "zara")
+    admin = school["headers"]["admin"]
+
+    everyone = await client.get("/api/v1/schools/users", headers=admin)
+    parents = await client.get("/api/v1/schools/users", headers=admin, params={"role": "parent"})
+
+    assert [u["role"] for u in everyone.json()] == ["school_admin", "gate_staff", "parent", "parent"]
+    assert [u["name"] for u in parents.json()] == ["alpha parent", "zara Parent"]
+    assert set(parents.json()[0]) == {"id", "school_id", "name", "email", "phone", "role"}
+    assert all(u["school_id"] == school["school_id"] for u in everyone.json())
+
+
+async def test_school_users_are_limited_to_own_school(client, school):
+    """Another school's admin never sees this school's users."""
+
+    other = await api.create_school(client, "bravo")
+
+    response = await client.get("/api/v1/schools/users", headers=other["headers"]["admin"])
+
+    assert {u["school_id"] for u in response.json()} == {other["school_id"]}
+
+
+@pytest.mark.parametrize("params", [{"role": "owner"}, {"limit": 0}, {"limit": 501}, {"offset": -1}])
+async def test_school_users_rejects_bad_query(client, school, params):
+    """Unknown roles and out-of-range paging are rejected."""
+
+    response = await client.get(
+        "/api/v1/schools/users", headers=school["headers"]["admin"], params=params
+    )
+
+    assert response.status_code == 422

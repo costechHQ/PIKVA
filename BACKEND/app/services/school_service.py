@@ -73,3 +73,24 @@ async def create_school_user(
     await session.refresh(user)
 
     return user
+
+
+async def list_school_users(
+        session: AsyncSession,
+        school_id: int,
+        role: UserRole | None = None,
+        limit: int = 200,
+        offset: int = 0,
+) -> list[User]:
+    """List users in the school, optionally of one role, ordered by name."""
+
+    query = select(User).where(User.school_id == school_id)
+
+    if role is not None:
+        query = query.where(User.role == role)
+
+    result = await session.scalars(
+        query.order_by(User.name, User.id).limit(limit).offset(offset)
+    )
+
+    return list(result.all())

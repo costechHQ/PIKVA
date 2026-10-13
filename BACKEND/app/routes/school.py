@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, require_role
@@ -8,6 +8,7 @@ from app.schemas.school import SchoolResponse
 from app.services.school_service import (
     create_school_user,
     get_school_by_id,
+    list_school_users,
 )
 
 from app.schemas.auth import SchoolUserCreate, UserResponse
@@ -64,3 +65,28 @@ async def create_user(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(exc),
         )
+
+
+@router.get(
+    "/users",
+    response_model=list[UserResponse],
+    dependencies=[Depends(require_role(UserRole.SCHOOL_ADMIN))],
+)
+
+async def list_users(
+    role: UserRole | None = None,
+    limit: int = Query(default=200, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+
+    """List users in the admin's school, optionally filtered by role."""
+
+    return await list_school_users(
+        session=session,
+        school_id=current_user.school_id,
+        role=role,
+        limit=limit,
+        offset=offset,
+    )
