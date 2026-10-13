@@ -1,3 +1,4 @@
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -6,6 +7,10 @@ class Settings(BaseSettings):
     secret_key: str
     access_token_expire_minutes: int = 30
     database_echo: bool = False
+
+    # Email notifications (SRS 20). Without both, emails are logged, not sent.
+    resend_api_key: SecretStr | None = None
+    email_from: str | None = None
 
     model_config = SettingsConfigDict(env_file=".env")
 
