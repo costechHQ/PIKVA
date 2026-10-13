@@ -4,8 +4,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.dependencies import get_current_user, require_role
 from app.db.session import get_session
 from app.models.user import User, UserRole
-from app.schemas.pickup import PickupCodeRequest, PickupCodeResponse
-from app.services.pickup_service import issue_pickup_code
+from app.schemas.pickup import (
+    PickupCodeRequest,
+    PickupCodeResponse,
+    PickupVerifyRequest,
+    PickupVerifyResponse,
+)
+from app.services.pickup_service import issue_pickup_code, verify_pickup
 
 router = APIRouter(prefix="/pickup", tags=["Pickup"])
 
@@ -46,3 +51,28 @@ async def issue_pickup_code_endpoint(
         )
 
     return issued
+
+
+@router.post(
+    "/verify",
+    response_model=PickupVerifyResponse,
+    dependencies=[Depends(require_role(UserRole.GATE_STAFF))],
+)
+
+async def verify_pickup_endpoint(
+    data: PickupVerifyRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+
+    """Verify a pickup code at the gate of the staff member's school.
+
+    Always returns 200 with the outcome; verified is false for any failure.
+    """
+
+    return await verify_pickup(
+        session=session,
+        school_id=current_user.school_id,
+        staff_id=current_user.id,
+        data=data,
+    )
