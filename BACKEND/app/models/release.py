@@ -1,12 +1,20 @@
 from app.db.base import Base
 from datetime import datetime, timezone
-from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy import DateTime, ForeignKey, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 class ReleaseRecord(Base):
     """Record an attempt to release a pupil at the school gate."""
 
     __tablename__ = "release_records"
+    __table_args__ = (
+        # Release history for a pupil, newest first.
+        Index(
+            "ix_release_records_pupil_id_released_at",
+            "pupil_id",
+            "released_at",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
