@@ -19,6 +19,7 @@ from app.schemas.pickup import (
     VerificationMethod,
 )
 from app.services.alert_service import record_failed_verification
+from app.services.audit_service import PICKUP_VERIFICATION_FAILED, record_audit
 from app.services.pickup_authorisation_service import get_pickup_authorisation
 
 # A hash collision is astronomically unlikely; retry a few times, then fail.
@@ -251,18 +252,43 @@ async def record_failed_check(
         staff_id: int,
         check: PickupCodeCheck,
         method: VerificationMethod,
+        stage: str,
 ) -> None:
-    """Record security alerts for a failed check. Does not commit."""
+    """Record security alerts and an audit entry for a failed check.
+
+    stage is "verify" or "release". Does not commit.
+    """
 
     # Link alerts to the code's own records, never to client-supplied IDs.
-    await record_failed_verification(
+    pupil_id = check.code.pupil_id if check.code else None
+    authorisation_id = check.authorisation.id if check.authorisation else None
+
+    alerts = await record_failed_verification(
         session=session,
         school_id=school_id,
         staff_id=staff_id,
         result=check.result,
         method=method.value,
-        pupil_id=check.code.pupil_id if check.code else None,
-        authorisation_id=check.authorisation.id if check.authorisation else None,
+        pupil_id=pupil_id,
+        authorisation_id=authorisation_id,
+    )
+    await session.flush()
+
+    await record_audit(
+        session=session,
+        school_id=school_id,
+        user_id=staff_id,
+        action=PICKUP_VERIFICATION_FAILED,
+        entity_type="daily_pickup_code",
+        entity_id=check.code.id if check.code else None,
+        metadata={
+            "result": check.result.value,
+            "method": method.value,
+            "stage": stage,
+            "pupil_id": pupil_id,
+            "authorisation_id": authorisation_id,
+            "alert_ids": [alert.id for alert in alerts],
+        },
     )
 
 
@@ -282,7 +308,7 @@ async def verify_pickup(
     check = await check_presented_code(session, school_id, data)
 
     if check.result != PickupCodeCheckResult.VALID:
-        await record_failed_check(session, school_id, staff_id, check, data.method)
+        await record_failed_check(session, school_id, staff_id, check, data.method, "verify")
         await session.commit()
 
         return PickupVerifyResponse(result=check.result, method=data.method)

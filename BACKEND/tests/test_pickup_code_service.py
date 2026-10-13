@@ -656,7 +656,9 @@ async def test_release_refused_after_authorisation_deactivated(session):
     assert await releases_for(session, authorisation) == []
     [code] = await stored_codes(session, authorisation.id)
     assert code.used_at is None
-    assert await audits(session) == []
+    [audit] = await audits(session)
+    assert audit.action == "pickup.verification_failed"
+    assert audit.metadata_["stage"] == "release"
 
 
 async def test_release_lost_race_is_used_code(session, monkeypatch):
@@ -803,3 +805,66 @@ async def test_history_limit_and_offset(session):
 
     assert newest.verification_method == "manual"
     assert older.verification_method == "qr"
+
+
+# --- Failed verification audit (SRS 14, Rule 9) ---
+
+
+async def test_failed_verify_is_audited_with_alerts(session):
+    """A failed verify writes one audit entry linking the code, pupil and alert."""
+
+    authorisation, issued, staff = await release_setup(session, "Beryl")
+    request = PickupVerifyRequest(method="manual", code=issued.code)
+    await release_pupil(session, staff.school_id, staff.id, request)
+
+    await verify_pickup(session, staff.school_id, staff.id, request)
+
+    [code] = await stored_codes(session, authorisation.id)
+    [alert] = await alerts_for(session, staff)
+    released, failed = await audits(session)
+    assert released.action == "pupil.released"
+    assert failed.action == "pickup.verification_failed"
+    assert failed.user_id == staff.id
+    assert (failed.entity_type, failed.entity_id) == ("daily_pickup_code", code.id)
+    assert failed.metadata_ == {
+        "result": "used_code",
+        "method": "manual",
+        "stage": "verify",
+        "pupil_id": authorisation.pupil_id,
+        "authorisation_id": authorisation.id,
+        "alert_ids": [alert.id],
+    }
+    assert issued.code not in str(failed.metadata_)
+
+
+async def test_unknown_code_audit_has_no_code_link(session):
+    """An unknown code is audited without linking any code, pupil or authorisation."""
+
+    authorisation = await make_family(session, "Jet")
+    staff = await make_gate_staff(session, await school_of(session, authorisation), "Jet")
+
+    await verify_pickup(
+        session, staff.school_id, staff.id,
+        PickupVerifyRequest(method="qr", qr_data="not a pikva code"),
+    )
+
+    [audit] = await audits(session)
+    assert audit.entity_id is None
+    assert audit.metadata_["result"] == "invalid_code"
+    assert audit.metadata_["pupil_id"] is None
+    assert audit.metadata_["method"] == "qr"
+
+
+async def test_repeated_attempt_alert_is_listed_in_audit(session):
+    """The fifth failure's audit entry lists both alerts it created."""
+
+    authorisation = await make_family(session, "Flint")
+    staff = await make_gate_staff(session, await school_of(session, authorisation), "Flint")
+    request = PickupVerifyRequest(method="manual", code="ZZZZ9999")
+
+    for _ in range(5):
+        await verify_pickup(session, staff.school_id, staff.id, request)
+
+    fifth = (await audits(session))[-1]
+    alert_ids = [alert.id for alert in (await alerts_for(session, staff))[-2:]]
+    assert fifth.metadata_["alert_ids"] == alert_ids

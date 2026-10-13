@@ -48,7 +48,7 @@ async def release_pupil(
             check = PickupCodeCheck(reason, check.code, check.authorisation)
 
     if check.result != PickupCodeCheckResult.VALID:
-        await record_failed_check(session, school_id, staff_id, check, data.method)
+        await record_failed_check(session, school_id, staff_id, check, data.method, "release")
         await session.commit()
 
         return PickupReleaseResponse(result=check.result, method=data.method)

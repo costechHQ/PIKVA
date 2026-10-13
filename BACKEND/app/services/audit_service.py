@@ -4,8 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.audit_log import AuditLog
 
-# Audit actions (SRS 14). Phase 9 adds the remaining actions.
+# Audit actions (SRS 14).
 PUPIL_RELEASED = "pupil.released"
+PICKUP_VERIFICATION_FAILED = "pickup.verification_failed"
 
 # Metadata keys that could carry secrets; audit records must never hold them
 # (SRS 14, 28).
