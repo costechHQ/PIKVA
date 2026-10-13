@@ -24,7 +24,7 @@ from app.services.pickup_service import (
     mark_code_used,
     verify_pickup,
 )
-from app.services.release_service import release_pupil
+from app.services.release_service import list_release_history, release_pupil
 
 
 @pytest.fixture
@@ -725,3 +725,81 @@ async def test_release_is_all_or_nothing(session, monkeypatch):
     assert releases.all() == []
     [code] = await stored_codes(session, authorisation_id)
     assert code.used_at is None
+
+
+# --- Release history (SRS 12, 18.8) ---
+
+
+async def release_twice(session, name: str):
+    """Release a pupil twice with two daily codes; return the setup."""
+
+    authorisation, issued, staff = await release_setup(session, name)
+    school_id = staff.school_id
+
+    await release_pupil(
+        session, school_id, staff.id, PickupVerifyRequest(method="qr", qr_data=issued.qr_data)
+    )
+    second = await issue_for(session, authorisation)
+    await release_pupil(
+        session, school_id, staff.id, PickupVerifyRequest(method="manual", code=second.code)
+    )
+
+    return authorisation, staff
+
+
+async def test_history_lists_school_releases_newest_first(session):
+    """Admins see every release with pupil, picker, staff, method, result, time."""
+
+    authorisation, staff = await release_twice(session, "Garnet")
+
+    newest, oldest = await list_release_history(session, staff.school_id, parent_id=None)
+
+    assert newest.released_at >= oldest.released_at
+    assert (newest.verification_method, oldest.verification_method) == ("manual", "qr")
+    assert newest.pupil.id == authorisation.pupil_id
+    assert newest.authorisation.picker_name == "Aunt Ada"
+    assert newest.verified_by.id == staff.id
+    assert newest.verified_by.name == "Garnet Gate"
+    assert newest.result == "released"
+
+
+async def test_history_parent_scope_and_pupil_filter(session):
+    """Parents see only their pupils; the pupil filter narrows the list."""
+
+    authorisation, staff = await release_twice(session, "Coral")
+    pupil = await session.get(Pupil, authorisation.pupil_id)
+
+    own = await list_release_history(session, staff.school_id, parent_id=pupil.parent_id)
+    not_parent = await list_release_history(session, staff.school_id, parent_id=staff.id)
+    filtered = await list_release_history(
+        session, staff.school_id, parent_id=None, pupil_id=pupil.id
+    )
+    other_pupil = await list_release_history(
+        session, staff.school_id, parent_id=None, pupil_id=pupil.id + 1000
+    )
+
+    assert len(own) == 2
+    assert not_parent == []
+    assert len(filtered) == 2
+    assert other_pupil == []
+
+
+async def test_history_is_limited_to_the_school(session):
+    """Another school's admin sees none of these releases."""
+
+    _, staff = await release_twice(session, "Amethyst")
+    other = await make_family(session, "Quartz")
+
+    assert await list_release_history(session, await school_of(session, other), None) == []
+
+
+async def test_history_limit_and_offset(session):
+    """Paging returns the newest first and then the older release."""
+
+    _, staff = await release_twice(session, "Agate")
+
+    [newest] = await list_release_history(session, staff.school_id, None, limit=1)
+    [older] = await list_release_history(session, staff.school_id, None, limit=1, offset=1)
+
+    assert newest.verification_method == "manual"
+    assert older.verification_method == "qr"

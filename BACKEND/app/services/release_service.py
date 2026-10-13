@@ -1,12 +1,15 @@
 from datetime import datetime, timezone
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.pickup_authorisation import PickupAuthorisation
 from app.models.pickup_code import PickupCodeCheckResult
 from app.models.pupil import Pupil
 from app.models.release import ReleaseRecord, ReleaseResult
+from app.models.user import User
 from app.schemas.pickup import GatePicker, GatePupil, PickupVerifyRequest
-from app.schemas.release import PickupReleaseResponse
+from app.schemas.release import PickupReleaseResponse, ReleaseHistoryItem, ReleaseStaff
 from app.services.audit_service import PUPIL_RELEASED, record_audit
 from app.services.pickup_service import (
     PickupCodeCheck,
@@ -86,3 +89,52 @@ async def release_pupil(
         pupil=GatePupil.model_validate(pupil),
         authorisation=GatePicker.model_validate(check.authorisation),
     )
+
+
+async def list_release_history(
+        session: AsyncSession,
+        school_id: int,
+        parent_id: int | None,
+        pupil_id: int | None = None,
+        limit: int = 50,
+        offset: int = 0,
+) -> list[ReleaseHistoryItem]:
+    """List accessible releases, newest first.
+
+    Every query is limited to the caller's school; when parent_id is given it
+    is also limited to that parent's pupils. Pass parent_id=None only for
+    school-wide staff roles.
+    """
+
+    query = (
+        select(ReleaseRecord, Pupil, PickupAuthorisation, User)
+        .join(Pupil, ReleaseRecord.pupil_id == Pupil.id)
+        .join(PickupAuthorisation, ReleaseRecord.authorisation_id == PickupAuthorisation.id)
+        .join(User, ReleaseRecord.verified_by == User.id)
+        .where(Pupil.school_id == school_id)
+    )
+
+    if parent_id is not None:
+        query = query.where(Pupil.parent_id == parent_id)
+
+    if pupil_id is not None:
+        query = query.where(ReleaseRecord.pupil_id == pupil_id)
+
+    rows = await session.execute(
+        query.order_by(ReleaseRecord.released_at.desc(), ReleaseRecord.id.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+
+    return [
+        ReleaseHistoryItem(
+            id=release.id,
+            pupil=GatePupil.model_validate(pupil),
+            authorisation=GatePicker.model_validate(authorisation),
+            verified_by=ReleaseStaff.model_validate(staff),
+            verification_method=release.verification_method,
+            result=release.result,
+            released_at=release.released_at,
+        )
+        for release, pupil, authorisation, staff in rows
+    ]
