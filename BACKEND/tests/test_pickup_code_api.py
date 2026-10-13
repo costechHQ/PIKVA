@@ -1,4 +1,4 @@
-"""API tests for pickup codes and gate verification (SRS 11, 13, 17, 21.2, 23.2, 23.5, 23.7)."""
+"""API tests for pickup codes, gate verification, release and history (SRS 11-13, 17, 18.8, 21.2, 23.2, 23.5-23.7)."""
 
 import json
 from datetime import datetime, timedelta, timezone
@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from sqlalchemy import text
 
+from app.core.security import hash_pickup_code
 from app.db.session import async_session
 from app.services.pickup_service import PickupCodeCheckResult, check_pickup_code
 
@@ -439,3 +440,193 @@ async def test_verify_with_mismatched_input_is_rejected(client, school):
 
     assert response.status_code == 422
     assert await alerts(school["school_id"]) == []
+
+
+# --- Release and history: POST /pickup/release, GET /releases (SRS 12, 18.8, 23.6) ---
+
+RELEASE_URL = "/api/v1/pickup/release"
+RELEASES_URL = "/api/v1/releases"
+
+
+async def release(client, school, body: dict, expected_status: int) -> dict:
+    """Release as the school's gate staff and return the response body."""
+
+    response = await client.post(RELEASE_URL, headers=school["headers"]["gate_staff"], json=body)
+    assert response.status_code == expected_status
+
+    return response.json()
+
+
+async def history(client, headers: dict, **params) -> list[dict]:
+    """Return release history visible to the given user."""
+
+    response = await client.get(RELEASES_URL, headers=headers, params=params)
+    assert response.status_code == 200
+
+    return response.json()
+
+
+async def add_parent(client, school, tag: str) -> dict[str, str]:
+    """Create another parent in the school and return their auth header."""
+
+    response = await client.post(
+        "/api/v1/schools/users",
+        headers=school["headers"]["admin"],
+        json={
+            "name": f"{tag} Parent",
+            "email": f"{tag}-parent@example.com",
+            "phone": "0744444444",
+            "password": PASSWORD,
+            "role": "parent",
+        },
+    )
+    assert response.status_code == 201
+
+    return await login(client, f"{tag}-parent@example.com")
+
+
+async def code_used_at(code: str):
+    """Return used_at for the stored code matching a plaintext code."""
+
+    async with async_session() as session:
+        return await session.scalar(
+            text("SELECT used_at FROM daily_pickup_codes WHERE code_hash = :h"),
+            {"h": hash_pickup_code(code)},
+        )
+
+
+async def test_gate_releases_pupil_after_verification(client, school):
+    """Verify then release creates one accountable release record."""
+
+    issued = await issue(client, school)
+    body = {"method": "qr", "qr_data": issued["qr_data"]}
+    assert (await verify(client, school, body))["verified"] is True
+
+    released = await release(client, school, body, 201)
+
+    assert released["released"] is True
+    assert released["result"] == "valid"
+    assert released["pupil"]["id"] == issued["pupil_id"]
+    assert await code_used_at(issued["code"]) is not None
+
+    [item] = await history(client, school["headers"]["admin"])
+    assert item["id"] == released["release_id"]
+    assert item["released_at"] == released["released_at"]
+    assert item["pupil"]["id"] == issued["pupil_id"]
+    assert item["authorisation"]["id"] == school["authorisation_id"]
+    assert item["verified_by"]["name"] == "alpha gate_staff"
+    assert item["verification_method"] == "qr"
+    assert item["result"] == "released"
+
+    async with async_session() as session:
+        audit = (
+            await session.execute(
+                text("SELECT action, entity_id, metadata::text FROM audit_logs")
+            )
+        ).one()
+    assert audit[:2] == ("pupil.released", released["release_id"])
+    assert issued["code"] not in audit[2]
+
+
+async def test_reused_code_cannot_release_again(client, school):
+    """A second release with the same code fails and is alerted."""
+
+    issued = await issue(client, school)
+    body = {"method": "manual", "code": issued["code"]}
+    await release(client, school, body, 201)
+
+    second = await release(client, school, body, 200)
+
+    assert second["released"] is False
+    assert second["result"] == "used_code"
+    assert second["release_id"] is None and second["pupil"] is None
+    assert len(await history(client, school["headers"]["admin"])) == 1
+    assert [a[0] for a in await alerts(school["school_id"])] == ["used_code"]
+
+
+async def test_failed_release_creates_no_record(client, school):
+    """A release refused for an inactive authorisation leaves no trace but an alert."""
+
+    issued = await issue(client, school)
+    response = await client.post(
+        f"/api/v1/pickers/{school['authorisation_id']}/deactivate",
+        headers=school["headers"]["parent"],
+    )
+    assert response.status_code == 200
+
+    result = await release(client, school, {"method": "manual", "code": issued["code"]}, 200)
+
+    assert result["released"] is False
+    assert result["result"] == "authorisation_inactive"
+    assert await history(client, school["headers"]["admin"]) == []
+    assert await code_used_at(issued["code"]) is None
+    assert [a[0] for a in await alerts(school["school_id"])] == ["authorisation_inactive"]
+
+
+@pytest.mark.parametrize("role", ["parent", "admin"])
+async def test_only_gate_staff_can_release(client, school, role):
+    """Parents and admins cannot release pupils."""
+
+    issued = await issue(client, school)
+
+    response = await client.post(
+        RELEASE_URL,
+        headers=school["headers"][role],
+        json={"method": "manual", "code": issued["code"]},
+    )
+
+    assert response.status_code == 403
+    assert await code_used_at(issued["code"]) is None
+
+
+async def test_gate_staff_cannot_view_history(client, school):
+    """Release history is for admins and parents only."""
+
+    response = await client.get(RELEASES_URL, headers=school["headers"]["gate_staff"])
+
+    assert response.status_code == 403
+
+
+@pytest.mark.parametrize(("method", "url"), [("post", RELEASE_URL), ("get", RELEASES_URL)])
+async def test_release_endpoints_require_token(client, method, url):
+    """Unauthenticated release and history requests are rejected."""
+
+    kwargs = {"json": {"method": "manual", "code": "ZZZZ9999"}} if method == "post" else {}
+
+    response = await getattr(client, method)(url, **kwargs)
+
+    assert response.status_code == 401
+
+
+async def test_parent_history_shows_only_own_pupils(client, school):
+    """Another parent in the same school cannot see this family's releases."""
+
+    issued = await issue(client, school)
+    await release(client, school, {"method": "manual", "code": issued["code"]}, 201)
+
+    other_parent = await add_parent(client, school, "other")
+    other_authorisation = await create_authorisation(client, other_parent)
+
+    assert len(await history(client, school["headers"]["parent"])) == 1
+    assert await history(client, other_parent) == []
+    assert await history(client, other_parent, pupil_id=issued["pupil_id"]) == []
+    assert other_authorisation != school["authorisation_id"]
+
+
+async def test_history_is_limited_to_school(client, school):
+    """Another school's admin sees none of this school's releases."""
+
+    issued = await issue(client, school)
+    await release(client, school, {"method": "manual", "code": issued["code"]}, 201)
+    other = await create_school(client, "bravo")
+
+    assert await history(client, other["headers"]["admin"]) == []
+
+
+@pytest.mark.parametrize("params", [{"limit": 0}, {"limit": 201}, {"offset": -1}])
+async def test_history_rejects_bad_paging(client, school, params):
+    """Paging values outside the allowed range are rejected."""
+
+    response = await client.get(RELEASES_URL, headers=school["headers"]["admin"], params=params)
+
+    assert response.status_code == 422
