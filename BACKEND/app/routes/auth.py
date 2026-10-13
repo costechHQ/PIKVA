@@ -1,7 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.redis import get_redis
 from app.db.session import get_session
+from app.core import rate_limit
+from app.core.constants import LOGIN_FAILURE_LIMIT, LOGIN_IP_LIMIT, LOGIN_WINDOW_SECONDS
 from app.core.dependencies import get_current_user
 from app.models.school import School
 from app.models.user import User
@@ -40,14 +44,29 @@ async def register(
 @router.post("/login", response_model=TokenResponse)
 async def login(
     data: UserLogin,
-    session: AsyncSession = Depends(get_session)
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
 ):
 
-    """Authenticate a user and return an access token."""
+    """Authenticate a user and return an access token.
+
+    Rate limited (SRS 11.3): every attempt counts against the client IP, and
+    an email is locked for the window once it has too many failed attempts.
+    """
+
+    ip = request.client.host if request.client else "unknown"
+    email_key = f"pikva:rl:login:email:{rate_limit.hashed(data.email)}"
+
+    await rate_limit.hit(
+        redis, f"pikva:rl:login:ip:{ip}", LOGIN_IP_LIMIT, LOGIN_WINDOW_SECONDS
+    )
+    await rate_limit.check(redis, email_key, LOGIN_FAILURE_LIMIT)
 
     try:
         return await login_user(session, data)
     except ValueError as exc:
+        await rate_limit.record(redis, email_key, LOGIN_WINDOW_SECONDS)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(exc),

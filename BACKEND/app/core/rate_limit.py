@@ -5,6 +5,7 @@ when the key expires. If Redis is unreachable the limiter fails open: the
 request is allowed and a warning is logged, so the gate keeps working.
 """
 
+import hashlib
 import logging
 
 from fastapi import Request
@@ -23,6 +24,12 @@ class RateLimitExceeded(Exception):
 
         super().__init__(f"Rate limit exceeded; retry after {retry_after}s")
         self.retry_after = retry_after
+
+
+def hashed(value: str) -> str:
+    """Hash a personal identifier (such as an email) for use in a Redis key."""
+
+    return hashlib.sha256(value.strip().lower().encode()).hexdigest()
 
 
 def _log_outage(exc: RedisError) -> None:
