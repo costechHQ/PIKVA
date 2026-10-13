@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import Select, select
 
 from app.models.pupil import Pupil
 from app.schemas.pupil import PupilCreate, PupilUpdate
@@ -42,22 +42,49 @@ async def create_pupil(
     return pupil
 
 
-async def get_parent_pupils(
+def _scoped_pupils(school_id: int, parent_id: int | None) -> Select[tuple[Pupil]]:
+    """Build a query limited to pupils the caller may access.
+
+    Every query is limited to the caller's school; when parent_id is given it
+    is also limited to that parent's pupils. Pass parent_id=None only for
+    school-wide staff roles.
+    """
+
+    query = select(Pupil).where(Pupil.school_id == school_id)
+
+    if parent_id is not None:
+        query = query.where(Pupil.parent_id == parent_id)
+
+    return query
+
+
+async def list_pupils(
         session: AsyncSession,
         school_id: int,
-        parent_id: int,
-)-> list[Pupil]:
-    
-    """Retrieve pupils belonging to a parent within their school."""
+        parent_id: int | None,
+) -> list[Pupil]:
+    """List accessible pupils, ordered by name."""
 
     result = await session.scalars(
-        select(Pupil).where(
-            Pupil.school_id == school_id,
-            Pupil.parent_id == parent_id,
+        _scoped_pupils(school_id, parent_id).order_by(
+            Pupil.last_name, Pupil.first_name, Pupil.id
         )
     )
 
     return list(result.all())
+
+
+async def get_pupil(
+        session: AsyncSession,
+        school_id: int,
+        parent_id: int | None,
+        pupil_id: int,
+) -> Pupil | None:
+    """Retrieve one accessible pupil."""
+
+    return await session.scalar(
+        _scoped_pupils(school_id, parent_id).where(Pupil.id == pupil_id)
+    )
 
 
 async def get_parent_pupil_by_id(
@@ -69,15 +96,7 @@ async def get_parent_pupil_by_id(
 
     """Retrieve one pupil owned by a parent within their school."""
 
-    result = await session.scalar(
-        select(Pupil).where(
-            Pupil.id == pupil_id,
-            Pupil.school_id == school_id,
-            Pupil.parent_id == parent_id,
-        )
-    )
-
-    return result
+    return await get_pupil(session, school_id, parent_id, pupil_id)
 
 
 async def update_parent_pupil(

@@ -26,9 +26,9 @@ ACCESS = {
     ("GET", "/api/v1/health/admin"): STAFF,
     ("GET", "/api/v1/schools/me"): STAFF,
     ("POST", "/api/v1/schools/users"): STAFF,
-    ("GET", "/api/v1/pupils"): PARENT,
+    ("GET", "/api/v1/pupils"): MANAGERS,
     ("POST", "/api/v1/pupils"): PARENT,
-    ("GET", "/api/v1/pupils/{pupil_id}"): PARENT,
+    ("GET", "/api/v1/pupils/{pupil_id}"): MANAGERS,
     ("PATCH", "/api/v1/pupils/{pupil_id}"): PARENT,
     ("POST", "/api/v1/pickers"): PARENT,
     ("GET", "/api/v1/pickers"): MANAGERS,
@@ -297,3 +297,48 @@ async def test_email_outage_does_not_affect_gate(client, school, outbox):
 
     assert result["result"] == "invalid_code"
     assert [a[0] for a in await api.alerts(school["school_id"])] == ["invalid_code"]
+
+
+# --- Admin pupil access (SRS 5.1, 18.3, 18.4) ---
+
+
+async def test_admin_lists_and_views_all_school_pupils(client, school):
+    """Admins see every pupil in their school; parents see only their own."""
+
+    other_parent = await api.add_parent(client, school, "other")
+    response = await client.post(
+        "/api/v1/pupils",
+        headers=other_parent,
+        json={"first_name": "Bisi", "last_name": "Ade", "date_of_birth": "2019-02-02"},
+    )
+    other_pupil = response.json()
+
+    admin_list = await client.get("/api/v1/pupils", headers=school["headers"]["admin"])
+    parent_list = await client.get("/api/v1/pupils", headers=school["headers"]["parent"])
+    admin_view = await client.get(
+        f"/api/v1/pupils/{other_pupil['id']}", headers=school["headers"]["admin"]
+    )
+    parent_view = await client.get(
+        f"/api/v1/pupils/{other_pupil['id']}", headers=school["headers"]["parent"]
+    )
+
+    assert [p["first_name"] for p in admin_list.json()] == ["Bisi", "Ada"]
+    assert [p["first_name"] for p in parent_list.json()] == ["Ada"]
+    assert admin_view.status_code == 200
+    assert admin_view.json()["parent_id"] == other_pupil["parent_id"]
+    assert parent_view.status_code == 404
+    assert parent_view.json()["detail"] == "Pupil not found"
+
+
+async def test_admin_cannot_see_other_school_pupils(client, school):
+    """Another school's admin sees no pupils and gets 404 for this school's pupil."""
+
+    [pupil] = (await client.get("/api/v1/pupils", headers=school["headers"]["parent"])).json()
+    other = (await api.create_school(client, "bravo"))["headers"]["admin"]
+
+    listed = await client.get("/api/v1/pupils", headers=other)
+    viewed = await client.get(f"/api/v1/pupils/{pupil['id']}", headers=other)
+
+    assert [p["first_name"] for p in listed.json()] == ["Ada"]
+    assert all(p["school_id"] != pupil["school_id"] for p in listed.json())
+    assert viewed.status_code == 404
