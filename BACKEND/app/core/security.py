@@ -1,8 +1,12 @@
 from pwdlib import PasswordHash
 from datetime import datetime, timedelta, timezone
+import hashlib
+import hmac
+import secrets
 import jwt
 
 from app.core.config import settings
+from app.core.constants import PICKUP_CODE_ALPHABET, PICKUP_CODE_LENGTH
 
 password_hash = PasswordHash.recommended()
 
@@ -39,3 +43,29 @@ def decode_access_token(token: str) -> dict:
         settings.secret_key,
         algorithms=["HS256"],
     )
+
+# Separate key for pickup codes, derived from SECRET_KEY, so the JWT signer
+# and the code hasher never share the same key.
+_pickup_code_key = hmac.new(
+    settings.secret_key.encode(),
+    b"pikva:pickup-code",
+    hashlib.sha256,
+).digest()
+
+def generate_pickup_code() -> str:
+    """Generate a cryptographically random plaintext daily pickup code."""
+
+    return "".join(
+        secrets.choice(PICKUP_CODE_ALPHABET) for _ in range(PICKUP_CODE_LENGTH)
+    )
+
+def hash_pickup_code(code: str) -> str:
+    """Return the keyed HMAC-SHA256 hex digest of a normalised pickup code."""
+
+    normalised = "".join(code.split()).upper()
+
+    return hmac.new(
+        _pickup_code_key,
+        normalised.encode(),
+        hashlib.sha256,
+    ).hexdigest()

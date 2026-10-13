@@ -1,5 +1,5 @@
 from app.db.base import Base
-from sqlalchemy import Date, DateTime, ForeignKey, String
+from sqlalchemy import Date, DateTime, ForeignKey, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from datetime import date, datetime, timezone
@@ -9,6 +9,16 @@ class DailyPickupCode(Base):
     """Represent a hashed pickup verification code for a day."""
 
     __tablename__ = "daily_pickup_codes"
+    __table_args__ = (
+        # Gate lookup by hash; unique so a hash identifies exactly one code.
+        Index("ix_daily_pickup_codes_code_hash", "code_hash", unique=True),
+        # Find today's codes for an authorisation when re-issuing.
+        Index(
+            "ix_daily_pickup_codes_authorisation_id_code_date",
+            "authorisation_id",
+            "code_date",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
