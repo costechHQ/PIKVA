@@ -39,7 +39,7 @@ async def register_school_admin(
         name = data.name,
         email = data.email,
         phone = data.phone,
-        password_hash = hash_password(data.password),
+        password_hash = await hash_password(data.password),
         role = UserRole.SCHOOL_ADMIN,
     )
 
@@ -75,7 +75,7 @@ async def login_user(
     if user is None:
         raise ValueError("Invalid email or password")
 
-    if not verify_password(data.password, user.password_hash):
+    if not await verify_password(data.password, user.password_hash):
         raise ValueError("Invalid email or password")
 
     access_token = create_access_token(str(user.id))

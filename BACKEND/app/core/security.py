@@ -1,3 +1,5 @@
+import asyncio
+
 from pwdlib import PasswordHash
 from datetime import datetime, timedelta, timezone
 import hashlib
@@ -10,16 +12,20 @@ from app.core.constants import PICKUP_CODE_ALPHABET, PICKUP_CODE_LENGTH
 
 password_hash = PasswordHash.recommended()
 
-def hash_password(password: str) -> str:
-    """"Hash a plain-text password securely"""
+async def hash_password(password: str) -> str:
+    """Hash a plain-text password securely.
 
-    return password_hash.hash(password)
+    Argon2 is deliberately slow CPU work, so it runs in a worker thread to
+    keep the event loop free for other requests (such as the gate).
+    """
+
+    return await asyncio.to_thread(password_hash.hash, password)
 
 
-def verify_password(password: str, hashed_password: str) -> bool:
-    """Verify a plain-text password against its stored hash."""
+async def verify_password(password: str, hashed_password: str) -> bool:
+    """Verify a plain-text password against its stored hash, off the event loop."""
 
-    return password_hash.verify(password, hashed_password)
+    return await asyncio.to_thread(password_hash.verify, password, hashed_password)
 
 def create_access_token(subject: str) -> str:
     """Create a signed JWT access token for a user."""

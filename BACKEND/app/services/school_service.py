@@ -45,7 +45,7 @@ async def create_school_user(
         name=data.name,
         email=data.email,
         phone=data.phone,
-        password_hash=hash_password(data.password),
+        password_hash=await hash_password(data.password),
         role=data.role,
     )
 
