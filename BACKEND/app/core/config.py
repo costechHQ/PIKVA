@@ -1,8 +1,13 @@
+from typing import Literal
+
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    # Unknown values fail at startup, so a typo never runs as development.
+    environment: Literal["development", "production"] = "development"
+
     database_url: str
     secret_key: str
     access_token_expire_minutes: int = 30
