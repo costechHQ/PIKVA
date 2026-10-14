@@ -19,6 +19,18 @@ settings.redis_url = make_url(settings.redis_url).set(
 # Never send real email from tests, even when .env holds a Resend key.
 settings.resend_api_key = None
 
+from pwdlib import PasswordHash  # noqa: E402
+from pwdlib.hashers.argon2 import Argon2Hasher  # noqa: E402
+
+from app.core import security  # noqa: E402
+
+# Cheapest Argon2 settings, for speed in tests only; production keeps
+# PasswordHash.recommended(). Argon2 stores its settings in each hash, so
+# strong hashes still verify.
+security.password_hash = PasswordHash(
+    (Argon2Hasher(time_cost=1, memory_cost=8, parallelism=1),)
+)
+
 import httpx  # noqa: E402
 import pytest  # noqa: E402
 
