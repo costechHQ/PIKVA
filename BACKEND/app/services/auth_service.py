@@ -4,6 +4,7 @@ from sqlalchemy import select
 from app.core.security import (
     create_access_token,
     hash_password, 
+    verify_dummy_password,
     verify_password,
 )
 from app.models.school import School
@@ -73,6 +74,8 @@ async def login_user(
     )
 
     if user is None:
+        # Same Argon2 cost as a wrong password, so timing hides which emails exist.
+        await verify_dummy_password(data.password)
         raise ValueError("Invalid email or password")
 
     if not await verify_password(data.password, user.password_hash):

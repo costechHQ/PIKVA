@@ -27,6 +27,26 @@ async def verify_password(password: str, hashed_password: str) -> bool:
 
     return await asyncio.to_thread(password_hash.verify, password, hashed_password)
 
+
+# Made on first use by the current hasher, so it costs the same to verify as
+# a real user's hash.
+_dummy_hash: str | None = None
+
+
+async def verify_dummy_password(password: str) -> None:
+    """Do a real-cost verify for a login with an unknown email.
+
+    Without it, unknown emails fail faster than wrong passwords, and the
+    response time would reveal which emails have accounts.
+    """
+
+    global _dummy_hash
+
+    if _dummy_hash is None:
+        _dummy_hash = await hash_password(secrets.token_urlsafe(16))
+
+    await verify_password(password, _dummy_hash)
+
 def create_access_token(subject: str) -> str:
     """Create a signed JWT access token for a user."""
 

@@ -83,3 +83,44 @@ async def test_password_hashing_does_not_block_event_loop(client, monkeypatch):
 
     assert school["headers"]["gate_staff"]
     assert stall < BLOCK_SECONDS / 2
+
+
+class CountingHasher:
+    """Wrap a hasher and count verify calls."""
+
+    def __init__(self, inner):
+        """Keep the real hasher and start counting at zero."""
+
+        self.inner = inner
+        self.verifies = 0
+
+    def hash(self, password: str) -> str:
+        """Hash without counting."""
+
+        return self.inner.hash(password)
+
+    def verify(self, password: str, hashed: str) -> bool:
+        """Count, then verify."""
+
+        self.verifies += 1
+        return self.inner.verify(password, hashed)
+
+
+async def test_unknown_email_costs_the_same_as_wrong_password(client, monkeypatch):
+    """Both failed logins run one Argon2 verify, so timing cannot reveal accounts."""
+
+    await api.create_school(client, "alpha")
+    counter = CountingHasher(security.password_hash)
+    monkeypatch.setattr(security, "password_hash", counter)
+    responses = {}
+
+    for case, email in (("wrong password", "admin-alpha@example.com"),
+                        ("unknown email", "nobody@example.com")):
+        before = counter.verifies
+        responses[case] = await client.post(
+            "/api/v1/auth/login", json={"email": email, "password": "WrongPassword123!"}
+        )
+        assert counter.verifies - before == 1, case
+
+    assert responses["wrong password"].status_code == 401
+    assert responses["unknown email"].json() == responses["wrong password"].json()
