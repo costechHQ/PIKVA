@@ -62,6 +62,43 @@ export async function requireUser(
   return { props: { user } };
 }
 
+/**
+ * For signed-out pages such as /login: send a user who is already signed in
+ * to their home page. Anything uncertain (no cookie, rejected token, FastAPI
+ * down, unknown role) shows the page instead, so it can never loop or fail.
+ * A rejected token's cookie is deleted.
+ */
+export async function redirectIfSignedIn(
+  context: GuardContext,
+): Promise<GetServerSidePropsResult<Record<string, never>>> {
+  const token = sessionToken(context.req);
+  const showPage = { props: {} };
+
+  if (!token) {
+    return showPage;
+  }
+
+  let response: Response;
+
+  try {
+    response = await fetch(`${apiBaseUrl()}/api/v1/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch {
+    return showPage;
+  }
+
+  if (response.status === 401) {
+    context.res.setHeader("Set-Cookie", clearedSessionCookie(secureCookies()));
+    return showPage;
+  }
+
+  const user: Partial<CurrentUser> | null = response.ok ? await response.json().catch(() => null) : null;
+  const home = user?.role ? HOME_PATH[user.role] : undefined;
+
+  return home ? redirect(home) : showPage;
+}
+
 function redirect(destination: string): GetServerSidePropsResult<never> {
   return { redirect: { destination, permanent: false } };
 }

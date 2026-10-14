@@ -1,7 +1,7 @@
 /** Tests for requireUser, the getServerSideProps page guard. */
 import { afterEach, describe, expect, test } from "bun:test";
 
-import { type CurrentUser, type Role, requireUser } from "@/lib/auth-guard";
+import { type CurrentUser, type Role, redirectIfSignedIn, requireUser } from "@/lib/auth-guard";
 import { SESSION_COOKIE } from "@/lib/session";
 import { type FakeBackend, deadBackendUrl, startBackend, tokenExpiringIn } from "./helpers";
 
@@ -120,5 +120,60 @@ describe("requireUser", () => {
     process.env.PIKVA_API_URL = deadBackendUrl();
 
     await expect(requireUser(fakeContext().context, ["school_admin"])).rejects.toThrow();
+  });
+});
+
+describe("redirectIfSignedIn", () => {
+  const SHOW_PAGE = { props: {} };
+
+  test("sends a signed-in admin to /admin", async () => {
+    useBackend(() => Response.json(userWithRole("school_admin")));
+
+    expect(await redirectIfSignedIn(fakeContext().context)).toEqual({
+      redirect: { destination: "/admin", permanent: false },
+    });
+  });
+
+  test("sends signed-in gate staff and parents to their own pages", async () => {
+    useBackend(() => Response.json(userWithRole("gate_staff")));
+    expect(await redirectIfSignedIn(fakeContext().context)).toEqual({
+      redirect: { destination: "/gate", permanent: false },
+    });
+    backend?.stop();
+
+    useBackend(() => Response.json(userWithRole("parent")));
+    expect(await redirectIfSignedIn(fakeContext().context)).toEqual({
+      redirect: { destination: "/use-mobile-app", permanent: false },
+    });
+  });
+
+  test("shows the page without a cookie and does not call FastAPI", async () => {
+    const fake = useBackend(() => Response.json(userWithRole("school_admin")));
+
+    expect(await redirectIfSignedIn(fakeContext({}).context)).toEqual(SHOW_PAGE);
+    expect(fake.requests).toHaveLength(0);
+  });
+
+  test("clears a rejected cookie and shows the page", async () => {
+    useBackend(() => Response.json({ detail: "Could not validate credentials" }, { status: 401 }));
+    const { context, headers } = fakeContext();
+
+    expect(await redirectIfSignedIn(context)).toEqual(SHOW_PAGE);
+    expect(headers["set-cookie"]).toContain(`${SESSION_COOKIE}=; Path=/; Max-Age=0`);
+  });
+
+  test("shows the page when FastAPI fails or is unreachable", async () => {
+    useBackend(() => Response.json({ detail: "Internal Server Error" }, { status: 500 }));
+    expect(await redirectIfSignedIn(fakeContext().context)).toEqual(SHOW_PAGE);
+    backend?.stop();
+
+    process.env.PIKVA_API_URL = deadBackendUrl();
+    expect(await redirectIfSignedIn(fakeContext().context)).toEqual(SHOW_PAGE);
+  });
+
+  test("shows the page for an unknown role instead of looping", async () => {
+    useBackend(() => Response.json({ ...userWithRole("school_admin"), role: "SCHOOL_ADMIN" }));
+
+    expect(await redirectIfSignedIn(fakeContext().context)).toEqual(SHOW_PAGE);
   });
 });

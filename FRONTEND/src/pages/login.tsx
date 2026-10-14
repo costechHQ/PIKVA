@@ -4,8 +4,12 @@ import { type FormEvent, useState } from "react";
 
 import { AuthCard, FormError, inputClass, linkClass, primaryButtonClass } from "@/components/AuthCard";
 import { OFFLINE } from "@/lib/api-errors";
+import { redirectIfSignedIn } from "@/lib/auth-guard";
 import { loginErrorMessage } from "@/lib/login-error";
 import { HOME_PATH, type Role } from "@/lib/roles";
+
+// Already signed in: go straight to your home page instead of the form.
+export const getServerSideProps = redirectIfSignedIn;
 
 /**
  * Sign-in page (SRS 18.2). Posts to the BFF route /api/auth/login, which
