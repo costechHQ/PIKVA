@@ -15,6 +15,24 @@ from redis.exceptions import RedisError
 
 logger = logging.getLogger(__name__)
 
+# OpenAPI description of the 429 response, for every rate-limited route.
+RATE_LIMITED_RESPONSE = {
+    429: {
+        "description": "Too many requests; try again after Retry-After seconds",
+        "headers": {
+            "Retry-After": {
+                "description": "Seconds until the limit resets",
+                "schema": {"type": "integer"},
+            },
+        },
+        "content": {
+            "application/json": {
+                "example": {"detail": "Too many requests. Try again later."},
+            },
+        },
+    },
+}
+
 
 class RateLimitExceeded(Exception):
     """Raised when a key is over its limit; retry_after is in seconds."""

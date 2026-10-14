@@ -34,7 +34,15 @@ async def database_health_check(
     return {"database": "ok"}
 
 
-@router.get("/health/redis")
+@router.get(
+    "/health/redis",
+    responses={
+        503: {
+            "description": "Redis is unreachable",
+            "content": {"application/json": {"example": {"redis": "unavailable"}}},
+        },
+    },
+)
 async def redis_health_check(
     redis: Redis = Depends(get_redis),
 ):

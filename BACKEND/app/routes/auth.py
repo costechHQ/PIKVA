@@ -40,7 +40,8 @@ def _client_ip(request: Request) -> str:
 @router.post(
         "/register", 
         response_model=UserResponse,
-        status_code=status.HTTP_201_CREATED
+        status_code=status.HTTP_201_CREATED,
+        responses=rate_limit.RATE_LIMITED_RESPONSE,
         )
 async def register(
     data: UserRegister,
@@ -71,7 +72,11 @@ async def register(
         )
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post(
+    "/login",
+    response_model=TokenResponse,
+    responses=rate_limit.RATE_LIMITED_RESPONSE,
+)
 async def login(
     data: UserLogin,
     request: Request,

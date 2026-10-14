@@ -68,6 +68,7 @@ async def limit_parent_codes(
     "/codes",
     response_model=PickupCodeResponse,
     status_code=status.HTTP_201_CREATED,
+    responses=rate_limit.RATE_LIMITED_RESPONSE,
     dependencies=[Depends(require_role(UserRole.PARENT)), Depends(limit_parent_codes)],
 )
 
@@ -105,6 +106,7 @@ async def issue_pickup_code_endpoint(
 @router.post(
     "/verify",
     response_model=PickupVerifyResponse,
+    responses=rate_limit.RATE_LIMITED_RESPONSE,
     dependencies=[Depends(require_role(UserRole.GATE_STAFF)), Depends(limit_gate_staff)],
 )
 
@@ -138,6 +140,7 @@ async def verify_pickup_endpoint(
             "model": PickupReleaseResponse,
             "description": "Pupil released and release record created",
         },
+        **rate_limit.RATE_LIMITED_RESPONSE,
     },
     dependencies=[Depends(require_role(UserRole.GATE_STAFF)), Depends(limit_gate_staff)],
 )
