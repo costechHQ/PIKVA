@@ -2,8 +2,7 @@
  * Turn a failed POST /api/auth/login answer into one sentence for the login
  * form. Safe to import from pages.
  */
-
-const GENERIC = "Sign-in failed. Please try again.";
+import { UNAVAILABLE, detailText, tooManyMessage } from "@/lib/api-errors";
 
 /**
  * Return the message to show for a failed sign-in.
@@ -23,30 +22,12 @@ export function loginErrorMessage(status: number, body: unknown, retryAfter: str
   }
 
   if (status === 429) {
-    const minutes = waitMinutes(retryAfter);
-    return minutes === null
-      ? "Too many sign-in attempts. Please wait and try again."
-      : `Too many sign-in attempts. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`;
+    return tooManyMessage("sign-in attempts", retryAfter);
   }
 
   if (status === 502 || status === 503) {
-    return detailText(body) ?? "Pikva service is unavailable. Try again shortly.";
+    return detailText(body) ?? UNAVAILABLE;
   }
 
-  return GENERIC;
-}
-
-/** Return body.detail when it is a non-empty string. */
-function detailText(body: unknown): string | null {
-  if (body && typeof body === "object" && "detail" in body) {
-    const { detail } = body as { detail: unknown };
-    if (typeof detail === "string" && detail.trim()) return detail;
-  }
-  return null;
-}
-
-/** Retry-After seconds rounded up to whole minutes, or null if unusable. */
-function waitMinutes(retryAfter: string | null): number | null {
-  const seconds = Number(retryAfter);
-  return retryAfter && Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds / 60) : null;
+  return "Sign-in failed. Please try again.";
 }
