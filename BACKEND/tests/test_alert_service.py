@@ -12,7 +12,10 @@ from app.models.school import School
 from app.models.security_alert import SecurityAlert
 from app.models.user import User, UserRole
 from app.schemas.alert import AlertStatus
+import test_rate_limit
+from app.db.redis import redis_client
 from app.services.alert_service import (
+    ALERT_EMAIL_COOLDOWN_SECONDS,
     REPEATED_FAILED_ATTEMPTS,
     REPEATED_FAILURE_LIMIT,
     REPEATED_FAILURE_WINDOW,
@@ -328,3 +331,109 @@ async def test_provider_failure_never_raises(session):
     [alert] = await fail(session, staff)
 
     assert await notify_security_alerts(staff.school_id, [alert.id], FakeSender(fail=True)) is False
+
+
+# --- Alert email cooldown per school (SRS 20 "important security alerts") ---
+
+
+async def admin_and_staff(session, name: str) -> User:
+    """Create a school with a gate staff member and an admin to email."""
+
+    staff = await make_staff(session, name)
+    await make_admin(session, staff.school_id, name)
+
+    return staff
+
+
+async def test_second_alert_within_cooldown_is_not_emailed(session):
+    """After one email, further alerts in the cooldown stay in the dashboard only."""
+
+    staff = await admin_and_staff(session, "Sierra")
+    [first] = await fail(session, staff)
+    [second] = await fail(session, staff, PickupCodeCheckResult.USED_CODE)
+    sender = FakeSender()
+
+    assert await notify_security_alerts(staff.school_id, [first.id], sender) is True
+    assert await notify_security_alerts(staff.school_id, [second.id], sender) is False
+
+    assert len(sender.sent) == 1
+    assert await get_alert(session, staff.school_id, second.id) is not None
+    ttl = await redis_client.ttl(f"pikva:alert-email:school:{staff.school_id}")
+    assert 0 < ttl <= ALERT_EMAIL_COOLDOWN_SECONDS
+
+
+async def test_repeated_attempts_alert_is_emailed_during_cooldown(session):
+    """The repeated-attempts alert always reaches the admins."""
+
+    staff = await admin_and_staff(session, "Tango")
+    [first] = await fail(session, staff)
+    for _ in range(REPEATED_FAILURE_LIMIT - 2):
+        await fail(session, staff)
+    alerts = await fail(session, staff)
+    sender = FakeSender()
+
+    await notify_security_alerts(staff.school_id, [first.id], sender)
+    assert await notify_security_alerts(staff.school_id, [a.id for a in alerts], sender) is True
+
+    assert [m.subject for m in sender.sent] == [
+        "Pikva security alert: invalid_code",
+        "Pikva security alerts: invalid_code, repeated_failed_attempts",
+    ]
+
+
+async def test_cooldown_is_per_school(session):
+    """One school's cooldown does not silence another school's alerts."""
+
+    staff = await admin_and_staff(session, "Uniform")
+    other = await admin_and_staff(session, "Victor")
+    [alert] = await fail(session, staff)
+    [other_alert] = await fail(session, other)
+    sender = FakeSender()
+
+    await notify_security_alerts(staff.school_id, [alert.id], sender)
+
+    assert await notify_security_alerts(other.school_id, [other_alert.id], sender) is True
+
+
+async def test_provider_failure_does_not_start_cooldown(session):
+    """If the email fails, the next alert is tried instead of being silenced."""
+
+    staff = await admin_and_staff(session, "Whiskey")
+    [first] = await fail(session, staff)
+    [second] = await fail(session, staff)
+
+    await notify_security_alerts(staff.school_id, [first.id], FakeSender(fail=True))
+
+    assert await notify_security_alerts(staff.school_id, [second.id], FakeSender()) is True
+
+
+async def test_alert_emails_send_when_redis_is_down(session, caplog):
+    """Without Redis the cooldown is skipped and every alert is emailed."""
+
+    staff = await admin_and_staff(session, "Xray")
+    [first] = await fail(session, staff)
+    [second] = await fail(session, staff)
+    sender = FakeSender()
+    dead = test_rate_limit.dead_redis()
+
+    try:
+        await notify_security_alerts(staff.school_id, [first.id], sender, dead)
+        await notify_security_alerts(staff.school_id, [second.id], sender, dead)
+    finally:
+        await dead.aclose()
+
+    assert len(sender.sent) == 2
+    assert "cooldown unavailable" in caplog.text.lower()
+
+
+async def test_alert_email_explains_cooldown(session):
+    """The email tells admins that later alerts may only be in the dashboard."""
+
+    staff = await admin_and_staff(session, "Yankee")
+    [alert] = await fail(session, staff)
+    sender = FakeSender()
+
+    await notify_security_alerts(staff.school_id, [alert.id], sender)
+
+    [message] = sender.sent
+    assert "at most one alert email every 10 minutes" in message.text

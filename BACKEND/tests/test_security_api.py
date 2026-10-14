@@ -280,15 +280,20 @@ async def test_successful_gate_flow_sends_no_email(client, school, outbox):
 
 
 async def test_repeated_attempts_email_includes_both_alerts(client, school, outbox):
-    """The fifth failure's email covers the failure and the repeated-attempts alert."""
+    """Five failures send two emails: the first alert, then the repeated-attempts one.
+
+    Failures two to four fall inside the per-school email cooldown, so they
+    are recorded for the dashboard but not emailed.
+    """
 
     for _ in range(5):
         await api.verify(client, school, {"method": "manual", "code": "ZZZZ9999"})
 
-    assert len(outbox.sent) == 5
-    assert outbox.sent[-1].subject == (
-        "Pikva security alerts: invalid_code, repeated_failed_attempts"
-    )
+    assert [message.subject for message in outbox.sent] == [
+        "Pikva security alert: invalid_code",
+        "Pikva security alerts: invalid_code, repeated_failed_attempts",
+    ]
+    assert len(await api.alerts(school["school_id"])) == 6
 
 
 async def test_email_outage_does_not_affect_gate(client, school, outbox):

@@ -1,9 +1,12 @@
 import logging
 from datetime import datetime, timedelta, timezone
 
+from redis.asyncio import Redis
+from redis.exceptions import RedisError
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.redis import redis_client
 from app.db.session import async_session
 from app.models.pickup_code import PickupCodeCheckResult
 from app.models.school import School
@@ -20,6 +23,11 @@ logger = logging.getLogger(__name__)
 REPEATED_FAILURE_LIMIT = 5
 REPEATED_FAILURE_WINDOW = timedelta(minutes=10)
 REPEATED_FAILED_ATTEMPTS = "repeated_failed_attempts"
+
+# At most one alert email per school in this time, so a burst of failures
+# cannot flood admins or use up the email quota (SRS 20). Repeated-attempts
+# alerts are always sent; every alert is still recorded for the dashboard.
+ALERT_EMAIL_COOLDOWN_SECONDS = 10 * 60
 
 # Messages never include the plaintext code (SRS 14, 28).
 _FAILURE_MESSAGES = {
@@ -211,20 +219,62 @@ def security_alert_email(
         lines += [f"- {when}: {alert.message}", f"  {' | '.join(details)}", ""]
 
     lines.append("Review and resolve these alerts in the Pikva dashboard.")
+    lines.append(
+        f"Pikva sends at most one alert email every "
+        f"{ALERT_EMAIL_COOLDOWN_SECONDS // 60} minutes per school (repeated "
+        f"failed attempts are always sent); later alerts appear in the dashboard."
+    )
 
     return EmailMessage(to=recipients, subject=subject, text="\n".join(lines))
+
+
+def _cooldown_key(school_id: int) -> str:
+    """Return the Redis key marking a school's recent alert email."""
+
+    return f"pikva:alert-email:school:{school_id}"
+
+
+async def _claim_email_slot(redis: Redis, school_id: int, urgent: bool) -> bool:
+    """Start the school's email cooldown; return whether to send.
+
+    Urgent alerts are always sent. If Redis is unreachable the email is sent,
+    since a missed alert is worse than an extra email.
+    """
+
+    try:
+        claimed = await redis.set(
+            _cooldown_key(school_id), "1", nx=True, ex=ALERT_EMAIL_COOLDOWN_SECONDS
+        )
+    except RedisError as exc:
+        logger.warning("Alert email cooldown unavailable, sending: %s", type(exc).__name__)
+        return True
+
+    return bool(claimed) or urgent
+
+
+async def _release_email_slot(redis: Redis, school_id: int) -> None:
+    """End the school's cooldown after a failed send, so the next alert retries."""
+
+    try:
+        await redis.delete(_cooldown_key(school_id))
+    except RedisError as exc:
+        logger.warning("Alert email cooldown unavailable: %s", type(exc).__name__)
 
 
 async def notify_security_alerts(
         school_id: int,
         alert_ids: list[int],
         sender: EmailSender | None = None,
+        redis: Redis | None = None,
 ) -> bool:
     """Email a school's admins about new security alerts; never raises.
 
     Runs after the request has finished, so it opens its own session and
-    loads only this school's alerts and admins.
+    loads only this school's alerts and admins. At most one email per school
+    is sent per cooldown, except for repeated-attempts alerts.
     """
+
+    redis = redis or redis_client
 
     try:
         async with async_session() as session:
@@ -259,6 +309,16 @@ async def notify_security_alerts(
         logger.error("Security alert notification failed: %s", type(exc).__name__)
         return False
 
-    message = security_alert_email(school.name, alerts, admin_emails)
+    urgent = any(alert.alert_type == REPEATED_FAILED_ATTEMPTS for alert in alerts)
 
-    return await send_email_safely(message, sender)
+    if not await _claim_email_slot(redis, school_id, urgent):
+        logger.info("Security alert email skipped during cooldown: %d alert(s)", len(alerts))
+        return False
+
+    message = security_alert_email(school.name, alerts, admin_emails)
+    sent = await send_email_safely(message, sender)
+
+    if not sent:
+        await _release_email_slot(redis, school_id)
+
+    return sent
