@@ -3,6 +3,8 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 
+import { apiBaseUrl } from "@/lib/config";
+
 // Response headers worth passing to the browser; everything else stays here.
 const RELAYED_HEADERS = ["content-type", "retry-after"];
 
@@ -27,6 +29,39 @@ export async function relay(response: Response, res: NextApiResponse): Promise<v
   }
 
   res.status(response.status).send(await response.text());
+}
+
+/**
+ * POST a public (no session) JSON body to FastAPI and relay the answer.
+ * Only the named fields are sent; FastAPI validates them. The browser's IP
+ * is forwarded so FastAPI's per-IP rate limits apply to the real client.
+ */
+export async function postPublic(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  path: string,
+  fields: readonly string[],
+): Promise<void> {
+  if (req.method !== "POST") {
+    return methodNotAllowed(res, "POST");
+  }
+
+  const source = (req.body ?? {}) as Record<string, unknown>;
+  const body = Object.fromEntries(fields.map((field) => [field, source[field]]));
+
+  let response: Response;
+
+  try {
+    response = await fetch(`${apiBaseUrl()}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Forwarded-For": forwardedFor(req) },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    return unavailable(res);
+  }
+
+  return relay(response, res);
 }
 
 /** Answer 502 when FastAPI cannot be reached. */
