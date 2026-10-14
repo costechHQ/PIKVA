@@ -50,12 +50,15 @@ async def verify_dummy_password(password: str) -> None:
 def create_access_token(subject: str) -> str:
     """Create a signed JWT access token for a user."""
 
-    expires_at = datetime.now(timezone.utc) + timedelta(
+    issued_at = datetime.now(timezone.utc)
+    expires_at = issued_at + timedelta(
         minutes=settings.access_token_expire_minutes
     )
 
+    # iat lets a password reset reject every token issued before it.
     payload = {
         "sub": subject,
+        "iat": issued_at,
         "exp": expires_at,
     }
 
