@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.constants import PASSWORD_RESET_TOKEN_MINUTES
 from app.core.security import (
     generate_password_reset_token,
@@ -19,6 +20,7 @@ from app.services.audit_service import (
     PASSWORD_RESET_REQUESTED,
     record_audit,
 )
+from app.services.notification_service import EmailMessage
 
 
 @dataclass
@@ -69,6 +71,31 @@ async def request_password_reset(
     await session.commit()
 
     return PasswordResetRequest(user=user, token=token)
+
+
+def password_reset_email(request: PasswordResetRequest) -> EmailMessage:
+    """Build the email carrying the reset link to the user.
+
+    The one email that must hold a secret: the link is single use and
+    expires, and email senders never log message bodies.
+    """
+
+    link = f"{settings.web_app_url.rstrip('/')}/reset-password?token={request.token}"
+
+    return EmailMessage(
+        to=(request.user.email,),
+        subject="Reset your Pikva password",
+        text=(
+            f"Hello {request.user.name},\n\n"
+            "We received a request to reset your Pikva password. "
+            "Open this link to choose a new one:\n\n"
+            f"{link}\n\n"
+            f"The link works once and expires in {PASSWORD_RESET_TOKEN_MINUTES} minutes. "
+            "Resetting your password signs you out everywhere.\n\n"
+            "If you did not ask for this, ignore this email; your password "
+            "stays the same.\n"
+        ),
+    )
 
 
 async def reset_password(

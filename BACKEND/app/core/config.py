@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     resend_api_key: SecretStr | None = None
     email_from: str | None = None
 
+    # The web app's address, for links in emails (password reset, SRS 6.6).
+    web_app_url: str = "http://localhost:3000"
+
     model_config = SettingsConfigDict(env_file=".env")
 
 

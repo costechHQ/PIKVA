@@ -1,10 +1,12 @@
 """Service tests for password reset by email (SRS 6.6)."""
 
+import logging
 from datetime import datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import select, update
 
+from app.core.config import settings
 from app.core.constants import PASSWORD_RESET_TOKEN_MINUTES
 from app.core.security import hash_password_reset_token, verify_password
 from app.db.session import async_session
@@ -13,7 +15,12 @@ from app.models.password_reset_token import PasswordResetToken
 from app.models.school import School
 from app.models.user import User, UserRole
 from app.services.audit_service import PASSWORD_RESET, PASSWORD_RESET_REQUESTED
-from app.services.password_reset_service import request_password_reset, reset_password
+from app.services.notification_service import LogEmailSender, send_email_safely
+from app.services.password_reset_service import (
+    password_reset_email,
+    request_password_reset,
+    reset_password,
+)
 
 EMAIL = "reset-me@example.com"
 NEW_PASSWORD = "A-brand-new-password-1"
@@ -164,3 +171,40 @@ async def test_unknown_token_is_refused(session, user):
 
     assert await reset_password(session, "not-a-real-token", NEW_PASSWORD) is False
     assert await audit_actions(session) == [PASSWORD_RESET_REQUESTED]
+
+
+# --- Email ---
+
+
+async def test_email_links_to_web_reset_page(session, user, monkeypatch):
+    monkeypatch.setattr(settings, "web_app_url", "https://pikva.example/")
+    request = await request_password_reset(session, EMAIL)
+
+    message = password_reset_email(request)
+
+    assert message.to == (EMAIL,)
+    assert message.subject == "Reset your Pikva password"
+    assert f"https://pikva.example/reset-password?token={request.token}\n" in message.text
+    assert f"{PASSWORD_RESET_TOKEN_MINUTES} minutes" in message.text
+
+
+async def test_emailed_link_resets_the_password(session, user):
+    """The token in the link is exactly the one the reset accepts."""
+
+    request = await request_password_reset(session, EMAIL)
+    message = password_reset_email(request)
+    token = message.text.split("?token=", 1)[1].split()[0]
+
+    assert await reset_password(session, token, NEW_PASSWORD) is True
+
+
+async def test_logged_email_never_contains_the_link(session, user, caplog):
+    """Without Resend, the log shows only the subject."""
+
+    request = await request_password_reset(session, EMAIL)
+
+    with caplog.at_level(logging.DEBUG):
+        assert await send_email_safely(password_reset_email(request), LogEmailSender())
+
+    assert request.token not in caplog.text
+    assert EMAIL not in caplog.text

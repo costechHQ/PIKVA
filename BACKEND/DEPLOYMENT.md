@@ -25,6 +25,7 @@ secret store) and set:
 - [ ] `REDIS_URL` pointing at the production Redis (database 0, never 15).
 - [ ] `LOG_LEVEL=INFO`.
 - [ ] `RESEND_API_KEY` and `EMAIL_FROM` on a domain verified in Resend.
+- [ ] `WEB_APP_URL` set to the web app's public `https://` address (password reset links).
       `onboarding@resend.dev` only delivers to the Resend account owner.
 - [ ] `.env` is not in git and is readable only by the service user.
 
