@@ -7,7 +7,8 @@ import { Icon } from "@/components/Icon";
 import { Logo } from "@/components/Logo";
 import type { CurrentUser } from "@/lib/auth-guard";
 import { ROLE_LABEL, isActive, navItems } from "@/lib/navigation";
-import { HOME_PATH, LOGIN_PATH } from "@/lib/roles";
+import { HOME_PATH } from "@/lib/roles";
+import { signOut } from "@/lib/sign-out";
 
 type AppShellProps = {
   user: CurrentUser;
@@ -34,14 +35,9 @@ export function AppShell({ user, title, subtitle, children }: AppShellProps) {
     return () => router.events.off("routeChangeComplete", close);
   }, [router.events]);
 
-  async function signOut() {
+  function handleSignOut() {
     setSigningOut(true);
-    try {
-      await fetch("/api/auth/logout", { method: "POST" });
-    } finally {
-      // Full page load, so no signed-in page state survives in memory.
-      window.location.assign(LOGIN_PATH);
-    }
+    void signOut();
   }
 
   const homePath = HOME_PATH[user.role];
@@ -128,7 +124,7 @@ export function AppShell({ user, title, subtitle, children }: AppShellProps) {
               </div>
               <button
                 type="button"
-                onClick={signOut}
+                onClick={handleSignOut}
                 disabled={signingOut}
                 className="flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-sm font-medium text-ink-muted hover:text-ink disabled:opacity-60"
               >
