@@ -24,3 +24,29 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+MIN_SECRET_KEY_LENGTH = 32
+MIN_SECRET_KEY_DISTINCT_CHARACTERS = 10
+_PLACEHOLDER_KEYS = {"changeme", "secret", "password"}
+_PLACEHOLDER_PARTS = ("change-me", "changeme", "your-secret", "replace-me")
+
+
+def secret_key_weakness(secret_key: str) -> str | None:
+    """Return why a SECRET_KEY is too weak for production, or None if it is fine.
+
+    The reason never includes the key itself, so it is safe to log.
+    """
+
+    lowered = secret_key.lower()
+
+    if lowered in _PLACEHOLDER_KEYS or any(part in lowered for part in _PLACEHOLDER_PARTS):
+        return "looks like a placeholder"
+
+    if len(secret_key) < MIN_SECRET_KEY_LENGTH:
+        return f"is shorter than {MIN_SECRET_KEY_LENGTH} characters"
+
+    if len(set(secret_key)) < MIN_SECRET_KEY_DISTINCT_CHARACTERS:
+        return f"has fewer than {MIN_SECRET_KEY_DISTINCT_CHARACTERS} distinct characters"
+
+    return None
