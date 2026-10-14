@@ -8,7 +8,8 @@ import type { GetServerSidePropsContext, GetServerSidePropsResult } from "next";
 import { apiBaseUrl } from "@/lib/config";
 import { clearedSessionCookie, secureCookies, sessionToken } from "@/lib/session";
 
-export type Role = "SCHOOL_ADMIN" | "GATE_STAFF" | "PARENT";
+// Exactly the values FastAPI sends (UserRole in app/models/user.py).
+export type Role = "school_admin" | "gate_staff" | "parent";
 
 /** The signed-in user, as FastAPI GET /api/v1/auth/me returns it. */
 export type CurrentUser = {
@@ -26,9 +27,9 @@ export const LOGIN_PATH = "/login";
 // Where each role belongs. Parents get no web functionality, only a page
 // pointing them to the mobile app.
 export const HOME_PATH: Record<Role, string> = {
-  SCHOOL_ADMIN: "/admin",
-  GATE_STAFF: "/gate",
-  PARENT: "/use-mobile-app",
+  school_admin: "/admin",
+  gate_staff: "/gate",
+  parent: "/use-mobile-app",
 };
 
 type GuardContext = Pick<GetServerSidePropsContext, "req" | "res">;

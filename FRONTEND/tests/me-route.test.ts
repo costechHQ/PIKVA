@@ -18,7 +18,7 @@ const USER = {
   name: "Ada Admin",
   email: "admin@school.example",
   phone: null,
-  role: "SCHOOL_ADMIN",
+  role: "school_admin",
   school_name: "Sunrise School",
 };
 
