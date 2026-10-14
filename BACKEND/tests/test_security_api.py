@@ -18,6 +18,8 @@ PUBLIC_ROUTES = {
     ("GET", "/api/v1/health/redis"),
     ("POST", "/api/v1/auth/register"),
     ("POST", "/api/v1/auth/login"),
+    ("POST", "/api/v1/auth/password-reset/request"),
+    ("POST", "/api/v1/auth/password-reset/confirm"),
 }
 
 # Which roles may call each protected endpoint. Every route the app exposes

@@ -7,6 +7,8 @@ from app.main import app
 RATE_LIMITED = [
     ("post", "/api/v1/auth/login"),
     ("post", "/api/v1/auth/register"),
+    ("post", "/api/v1/auth/password-reset/request"),
+    ("post", "/api/v1/auth/password-reset/confirm"),
     ("post", "/api/v1/pickup/codes"),
     ("post", "/api/v1/pickup/verify"),
     ("post", "/api/v1/pickup/release"),

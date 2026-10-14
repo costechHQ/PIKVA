@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,6 +11,11 @@ from app.core.constants import (
     LOGIN_FAILURE_LIMIT,
     LOGIN_IP_LIMIT,
     LOGIN_WINDOW_SECONDS,
+    PASSWORD_RESET_CONFIRM_IP_LIMIT,
+    PASSWORD_RESET_CONFIRM_WINDOW_SECONDS,
+    PASSWORD_RESET_EMAIL_LIMIT,
+    PASSWORD_RESET_IP_LIMIT,
+    PASSWORD_RESET_WINDOW_SECONDS,
     REGISTER_IP_LIMIT,
     REGISTER_WINDOW_SECONDS,
 )
@@ -19,12 +24,21 @@ from app.models.school import School
 from app.models.user import User
 from app.schemas.auth import (
     CurrentUserResponse,
+    MessageResponse,
+    PasswordResetConfirm,
+    PasswordResetEmail,
     TokenResponse,
     UserLogin,
     UserRegister,
     UserResponse,
 )
 from app.services.auth_service import register_school_admin, login_user
+from app.services.notification_service import send_email_safely
+from app.services.password_reset_service import (
+    password_reset_email,
+    request_password_reset,
+    reset_password,
+)
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -109,6 +123,93 @@ async def login(
             detail=str(exc),
         )
 
+
+
+PASSWORD_RESET_SENT = (
+    "If an account exists for that email, we have sent a link to reset its password."
+)
+
+
+@router.post(
+    "/password-reset/request",
+    response_model=MessageResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    responses=rate_limit.RATE_LIMITED_RESPONSE,
+)
+async def request_reset(
+    data: PasswordResetEmail,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    session: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
+):
+
+    """Email a password reset link if the account exists (SRS 6.6).
+
+    Always the same 202 answer, so the endpoint never reveals which emails
+    are registered; the email is sent after the response. Every request
+    counts against the client IP and against the email.
+    """
+
+    await rate_limit.hit(
+        redis,
+        f"pikva:rl:reset:ip:{_client_ip(request)}",
+        PASSWORD_RESET_IP_LIMIT,
+        PASSWORD_RESET_WINDOW_SECONDS,
+    )
+    await rate_limit.hit(
+        redis,
+        f"pikva:rl:reset:email:{rate_limit.hashed(data.email)}",
+        PASSWORD_RESET_EMAIL_LIMIT,
+        PASSWORD_RESET_WINDOW_SECONDS,
+    )
+
+    reset = await request_password_reset(session, data.email)
+
+    if reset is not None:
+        background_tasks.add_task(send_email_safely, password_reset_email(reset))
+
+    return MessageResponse(detail=PASSWORD_RESET_SENT)
+
+
+@router.post(
+    "/password-reset/confirm",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        400: {"description": "The reset link is invalid, used or expired"},
+        **rate_limit.RATE_LIMITED_RESPONSE,
+    },
+)
+async def confirm_reset(
+    data: PasswordResetConfirm,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
+):
+
+    """Set a new password with an emailed reset token (SRS 6.6).
+
+    Signs the user out of every older session. Rate limited per client IP.
+    """
+
+    ip = _client_ip(request)
+
+    await rate_limit.hit(
+        redis,
+        f"pikva:rl:reset-confirm:ip:{ip}",
+        PASSWORD_RESET_CONFIRM_IP_LIMIT,
+        PASSWORD_RESET_CONFIRM_WINDOW_SECONDS,
+    )
+
+    if not await reset_password(session, data.token, data.new_password):
+        # The IP only: never the token (SRS 28).
+        logger.info("Password reset failed from %s", ip)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This reset link is invalid or has expired",
+        )
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/me", response_model=CurrentUserResponse)

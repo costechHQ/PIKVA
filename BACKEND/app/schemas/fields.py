@@ -39,3 +39,7 @@ PhotoUrl = _text(500)
 # Hashed, so no column limit; capped so huge inputs are never hashed.
 # Not trimmed (spaces may be part of a password) but must not be all spaces.
 Password = Annotated[str, StringConstraints(min_length=1, max_length=128, pattern=r"\S")]
+
+# Password reset tokens: secrets.token_urlsafe(32) gives 43 URL-safe
+# characters; capped so huge inputs are never hashed.
+ResetToken = Annotated[str, StringConstraints(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_-]+$")]

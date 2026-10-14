@@ -23,3 +23,11 @@ REGISTER_IP_LIMIT = 5
 
 # Password reset links (SRS 6.6): single use, valid for 30 minutes.
 PASSWORD_RESET_TOKEN_MINUTES = 30
+
+# Password reset rate limits (SRS 6.6): every request counts, per IP and per
+# email (so nobody can flood an inbox); confirm attempts per IP.
+PASSWORD_RESET_WINDOW_SECONDS = 60 * 60
+PASSWORD_RESET_IP_LIMIT = 10
+PASSWORD_RESET_EMAIL_LIMIT = 3
+PASSWORD_RESET_CONFIRM_WINDOW_SECONDS = 15 * 60
+PASSWORD_RESET_CONFIRM_IP_LIMIT = 10

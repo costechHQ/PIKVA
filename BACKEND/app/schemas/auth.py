@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
 from app.models.user import UserRole
-from app.schemas.fields import Address, Name, Password, Phone
+from app.schemas.fields import Address, Name, Password, Phone, ResetToken
 
 # Examples only document the API in Swagger; they are never used as values,
 # so a missing field is always rejected (SRS 6.2, 21.1).
@@ -54,3 +54,22 @@ class SchoolUserCreate(BaseModel):
     phone: Phone = Field(examples=["07000000000"])
     password: Password = Field(examples=["choose-a-strong-password"])
     role: UserRole
+
+
+class PasswordResetEmail(BaseModel):
+    """Define the email that asks for a password reset link (SRS 6.6)."""
+
+    email: EmailStr = Field(examples=["admin@sunrise-school.example"])
+
+
+class PasswordResetConfirm(BaseModel):
+    """Define the emailed reset token and the new password (SRS 6.6)."""
+
+    token: ResetToken = Field(examples=["token-from-the-emailed-link"])
+    new_password: Password = Field(examples=["choose-a-strong-password"])
+
+
+class MessageResponse(BaseModel):
+    """Define a plain message for the user."""
+
+    detail: str

@@ -1,6 +1,6 @@
 # Pikva API manual test guide
 
-A start-to-finish walk through every endpoint (29 operations), in the order a
+A start-to-finish walk through every endpoint (31 operations), in the order a
 real school would use them. Each step says **who** calls it, **why**, the
 command, and what you should see. Run the blocks in order in **one Git Bash
 window**: later steps reuse IDs and tokens saved by earlier ones.
@@ -137,6 +137,56 @@ call GET /health/auth "$ADMIN"
 call GET /health/admin "$ADMIN"
 ```
 Expect `200 {"authenticated": true, "user_id": ...}` and `200 {"authorized": true, "role": "school_admin"}`.
+
+**2.9 Forgot password** (public). `POST /auth/password-reset/request`
+```bash
+call POST /auth/password-reset/request "" "{\"email\": \"admin-$TAG@example.com\"}"
+call POST /auth/password-reset/request "" '{"email": "nobody@example.com"}'
+```
+Expect `202 {"detail": "If an account exists for that email, we have sent a link to reset its password."}`
+**both times**: the answer never reveals which emails exist. Without Resend the
+server log shows `Email not sent (Resend not configured): 'Reset your Pikva password'`
+once (for the real account only), never the link.
+
+**2.10 Make a known reset link** (dev database only). The emailed token cannot
+be read from the log, so store one we know, exactly as the API would (only its
+SHA-256 hash, valid 30 minutes).
+```bash
+RESET_TOKEN=$(openssl rand -hex 32)
+RESET_HASH=$(printf %s "$RESET_TOKEN" | sha256sum | cut -d' ' -f1)
+docker exec -i pikva-postgres psql -U postgres -d pikva -v ON_ERROR_STOP=1 <<SQL
+INSERT INTO password_reset_tokens (user_id, token_hash, expires_at, created_at)
+VALUES ($ADMIN_ID, '$RESET_HASH', now() + interval '30 minutes', now());
+SQL
+```
+Expect `INSERT 0 1`.
+
+**2.11 Set a new password with the link.** `POST /auth/password-reset/confirm`
+```bash
+NEW_PW='ManualTestReset456!'
+call POST /auth/password-reset/confirm "" "{\"token\": \"$RESET_TOKEN\", \"new_password\": \"$NEW_PW\"}"
+call GET /auth/me "$ADMIN"
+call POST /auth/login "" "{\"email\": \"admin-$TAG@example.com\", \"password\": \"$PW\"}"
+```
+Expect `204` (no body), then `401` for the old session (a reset signs you out
+everywhere), then `401` for the old password.
+
+**2.12 A link works once; bad links fail.**
+```bash
+call POST /auth/password-reset/confirm "" "{\"token\": \"$RESET_TOKEN\", \"new_password\": \"$NEW_PW\"}"
+call POST /auth/password-reset/confirm "" '{"token": "not-a-real-token", "new_password": "Whatever123!"}'
+```
+Expect `400 {"detail": "This reset link is invalid or has expired"}` both times.
+
+**2.13 Sign in with the new password** (later steps reuse `$ADMIN`).
+```bash
+PW="$NEW_PW"
+call POST /auth/login "" "{\"email\": \"admin-$TAG@example.com\", \"password\": \"$PW\"}" > /dev/null
+ADMIN=$(last .access_token); echo "HTTP $STATUS, admin token: ${#ADMIN} characters"
+call GET /auth/me "$ADMIN"
+```
+Expect `HTTP 200`, then `200` with the admin's details. `$PW` now holds the new
+password, so the other accounts created below use it too.
 
 ---
 
@@ -588,6 +638,7 @@ DELETE FROM daily_pickup_codes WHERE pupil_id IN (SELECT id FROM pupils WHERE sc
 DELETE FROM pickup_authorisations WHERE pupil_id IN (SELECT id FROM pupils WHERE school_id IN (SELECT id FROM doomed));
 DELETE FROM pupils WHERE school_id IN (SELECT id FROM doomed);
 DELETE FROM audit_logs WHERE school_id IN (SELECT id FROM doomed);
+DELETE FROM password_reset_tokens WHERE user_id IN (SELECT id FROM users WHERE school_id IN (SELECT id FROM doomed));
 DELETE FROM users WHERE school_id IN (SELECT id FROM doomed);
 DELETE FROM schools WHERE id IN (SELECT id FROM doomed);
 COMMIT;
@@ -631,3 +682,5 @@ Each line reports `DELETE <n>`. Run 13.5 too if you want to clear the counters.
 | 27 | GET | `/alerts/{id}` | admin | 10.2, 12.2 |
 | 28 | POST | `/alerts/{id}/resolve` | admin | 10.2 |
 | 29 | GET | `/audit-logs` | admin | 11.1 |
+| 30 | POST | `/auth/password-reset/request` | public | 2.9 |
+| 31 | POST | `/auth/password-reset/confirm` | public | 2.11, 2.12 |
