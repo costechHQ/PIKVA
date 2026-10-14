@@ -20,7 +20,6 @@ NEW_USER = {
     "name": "Bayo Parent",
     "email": "bayo-limits@example.com",
     "phone": "0711111111",
-    "password": "another-password",
     "role": "parent",
 }
 PUPIL = {"first_name": "Chidi", "last_name": "Eze", "date_of_birth": "2018-05-05"}

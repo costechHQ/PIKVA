@@ -202,18 +202,21 @@ Expect `200` with the school's `id`, `name` (`MT <tag> School`) and `address`.
 ```bash
 call POST /schools/users "$ADMIN" "$(cat <<JSON
 {"name": "MT Parent", "email": "parent-$TAG@example.com", "phone": "0700000002",
- "password": "$PW", "role": "parent"}
+ "role": "parent"}
 JSON
 )"
 PARENT_ID=$(last .id); echo "parent $PARENT_ID"
 ```
-Expect `201` with `role: "parent"` and the same `school_id`.
+Expect `201` with `role: "parent"` and the same `school_id`. There is no
+password field (SRS 6.7): without Resend the server log shows
+`Email not sent (Resend not configured): 'Set up your Pikva account'`, never
+the link. The parent sets a password in 3.7.
 
 **3.3 Create gate staff.**
 ```bash
 call POST /schools/users "$ADMIN" "$(cat <<JSON
 {"name": "MT Gate", "email": "gate-$TAG@example.com", "phone": "0700000003",
- "password": "$PW", "role": "gate_staff"}
+ "role": "gate_staff"}
 JSON
 )"
 GATE_ID=$(last .id); echo "gate $GATE_ID"
@@ -224,7 +227,7 @@ Expect `201` with `role: "gate_staff"`.
 ```bash
 call POST /schools/users "$ADMIN" "$(cat <<JSON
 {"name": "MT Admin2", "email": "admin2-$TAG@example.com", "phone": "0700000004",
- "password": "$PW", "role": "school_admin"}
+ "role": "school_admin"}
 JSON
 )"
 ```
@@ -234,11 +237,21 @@ Expect `409 {"detail": "School Admins can only create parents or gate staff"}`.
 ```bash
 call POST /schools/users "$ADMIN" "$(cat <<JSON
 {"name": "Copy", "email": "parent-$TAG@example.com", "phone": "0700000005",
- "password": "$PW", "role": "parent"}
+ "role": "parent"}
 JSON
 )"
 ```
 Expect `409`.
+
+**3.5b The admin cannot choose a password.**
+```bash
+call POST /schools/users "$ADMIN" "$(cat <<JSON
+{"name": "MT Pw", "email": "pw-$TAG@example.com", "phone": "0700000006",
+ "password": "$PW", "role": "parent"}
+JSON
+)"
+```
+Expect `422` (`extra_forbidden` on `password`); no user is created.
 
 **3.6 List users**, all and by role. `GET /schools/users?role=&limit=&offset=`
 ```bash
@@ -247,14 +260,28 @@ call GET "/schools/users?role=parent" "$ADMIN"
 ```
 Expect three users (admin, parent, gate), then only the parent.
 
-**3.7 Parent and gate sign in.**
+**3.7 Parent and gate set their passwords, then sign in.** New accounts
+cannot sign in until their owner uses the emailed link. As in 2.10, store a
+known link for each (dev database only) and use it with `$PW`.
 ```bash
+call POST /auth/login "" "{\"email\": \"parent-$TAG@example.com\", \"password\": \"$PW\"}"
+for ID in $PARENT_ID $GATE_ID; do
+  SETUP_TOKEN=$(openssl rand -hex 32)
+  SETUP_HASH=$(printf %s "$SETUP_TOKEN" | sha256sum | cut -d' ' -f1)
+  docker exec -i pikva-postgres psql -U postgres -d pikva -v ON_ERROR_STOP=1 <<SQL
+INSERT INTO password_reset_tokens (user_id, token_hash, expires_at, created_at)
+VALUES ($ID, '$SETUP_HASH', now() + interval '30 minutes', now());
+SQL
+  call POST /auth/password-reset/confirm "" "{\"token\": \"$SETUP_TOKEN\", \"new_password\": \"$PW\"}"
+done
 call POST /auth/login "" "{\"email\": \"parent-$TAG@example.com\", \"password\": \"$PW\"}" > /dev/null
 PARENT=$(last .access_token)
 call POST /auth/login "" "{\"email\": \"gate-$TAG@example.com\", \"password\": \"$PW\"}" > /dev/null
 GATE=$(last .access_token)
 echo "parent token: ${#PARENT} chars, gate token: ${#GATE} chars"
 ```
+Expect `401` for the first login (no password set yet), `INSERT 0 1` and
+`204` for each account, then two tokens.
 
 **3.8 Roles are enforced.**
 ```bash

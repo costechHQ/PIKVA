@@ -1,14 +1,26 @@
+from dataclasses import dataclass
+
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.school import School
-from app.core.security import hash_password
+from app.core.security import unusable_password_hash
 from app.models.user import User, UserRole
 from app.schemas.auth import SchoolUserCreate
 from app.services.audit_service import USER_CREATED, record_audit
+from app.services.notification_service import EmailMessage
+from app.services.password_reset_service import account_setup_email, issue_password_reset_token
 
 DUPLICATE_EMAIL = "A user with this email already exists"
+
+
+@dataclass
+class CreatedSchoolUser:
+    """A new school user and the set-password email to send after commit."""
+
+    user: User
+    setup_email: EmailMessage
 
 
 async def get_school_by_id(
@@ -26,9 +38,11 @@ async def create_school_user(
         school_id: int,
         data: SchoolUserCreate,
         actor_id: int,
-) -> User:
-    """Create a user within the authenticated admin's school.
+) -> CreatedSchoolUser:
+    """Create a user within the authenticated admin's school (SRS 6.7).
 
+    The account gets an unusable password and a set-password token, both
+    committed with the user; the caller sends setup_email after the commit.
     actor_id is the admin creating the user, recorded in the audit log.
     """
 
@@ -45,7 +59,7 @@ async def create_school_user(
         name=data.name,
         email=data.email,
         phone=data.phone,
-        password_hash=await hash_password(data.password),
+        password_hash=await unusable_password_hash(),
         role=data.role,
     )
 
@@ -59,6 +73,9 @@ async def create_school_user(
         await session.rollback()
         raise ValueError(DUPLICATE_EMAIL) from exc
 
+    setup = await issue_password_reset_token(session, user)
+    school = await session.get(School, school_id)
+
     await record_audit(
         session=session,
         school_id=school_id,
@@ -69,10 +86,13 @@ async def create_school_user(
         metadata={"role": user.role.value, "via": "admin"},
     )
 
+    # Built before the commit, while user and school are still loaded.
+    setup_email = account_setup_email(setup, school.name)
+
     await session.commit()
     await session.refresh(user)
 
-    return user
+    return CreatedSchoolUser(user=user, setup_email=setup_email)
 
 
 async def list_school_users(

@@ -20,7 +20,6 @@ COMPLETE = {
         "name": "Bayo Parent",
         "email": "bayo@example.com",
         "phone": "0711111111",
-        "password": "another-password",
         "role": "parent",
     },
     PupilCreate: {"first_name": "Chidi", "last_name": "Eze", "date_of_birth": "2018-05-05"},

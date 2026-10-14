@@ -4,14 +4,39 @@ import json
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import text, update
 
-from app.core.security import hash_pickup_code
+from app.core.security import hash_password, hash_pickup_code
 from app.db.session import async_session
+from app.models.user import User
 from app.services.pickup_service import PickupCodeCheckResult, check_pickup_code
 
 CODES_URL = "/api/v1/pickup/codes"
 PASSWORD = "TestPassword123!"
+
+
+async def add_school_user(client, admin: dict[str, str], role: str, name: str, email: str, phone: str):
+    """Create a user as the admin, then give them PASSWORD.
+
+    New accounts set their password through an emailed link (SRS 6.7);
+    tests that only need a signed-in user set it in the database instead.
+    tests/test_school_users_api.py covers the real link.
+    """
+
+    response = await client.post(
+        "/api/v1/schools/users",
+        headers=admin,
+        json={"name": name, "email": email, "phone": phone, "role": role},
+    )
+    assert response.status_code == 201
+
+    async with async_session() as session:
+        await session.execute(
+            update(User).where(User.email == email).values(password_hash=await hash_password(PASSWORD))
+        )
+        await session.commit()
+
+    return response
 
 
 async def login(client, email: str) -> dict[str, str]:
@@ -45,18 +70,7 @@ async def create_school(client, tag: str) -> dict:
 
     headers = {"admin": admin}
     for role in ("parent", "gate_staff"):
-        response = await client.post(
-            "/api/v1/schools/users",
-            headers=admin,
-            json={
-                "name": f"{tag} {role}",
-                "email": f"{role}-{tag}@example.com",
-                "phone": "0711111111",
-                "password": PASSWORD,
-                "role": role,
-            },
-        )
-        assert response.status_code == 201
+        await add_school_user(client, admin, role, f"{tag} {role}", f"{role}-{tag}@example.com", "0711111111")
         headers[role] = await login(client, f"{role}-{tag}@example.com")
 
     authorisation_id = await create_authorisation(client, headers["parent"])
@@ -173,18 +187,9 @@ async def test_request_without_token_is_unauthorised(client, school):
 async def test_parent_cannot_request_code_for_another_family(client, school):
     """Another parent in the same school gets 404, not the code."""
 
-    response = await client.post(
-        "/api/v1/schools/users",
-        headers=school["headers"]["admin"],
-        json={
-            "name": "Other Parent",
-            "email": "other-parent@example.com",
-            "phone": "0733333333",
-            "password": PASSWORD,
-            "role": "parent",
-        },
+    await add_school_user(
+        client, school["headers"]["admin"], "parent", "Other Parent", "other-parent@example.com", "0733333333"
     )
-    assert response.status_code == 201
     other_parent = await login(client, "other-parent@example.com")
 
     response = await client.post(
@@ -469,18 +474,9 @@ async def history(client, headers: dict, **params) -> list[dict]:
 async def add_parent(client, school, tag: str) -> dict[str, str]:
     """Create another parent in the school and return their auth header."""
 
-    response = await client.post(
-        "/api/v1/schools/users",
-        headers=school["headers"]["admin"],
-        json={
-            "name": f"{tag} Parent",
-            "email": f"{tag}-parent@example.com",
-            "phone": "0744444444",
-            "password": PASSWORD,
-            "role": "parent",
-        },
+    await add_school_user(
+        client, school["headers"]["admin"], "parent", f"{tag} Parent", f"{tag}-parent@example.com", "0744444444"
     )
-    assert response.status_code == 201
 
     return await login(client, f"{tag}-parent@example.com")
 
@@ -720,7 +716,6 @@ async def test_admin_cannot_create_user_with_existing_email(client, school):
             "name": "Duplicate",
             "email": "parent-alpha@example.com",
             "phone": "0755555555",
-            "password": PASSWORD,
             "role": "parent",
         },
     )

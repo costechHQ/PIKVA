@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, require_role
@@ -10,6 +10,7 @@ from app.services.school_service import (
     get_school_by_id,
     list_school_users,
 )
+from app.services.notification_service import send_email_safely
 
 from app.schemas.auth import SchoolUserCreate, UserResponse
 
@@ -47,14 +48,19 @@ async def get_my_school(
 
 async def create_user(
     data: SchoolUserCreate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
 
-    """Create a parent or gate staff user in the admin's school."""
+    """Create a parent or gate staff user in the admin's school (SRS 6.7).
+
+    The new user is emailed a link to set their own password; the email is
+    sent after the response.
+    """
 
     try:
-        return await create_school_user(
+        created = await create_school_user(
             session,
             current_user.school_id,
             data,
@@ -65,6 +71,10 @@ async def create_user(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(exc),
         )
+
+    background_tasks.add_task(send_email_safely, created.setup_email)
+
+    return created.user
 
 
 @router.get(

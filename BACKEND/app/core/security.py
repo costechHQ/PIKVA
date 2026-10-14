@@ -22,6 +22,16 @@ async def hash_password(password: str) -> str:
     return await asyncio.to_thread(password_hash.hash, password)
 
 
+async def unusable_password_hash() -> str:
+    """Hash a random secret nobody is told, for accounts awaiting setup.
+
+    A normal Argon2 hash, so login treats it like any wrong password; the
+    owner sets a real password through the emailed link (SRS 6.7).
+    """
+
+    return await hash_password(secrets.token_urlsafe(32))
+
+
 async def verify_password(password: str, hashed_password: str) -> bool:
     """Verify a plain-text password against its stored hash, off the event loop."""
 

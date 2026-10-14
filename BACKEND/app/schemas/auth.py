@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from app.models.user import UserRole
 from app.schemas.fields import Address, Name, Password, Phone, ResetToken
 
@@ -47,12 +47,18 @@ class TokenResponse(BaseModel):
 
 
 class SchoolUserCreate(BaseModel):
-    """Define the data required to create a user within a school."""
+    """Define the data required to create a user within a school (SRS 6.7).
+
+    No password: the new user sets one through the emailed link. Unknown
+    fields are rejected, so a client still sending "password" gets a 422
+    instead of having it silently ignored.
+    """
+
+    model_config = ConfigDict(extra="forbid")
 
     name: Name = Field(examples=["Bayo Adeyemi"])
     email: EmailStr = Field(examples=["parent@sunrise-school.example"])
     phone: Phone = Field(examples=["07000000000"])
-    password: Password = Field(examples=["choose-a-strong-password"])
     role: UserRole
 
 

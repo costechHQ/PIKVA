@@ -47,17 +47,7 @@ async def request_password_reset(
     if user is None:
         return None
 
-    now = datetime.now(timezone.utc)
-    await _cancel_open_tokens(session, user.id, now)
-
-    token = generate_password_reset_token()
-    reset_token = PasswordResetToken(
-        user_id=user.id,
-        token_hash=hash_password_reset_token(token),
-        expires_at=now + timedelta(minutes=PASSWORD_RESET_TOKEN_MINUTES),
-    )
-    session.add(reset_token)
-    await session.flush()
+    request = await issue_password_reset_token(session, user)
 
     await record_audit(
         session=session,
@@ -70,17 +60,46 @@ async def request_password_reset(
 
     await session.commit()
 
+    return request
+
+
+async def issue_password_reset_token(session: AsyncSession, user: User) -> PasswordResetRequest:
+    """Create a new reset token for the user, cancelling older open ones.
+
+    Stores only the token's hash. Flushes but does not commit or audit, so
+    callers commit it with their own change (reset request, account setup).
+    """
+
+    now = datetime.now(timezone.utc)
+    await _cancel_open_tokens(session, user.id, now)
+
+    token = generate_password_reset_token()
+    session.add(
+        PasswordResetToken(
+            user_id=user.id,
+            token_hash=hash_password_reset_token(token),
+            expires_at=now + timedelta(minutes=PASSWORD_RESET_TOKEN_MINUTES),
+        )
+    )
+    await session.flush()
+
     return PasswordResetRequest(user=user, token=token)
+
+
+def _reset_link(token: str) -> str:
+    """Return the web page link that uses a reset token."""
+
+    return f"{settings.web_app_url.rstrip('/')}/reset-password?token={token}"
 
 
 def password_reset_email(request: PasswordResetRequest) -> EmailMessage:
     """Build the email carrying the reset link to the user.
 
-    The one email that must hold a secret: the link is single use and
-    expires, and email senders never log message bodies.
+    One of the two emails that must hold a secret (with account_setup_email):
+    the link is single use and expires, and email senders never log bodies.
     """
 
-    link = f"{settings.web_app_url.rstrip('/')}/reset-password?token={request.token}"
+    link = _reset_link(request.token)
 
     return EmailMessage(
         to=(request.user.email,),
@@ -94,6 +113,26 @@ def password_reset_email(request: PasswordResetRequest) -> EmailMessage:
             "Resetting your password signs you out everywhere.\n\n"
             "If you did not ask for this, ignore this email; your password "
             "stays the same.\n"
+        ),
+    )
+
+
+def account_setup_email(request: PasswordResetRequest, school_name: str) -> EmailMessage:
+    """Build the email inviting a new school user to set a password (SRS 6.7)."""
+
+    link = _reset_link(request.token)
+
+    return EmailMessage(
+        to=(request.user.email,),
+        subject="Set up your Pikva account",
+        text=(
+            f"Hello {request.user.name},\n\n"
+            f"{school_name} has created a Pikva account for you. "
+            "Open this link to choose your password:\n\n"
+            f"{link}\n\n"
+            f"The link works once and expires in {PASSWORD_RESET_TOKEN_MINUTES} minutes. "
+            "If it has expired, use \"Forgot password?\" on the Pikva sign-in page "
+            "to get a new one.\n"
         ),
     )
 
