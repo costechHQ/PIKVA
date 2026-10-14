@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 from app.db.base import Base
-from app.models import audit_log, pickup_authorisation, pickup_code, pupil
+from app.models import audit_log, password_reset_token, pickup_authorisation, pickup_code, pupil
 from app.models import release, school, security_alert, user
 
 from app.core.config import settings

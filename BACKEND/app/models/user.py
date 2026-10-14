@@ -34,6 +34,12 @@ class User(Base):
 
     role: Mapped[UserRole] = mapped_column(SQLEnum(UserRole), nullable=False)
 
+    # Set on password reset; access tokens issued before it are rejected.
+    password_changed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
