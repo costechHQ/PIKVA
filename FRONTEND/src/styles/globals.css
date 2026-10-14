@@ -1,18 +1,47 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+ * Pikva design tokens, taken from the UI design
+ * (Pikva School Pickup Management Showcase.png). Use these names in
+ * components (bg-navy-900, text-brand-600, bg-surface, ...) rather than raw
+ * colours, so the look stays consistent and can change in one place.
+ */
+@theme {
+  /* Sidebar and dark panels */
+  --color-navy-950: #081430;
+  --color-navy-900: #0b1b45;
+  --color-navy-800: #142a63;
+  --color-navy-700: #1d3a80;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  /* Primary actions (buttons, links, active states) */
+  --color-brand-50: #eef4ff;
+  --color-brand-100: #dbe7ff;
+  --color-brand-500: #2f6bf0;
+  --color-brand-600: #1556e0;
+  --color-brand-700: #1046bd;
+
+  /* Page and cards */
+  --color-surface: #f4f6fb;
+  --color-card: #ffffff;
+  --color-line: #e4e8f1;
+
+  /* Text */
+  --color-ink: #0f172a;
+  --color-ink-muted: #64748b;
+
+  /* Status badges */
+  --color-success-50: #e8f8ee;
+  --color-success-600: #16a34a;
+  --color-danger-50: #fdecec;
+  --color-danger-600: #dc2626;
+  --color-warning-50: #fff6e5;
+  --color-warning-600: #d97706;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--color-surface);
+  color: var(--color-ink);
   font-family: var(--font-sans);
 }
