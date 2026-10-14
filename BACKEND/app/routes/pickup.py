@@ -1,7 +1,16 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import rate_limit
+from app.core.constants import (
+    CODE_REQUEST_LIMIT,
+    CODE_REQUEST_WINDOW_SECONDS,
+    GATE_STAFF_LIMIT,
+    GATE_WINDOW_SECONDS,
+)
 from app.core.dependencies import get_current_user, require_role
+from app.db.redis import get_redis
 from app.db.session import get_session
 from app.models.user import User, UserRole
 from app.schemas.pickup import (
@@ -27,11 +36,39 @@ def _email_admins_later(background_tasks: BackgroundTasks) -> AlertNotifier:
     return notify
 
 
+async def limit_gate_staff(
+    current_user: User = Depends(get_current_user),
+    redis: Redis = Depends(get_redis),
+) -> None:
+    """Cap verify and release calls per gate staff member (SRS 11.3)."""
+
+    await rate_limit.hit(
+        redis,
+        f"pikva:rl:gate:staff:{current_user.id}",
+        GATE_STAFF_LIMIT,
+        GATE_WINDOW_SECONDS,
+    )
+
+
+async def limit_parent_codes(
+    current_user: User = Depends(get_current_user),
+    redis: Redis = Depends(get_redis),
+) -> None:
+    """Cap pickup code requests per parent, failed ones included (SRS 11.3)."""
+
+    await rate_limit.hit(
+        redis,
+        f"pikva:rl:codes:parent:{current_user.id}",
+        CODE_REQUEST_LIMIT,
+        CODE_REQUEST_WINDOW_SECONDS,
+    )
+
+
 @router.post(
     "/codes",
     response_model=PickupCodeResponse,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_role(UserRole.PARENT))],
+    dependencies=[Depends(require_role(UserRole.PARENT)), Depends(limit_parent_codes)],
 )
 
 async def issue_pickup_code_endpoint(
@@ -68,7 +105,7 @@ async def issue_pickup_code_endpoint(
 @router.post(
     "/verify",
     response_model=PickupVerifyResponse,
-    dependencies=[Depends(require_role(UserRole.GATE_STAFF))],
+    dependencies=[Depends(require_role(UserRole.GATE_STAFF)), Depends(limit_gate_staff)],
 )
 
 async def verify_pickup_endpoint(
@@ -102,7 +139,7 @@ async def verify_pickup_endpoint(
             "description": "Pupil released and release record created",
         },
     },
-    dependencies=[Depends(require_role(UserRole.GATE_STAFF))],
+    dependencies=[Depends(require_role(UserRole.GATE_STAFF)), Depends(limit_gate_staff)],
 )
 
 async def release_pupil_endpoint(

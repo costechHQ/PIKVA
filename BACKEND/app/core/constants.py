@@ -8,3 +8,11 @@ PICKUP_CODE_LENGTH = 8
 LOGIN_WINDOW_SECONDS = 15 * 60
 LOGIN_FAILURE_LIMIT = 5
 LOGIN_IP_LIMIT = 30
+
+# Gate rate limit (SRS 11.3): verify and release calls share one budget per staff member.
+GATE_WINDOW_SECONDS = 60
+GATE_STAFF_LIMIT = 30
+
+# Code request rate limit (SRS 11.3): every request counts, per parent.
+CODE_REQUEST_WINDOW_SECONDS = 60 * 60
+CODE_REQUEST_LIMIT = 10
