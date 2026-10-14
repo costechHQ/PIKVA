@@ -16,3 +16,7 @@ GATE_STAFF_LIMIT = 30
 # Code request rate limit (SRS 11.3): every request counts, per parent.
 CODE_REQUEST_WINDOW_SECONDS = 60 * 60
 CODE_REQUEST_LIMIT = 10
+
+# Registration rate limit: every attempt counts, per IP.
+REGISTER_WINDOW_SECONDS = 60 * 60
+REGISTER_IP_LIMIT = 5

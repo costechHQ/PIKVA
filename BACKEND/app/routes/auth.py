@@ -5,7 +5,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.redis import get_redis
 from app.db.session import get_session
 from app.core import rate_limit
-from app.core.constants import LOGIN_FAILURE_LIMIT, LOGIN_IP_LIMIT, LOGIN_WINDOW_SECONDS
+from app.core.constants import (
+    LOGIN_FAILURE_LIMIT,
+    LOGIN_IP_LIMIT,
+    LOGIN_WINDOW_SECONDS,
+    REGISTER_IP_LIMIT,
+    REGISTER_WINDOW_SECONDS,
+)
 from app.core.dependencies import get_current_user
 from app.models.school import School
 from app.models.user import User
@@ -20,6 +26,13 @@ from app.services.auth_service import register_school_admin, login_user
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
+
+def _client_ip(request: Request) -> str:
+    """Return the caller's IP address for rate limiting."""
+
+    return request.client.host if request.client else "unknown"
+
+
 @router.post(
         "/register", 
         response_model=UserResponse,
@@ -27,10 +40,23 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
         )
 async def register(
     data: UserRegister,
+    request: Request,
     session: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
 ):
 
-    """Register a school and its first admin user."""
+    """Register a school and its first admin user.
+
+    Rate limited per IP, every attempt counted, to stop mass sign-ups and
+    probing for registered emails (SRS 11.3).
+    """
+
+    await rate_limit.hit(
+        redis,
+        f"pikva:rl:register:ip:{_client_ip(request)}",
+        REGISTER_IP_LIMIT,
+        REGISTER_WINDOW_SECONDS,
+    )
 
     try:
         return await register_school_admin(session, data)
@@ -55,7 +81,7 @@ async def login(
     an email is locked for the window once it has too many failed attempts.
     """
 
-    ip = request.client.host if request.client else "unknown"
+    ip = _client_ip(request)
     email_key = f"pikva:rl:login:email:{rate_limit.hashed(data.email)}"
 
     await rate_limit.hit(
