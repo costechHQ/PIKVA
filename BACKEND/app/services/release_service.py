@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 
 from sqlalchemy import select
@@ -18,6 +19,8 @@ from app.services.pickup_service import (
     mark_code_used,
     record_failed_check,
 )
+
+logger = logging.getLogger(__name__)
 
 
 async def release_pupil(
@@ -88,6 +91,10 @@ async def release_pupil(
 
     pupil = await session.get(Pupil, release.pupil_id)
     await session.commit()
+
+    logger.info(
+        "Pupil released: release=%d school=%d staff=%d", release.id, school_id, staff_id
+    )
 
     return PickupReleaseResponse(
         result=check.result,

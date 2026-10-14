@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.core.config import secret_key_weakness, settings
+from app.core.logging_config import configure_logging
 from app.core.rate_limit import RateLimitExceeded, rate_limit_exceeded_handler
 from app.db.redis import close_redis
 from app.routes import router
@@ -45,6 +46,7 @@ def create_app() -> FastAPI:
     and the OpenAPI schema are served only outside production (SRS 24).
     """
 
+    configure_logging(settings.log_level)
     check_secret_key()
 
     production = settings.environment == "production"

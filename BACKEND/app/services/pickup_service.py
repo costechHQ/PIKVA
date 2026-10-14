@@ -1,4 +1,5 @@
 import json
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, time, timedelta, timezone
@@ -26,6 +27,8 @@ from app.services.audit_service import (
     record_audit,
 )
 from app.services.pickup_authorisation_service import get_pickup_authorisation
+
+logger = logging.getLogger(__name__)
 
 # A hash collision is astronomically unlikely; retry a few times, then fail.
 MAX_CODE_ATTEMPTS = 5
@@ -298,6 +301,16 @@ async def record_failed_check(
     )
     await session.flush()
     alert_ids = [alert.id for alert in alerts]
+
+    # IDs and result names only; never the presented code (SRS 28).
+    logger.info(
+        "Pickup verification failed: result=%s stage=%s method=%s school=%d staff=%d",
+        check.result.value, stage, method.value, school_id, staff_id,
+    )
+    logger.warning(
+        "Security alerts raised: ids=%s types=[%s] school=%d staff=%d",
+        alert_ids, ", ".join(alert.alert_type for alert in alerts), school_id, staff_id,
+    )
 
     await record_audit(
         session=session,

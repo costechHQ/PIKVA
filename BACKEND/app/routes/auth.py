@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,6 +27,8 @@ from app.schemas.auth import (
 from app.services.auth_service import register_school_admin, login_user
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+logger = logging.getLogger(__name__)
 
 
 def _client_ip(request: Request) -> str:
@@ -92,6 +96,8 @@ async def login(
     try:
         return await login_user(session, data)
     except ValueError as exc:
+        # The IP only: never the email or password (SRS 28).
+        logger.info("Login failed from %s", ip)
         await rate_limit.record(redis, email_key, LOGIN_WINDOW_SECONDS)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

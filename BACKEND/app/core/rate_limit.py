@@ -32,6 +32,20 @@ def hashed(value: str) -> str:
     return hashlib.sha256(value.strip().lower().encode()).hexdigest()
 
 
+def _scope(key: str) -> str:
+    """Return a key's limit name, such as "login:email", without its subject."""
+
+    return ":".join(key.split(":")[2:-1])
+
+
+def _blocked(key: str, retry_after: int) -> RateLimitExceeded:
+    """Log a blocked request by limit name only, then build its exception."""
+
+    logger.warning("Rate limit exceeded: %s", _scope(key))
+
+    return RateLimitExceeded(retry_after=retry_after)
+
+
 def _log_outage(exc: RedisError) -> None:
     """Log that limiting was skipped, without the key (it may hold an email)."""
 
@@ -60,7 +74,7 @@ async def hit(redis: Redis, key: str, limit: int, window_seconds: int) -> None:
         return
 
     if count > limit:
-        raise RateLimitExceeded(retry_after=ttl)
+        raise _blocked(key, ttl)
 
 
 async def record(redis: Redis, key: str, window_seconds: int) -> None:
@@ -85,7 +99,7 @@ async def check(redis: Redis, key: str, limit: int) -> None:
         return
 
     if count is not None and int(count) >= limit:
-        raise RateLimitExceeded(retry_after=max(ttl, 1))
+        raise _blocked(key, max(ttl, 1))
 
 
 async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
