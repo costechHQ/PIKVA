@@ -20,3 +20,6 @@ CODE_REQUEST_LIMIT = 10
 # Registration rate limit: every attempt counts, per IP.
 REGISTER_WINDOW_SECONDS = 60 * 60
 REGISTER_IP_LIMIT = 5
+
+# Password reset links (SRS 6.6): single use, valid for 30 minutes.
+PASSWORD_RESET_TOKEN_MINUTES = 30

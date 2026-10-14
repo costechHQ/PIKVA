@@ -98,3 +98,17 @@ def hash_pickup_code(code: str) -> str:
         normalised.encode(),
         hashlib.sha256,
     ).hexdigest()
+
+def generate_password_reset_token() -> str:
+    """Generate a random, URL-safe password reset token (32 bytes)."""
+
+    return secrets.token_urlsafe(32)
+
+def hash_password_reset_token(token: str) -> str:
+    """Return the SHA-256 hex digest stored in place of a reset token.
+
+    The token is 32 random bytes, so it cannot be guessed and a fast,
+    unkeyed hash is enough (unlike passwords or 8-character pickup codes).
+    """
+
+    return hashlib.sha256(token.encode()).hexdigest()

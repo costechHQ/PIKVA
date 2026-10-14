@@ -19,6 +19,8 @@ PICKUP_CODE_GENERATED = "pickup_code.generated"
 PUPIL_RELEASED = "pupil.released"
 PICKUP_VERIFICATION_FAILED = "pickup.verification_failed"
 ALERT_RESOLVED = "alert.resolved"
+PASSWORD_RESET_REQUESTED = "user.password_reset_requested"
+PASSWORD_RESET = "user.password_reset"
 
 # Metadata keys that could carry secrets; audit records must never hold them
 # (SRS 14, 28).
