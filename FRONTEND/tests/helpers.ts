@@ -49,10 +49,12 @@ export function fakeRequest(init: {
   cookies?: Record<string, string>;
   headers?: Record<string, string>;
   query?: Record<string, string | string[]>;
+  url?: string;
   ip?: string;
 }): NextApiRequest {
   return {
     method: init.method,
+    url: init.url ?? "/",
     body: init.body,
     cookies: init.cookies ?? {},
     headers: init.headers ?? {},
