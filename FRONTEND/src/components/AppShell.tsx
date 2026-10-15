@@ -118,6 +118,16 @@ export function AppShell({ user, title, subtitle, children }: AppShellProps) {
               <Icon name="menu" />
             </button>
             <div className="ml-auto flex items-center gap-4">
+              {/* SRS 18.2: the bell links to Security Alerts (admins only; no count, so no extra request per page). */}
+              {user.role === "school_admin" && (
+                <Link
+                  href="/admin/alerts"
+                  aria-label="Security alerts"
+                  className="rounded-lg p-2 text-ink-muted hover:bg-surface hover:text-ink"
+                >
+                  <Icon name="alerts" />
+                </Link>
+              )}
               <div className="hidden text-right sm:block">
                 <p className="text-sm font-medium">{user.name}</p>
                 <p className="text-xs text-ink-muted">{ROLE_LABEL[user.role]}</p>

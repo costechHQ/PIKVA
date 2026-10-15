@@ -5,7 +5,7 @@
  */
 import type { Role } from "@/lib/roles";
 
-export type IconName = "dashboard" | "gate" | "users" | "pupils" | "history" | "settings" | "approvals" | "pickup";
+export type IconName = "dashboard" | "gate" | "users" | "pupils" | "history" | "settings" | "approvals" | "pickup" | "alerts";
 
 /** short: a shorter label for the phone bottom bar, when label is too long. */
 export type NavItem = { label: string; href: string; icon: IconName; short?: string };
@@ -16,6 +16,7 @@ const MENUS: Record<Role, readonly NavItem[]> = {
     { label: "Pupils", href: "/admin/pupils", icon: "pupils" },
     { label: "Pickup People", href: "/admin/pickup-people", icon: "pickup" },
     { label: "Pickup History", href: "/admin/pickup-history", icon: "history" },
+    { label: "Security Alerts", href: "/admin/alerts", icon: "alerts" },
     { label: "Users", href: "/admin/users", icon: "users" },
     { label: "Approvals", href: "/admin/approvals", icon: "approvals" },
   ],
