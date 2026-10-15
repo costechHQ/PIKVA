@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, require_role
 from app.db.session import get_session
-from app.models.pickup_authorisation import PickupAuthorisation
+from app.models.pickup_authorisation import AuthorisationStatus, PickupAuthorisation
 from app.models.user import User, UserRole
 from app.schemas.pickup_authorisation import (
     PickupAuthorisationApprove,
@@ -11,6 +11,7 @@ from app.schemas.pickup_authorisation import (
     PickupAuthorisationResponse,
     PickupAuthorisationUpdate,
 )
+from app.services.approval_notification_service import notify_approval_requested
 from app.services.pickup_authorisation_service import (
     approve_pickup_authorisation,
     create_pickup_authorisation,
@@ -43,6 +44,21 @@ def _found(authorisation: PickupAuthorisation | None) -> PickupAuthorisation:
     return authorisation
 
 
+def _tell_admins_if_pending(
+    background_tasks: BackgroundTasks,
+    current_user: User,
+    authorisation: PickupAuthorisation | None,
+) -> None:
+    """Email the school's admins after the response when a parent's change awaits approval (SRS 9.2)."""
+
+    if (
+        authorisation is not None
+        and current_user.role == UserRole.PARENT
+        and authorisation.status == AuthorisationStatus.PENDING_APPROVAL
+    ):
+        background_tasks.add_task(notify_approval_requested, current_user.school_id)
+
+
 @router.post(
     "",
     response_model=PickupAuthorisationResponse,
@@ -52,6 +68,7 @@ def _found(authorisation: PickupAuthorisation | None) -> PickupAuthorisation:
 
 async def create_pickup_authorisation_endpoint(
     data: PickupAuthorisationCreate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
@@ -77,6 +94,8 @@ async def create_pickup_authorisation_endpoint(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Pupil not found",
         )
+
+    _tell_admins_if_pending(background_tasks, current_user, authorisation)
 
     return authorisation
 
@@ -136,6 +155,7 @@ async def get_pickup_authorisation_endpoint(
 async def update_pickup_authorisation_endpoint(
     authorisation_id: int,
     data: PickupAuthorisationUpdate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
@@ -158,6 +178,8 @@ async def update_pickup_authorisation_endpoint(
             detail=str(exc),
         ) from exc
 
+    _tell_admins_if_pending(background_tasks, current_user, authorisation)
+
     return _found(authorisation)
 
 
@@ -169,22 +191,25 @@ async def update_pickup_authorisation_endpoint(
 
 async def activate_pickup_authorisation_endpoint(
     authorisation_id: int,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
 
     """Activate a pickup authorisation."""
 
-    return _found(
-        await set_pickup_authorisation_active(
-            session=session,
-            school_id=current_user.school_id,
-            parent_id=_parent_scope(current_user),
-            authorisation_id=authorisation_id,
-            is_active=True,
-            actor_id=current_user.id,
-        )
+    authorisation = await set_pickup_authorisation_active(
+        session=session,
+        school_id=current_user.school_id,
+        parent_id=_parent_scope(current_user),
+        authorisation_id=authorisation_id,
+        is_active=True,
+        actor_id=current_user.id,
     )
+
+    _tell_admins_if_pending(background_tasks, current_user, authorisation)
+
+    return _found(authorisation)
 
 
 @router.post(
