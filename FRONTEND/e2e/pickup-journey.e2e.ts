@@ -179,4 +179,13 @@ test("parent history shows the pickup but never the staff member", async ({ brow
   // Rows repeat the name in a phone-only line, hidden on wider screens.
   await expect(page.getByText(PICKER).filter({ visible: true }).first()).toBeVisible();
   expect(await page.content()).not.toContain(state.gate.name);
+
+  // The same day filter as admins, in the parent's time zone.
+  const yesterday = localInput(new Date(Date.now() - 24 * 3600 * 1000)).slice(0, 10);
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel("Date").fill(yesterday);
+  await page.getByRole("button", { name: "Show day" }).click();
+  await expect(page.getByText("No pickups on this day.")).toBeVisible();
+  await page.getByRole("link", { name: "All days" }).click();
+  await expect(page.getByText(PICKER).filter({ visible: true }).first()).toBeVisible();
 });

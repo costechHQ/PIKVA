@@ -1,9 +1,9 @@
 import type { GetServerSideProps } from "next";
 import Link from "next/link";
-import { useEffect, useRef } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { inputClass } from "@/components/AuthCard";
+import { DayField } from "@/components/DayField";
 import { LoadError, PupilAvatar, Skeleton } from "@/components/ParentUi";
 import { type CurrentUser, getAsUser, requireUser } from "@/lib/auth-guard";
 import { type DayFilter, dayLabel, dayRange, parseDay, parseTimeZone } from "@/lib/history-dates";
@@ -15,7 +15,6 @@ import {
   groupReleasesByDay,
   historyApiPath,
   historyHref,
-  localIsoDate,
   parsePupilFilter,
   pupilName,
 } from "@/lib/parent";
@@ -99,7 +98,7 @@ function History({ data }: { data: Data }) {
             ))}
           </select>
         </div>
-        <DayField day={day?.day ?? ""} />
+        <DayField day={day?.day ?? ""} className="lg:w-48" />
         <div className="flex gap-2">
           <button type="submit" className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700">
             Show
@@ -218,30 +217,6 @@ function ReleaseDays({ releases }: { releases: Release[] }) {
           </div>
         </section>
       ))}
-    </div>
-  );
-}
-
-/**
- * The date to show, with the browser's time zone in a hidden field: the
- * server cannot know it, and "14 October" must mean the viewer's day.
- * Without scripts the zone stays empty and the server uses UTC.
- */
-function DayField({ day }: { day: string }) {
-  const zone = useRef<HTMLInputElement>(null);
-  const now = useNow();
-
-  useEffect(() => {
-    if (zone.current) zone.current.value = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  }, []);
-
-  return (
-    <div className="lg:w-48">
-      <label htmlFor="date" className="mb-1.5 block text-sm font-medium">
-        Date
-      </label>
-      <input id="date" name="date" type="date" defaultValue={day} max={now ? localIsoDate(now) : undefined} className={inputClass} />
-      <input ref={zone} type="hidden" name="tz" defaultValue="" />
     </div>
   );
 }

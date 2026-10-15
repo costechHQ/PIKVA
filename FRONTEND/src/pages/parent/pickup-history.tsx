@@ -1,9 +1,11 @@
 import type { GetServerSideProps } from "next";
 import Link from "next/link";
 
+import { DayField } from "@/components/DayField";
 import { ParentShell } from "@/components/ParentShell";
 import { EmptyState, LoadError, PupilAvatar, Skeleton } from "@/components/ParentUi";
 import { type CurrentUser, getAsUser, requireUser } from "@/lib/auth-guard";
+import { type DayFilter, dayLabel, dayRange, parseDay, parseTimeZone } from "@/lib/history-dates";
 import {
   HISTORY_PAGE_SIZE,
   type Pupil,
@@ -18,7 +20,14 @@ import {
 import { useNow } from "@/lib/use-now";
 import { parsePage } from "@/lib/users";
 
-type Data = { pupils: Pupil[]; releases: Release[]; pupilId: number | null; page: number; hasNext: boolean };
+type Data = {
+  pupils: Pupil[];
+  releases: Release[];
+  pupilId: number | null;
+  day: DayFilter | null;
+  page: number;
+  hasNext: boolean;
+};
 
 type Props = { user: CurrentUser; data: Data | null };
 
@@ -31,8 +40,11 @@ export const getServerSideProps: GetServerSideProps<Props> = async (context) => 
   try {
     const pupils = await getAsUser<Pupil[]>(context, "pupils");
     const pupilId = parsePupilFilter(context.query.pupil, pupils);
+    const date = parseDay(context.query.date);
+    // The browser sends its time zone with the date (DayField), so "a day" is the parent's day.
+    const day = date ? { day: date, timeZone: parseTimeZone(context.query.tz) } : null;
     const page = parsePage(context.query.page);
-    const rows = await getAsUser<Release[]>(context, historyApiPath(pupilId, page));
+    const rows = await getAsUser<Release[]>(context, historyApiPath(pupilId, page, day ? dayRange(day) : null));
 
     return {
       props: {
@@ -41,6 +53,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (context) => 
           pupils,
           releases: rows.slice(0, HISTORY_PAGE_SIZE),
           pupilId,
+          day,
           page,
           hasNext: rows.length > HISTORY_PAGE_SIZE,
         },
@@ -61,7 +74,7 @@ export default function PickupHistoryPage({ user, data }: Props) {
 }
 
 function History({ data }: { data: Data }) {
-  const { pupils, releases, pupilId, page, hasNext } = data;
+  const { pupils, releases, pupilId, day, page, hasNext } = data;
 
   if (pupils.length === 0) {
     return (
@@ -81,7 +94,7 @@ function History({ data }: { data: Data }) {
             return (
               <Link
                 key={id ?? "all"}
-                href={historyHref(id, 1)}
+                href={historyHref(id, 1, undefined, day)}
                 aria-current={active ? "page" : undefined}
                 className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium ${
                   active ? "bg-brand-600 text-white" : "border border-line bg-card text-ink-muted hover:text-ink"
@@ -94,9 +107,36 @@ function History({ data }: { data: Data }) {
         </nav>
       )}
 
+      {/* A plain GET form, so the filter works before scripts load; it keeps the chosen pupil. */}
+      <form method="get" className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        {pupilId !== null && <input type="hidden" name="pupil" value={pupilId} />}
+        <DayField day={day?.day ?? ""} className="sm:w-48" />
+        <div className="flex gap-2">
+          <button type="submit" className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700">
+            Show day
+          </button>
+          {day && (
+            <Link
+              href={historyHref(pupilId, 1)}
+              className="rounded-lg border border-line bg-card px-4 py-2.5 text-sm font-medium text-ink-muted hover:text-ink"
+            >
+              All days
+            </Link>
+          )}
+        </div>
+      </form>
+
+      {day && (
+        <p className="text-sm text-ink-muted" role="status">
+          Showing {dayLabel(day.day)}.
+        </p>
+      )}
+
       {releases.length === 0 ? (
-        <EmptyState title={page > 1 ? "No more pickups." : "No pickups recorded yet."}>
-          {page > 1 ? null : "When a pupil is collected at the gate, it will appear here."}
+        <EmptyState
+          title={page > 1 ? "No more pickups." : day ? "No pickups on this day." : "No pickups recorded yet."}
+        >
+          {page > 1 || day ? null : "When a pupil is collected at the gate, it will appear here."}
         </EmptyState>
       ) : (
         <ReleaseDays releases={releases} />
@@ -105,7 +145,7 @@ function History({ data }: { data: Data }) {
       {(page > 1 || hasNext) && (
         <nav aria-label="Pages" className="flex items-center justify-between gap-2 text-sm sm:justify-end">
           {page > 1 ? (
-            <Link href={historyHref(pupilId, page - 1)} className="rounded-lg border border-line bg-card px-4 py-2 font-medium hover:text-brand-700">
+            <Link href={historyHref(pupilId, page - 1, undefined, day)} className="rounded-lg border border-line bg-card px-4 py-2 font-medium hover:text-brand-700">
               Newer
             </Link>
           ) : (
@@ -113,7 +153,7 @@ function History({ data }: { data: Data }) {
           )}
           <span className="px-2 text-ink-muted">Page {page}</span>
           {hasNext ? (
-            <Link href={historyHref(pupilId, page + 1)} className="rounded-lg border border-line bg-card px-4 py-2 font-medium hover:text-brand-700">
+            <Link href={historyHref(pupilId, page + 1, undefined, day)} className="rounded-lg border border-line bg-card px-4 py-2 font-medium hover:text-brand-700">
               Older
             </Link>
           ) : (
