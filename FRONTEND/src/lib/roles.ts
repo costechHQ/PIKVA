@@ -8,10 +8,10 @@ export type Role = "school_admin" | "gate_staff" | "parent";
 
 export const LOGIN_PATH = "/login";
 
-// Where each role belongs. Parents get no web functionality, only a page
-// pointing them to the mobile app.
+// Where each role lands after signing in (SRS 18.2): each role has its own
+// area and is redirected away from the others.
 export const HOME_PATH: Record<Role, string> = {
   school_admin: "/admin",
   gate_staff: "/gate",
-  parent: "/use-mobile-app",
+  parent: "/parent",
 };

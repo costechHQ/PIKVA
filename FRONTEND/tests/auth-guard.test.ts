@@ -78,12 +78,12 @@ describe("requireUser", () => {
     expect(headers["set-cookie"]).toContain(`${SESSION_COOKIE}=; Path=/; Max-Age=0`);
   });
 
-  test("sends a parent to the use-the-mobile-app page", async () => {
+  test("sends a parent on a staff page to the parent portal", async () => {
     useBackend(() => Response.json(userWithRole("parent")));
 
     const result = await requireUser(fakeContext().context, ["school_admin", "gate_staff"]);
 
-    expect(result).toEqual({ redirect: { destination: "/use-mobile-app", permanent: false } });
+    expect(result).toEqual({ redirect: { destination: "/parent", permanent: false } });
   });
 
   test("sends gate staff on an admin page to the gate page", async () => {
@@ -143,7 +143,7 @@ describe("redirectIfSignedIn", () => {
 
     useBackend(() => Response.json(userWithRole("parent")));
     expect(await redirectIfSignedIn(fakeContext().context)).toEqual({
-      redirect: { destination: "/use-mobile-app", permanent: false },
+      redirect: { destination: "/parent", permanent: false },
     });
   });
 

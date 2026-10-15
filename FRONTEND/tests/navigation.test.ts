@@ -4,9 +4,10 @@ import { isActive, navItems } from "@/lib/navigation";
 import { HOME_PATH } from "@/lib/roles";
 
 describe("navItems", () => {
-  test("admins and gate staff start on their own home page", () => {
+  test("every role starts on its own home page", () => {
     expect(navItems("school_admin")[0].href).toBe(HOME_PATH.school_admin);
     expect(navItems("gate_staff")[0].href).toBe(HOME_PATH.gate_staff);
+    expect(navItems("parent")[0].href).toBe(HOME_PATH.parent);
   });
 
   test("gate staff see only gate pages", () => {
@@ -17,8 +18,13 @@ describe("navItems", () => {
     expect(navItems("school_admin").some((item) => item.href.startsWith("/gate"))).toBe(false);
   });
 
-  test("parents get no web menu", () => {
-    expect(navItems("parent")).toEqual([]);
+  test("parents see only parent portal pages", () => {
+    expect(navItems("parent").every((item) => item.href === "/parent" || item.href.startsWith("/parent/"))).toBe(true);
+  });
+
+  test("staff never see parent portal pages", () => {
+    const staffItems = [...navItems("school_admin"), ...navItems("gate_staff")];
+    expect(staffItems.some((item) => item.href.startsWith("/parent"))).toBe(false);
   });
 });
 

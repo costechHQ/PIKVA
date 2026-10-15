@@ -15,8 +15,8 @@ const MENUS: Record<Role, readonly NavItem[]> = {
     { label: "Users", href: "/admin/users", icon: "users" },
   ],
   gate_staff: [{ label: "Gate Verification", href: "/gate", icon: "gate" }],
-  // Parents use the mobile app; the web shell is never shown to them.
-  parent: [],
+  // Parent portal (SRS 18.9): its own layout, ParentShell.
+  parent: [{ label: "Overview", href: "/parent", icon: "dashboard" }],
 };
 
 export const ROLE_LABEL: Record<Role, string> = {
@@ -32,7 +32,7 @@ export function navItems(role: Role): readonly NavItem[] {
 
 /**
  * Return whether a menu item is the current page. A role's home item
- * (/admin, /gate) only matches exactly; others also match their sub-pages,
+ * (/admin, /gate, /parent) only matches exactly; others also match their sub-pages,
  * so /admin/pupils/7 highlights "Pupils", not "Dashboard".
  */
 export function isActive(item: NavItem, pathname: string, homePath: string): boolean {
