@@ -13,6 +13,7 @@ export type NavItem = { label: string; href: string; icon: IconName; short?: str
 const MENUS: Record<Role, readonly NavItem[]> = {
   school_admin: [
     { label: "Dashboard", href: "/admin", icon: "dashboard" },
+    { label: "Pupils", href: "/admin/pupils", icon: "pupils" },
     { label: "Users", href: "/admin/users", icon: "users" },
     { label: "Approvals", href: "/admin/approvals", icon: "approvals" },
   ],
