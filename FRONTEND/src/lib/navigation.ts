@@ -15,6 +15,7 @@ const MENUS: Record<Role, readonly NavItem[]> = {
     { label: "Dashboard", href: "/admin", icon: "dashboard" },
     { label: "Pupils", href: "/admin/pupils", icon: "pupils" },
     { label: "Pickup People", href: "/admin/pickup-people", icon: "pickup" },
+    { label: "Pickup History", href: "/admin/pickup-history", icon: "history" },
     { label: "Users", href: "/admin/users", icon: "users" },
     { label: "Approvals", href: "/admin/approvals", icon: "approvals" },
   ],

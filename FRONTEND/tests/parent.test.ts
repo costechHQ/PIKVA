@@ -197,6 +197,7 @@ describe("pickup history paging", () => {
   test("links leave out defaults", () => {
     expect(historyHref(null, 1)).toBe("/parent/pickup-history");
     expect(historyHref(4, 2)).toBe("/parent/pickup-history?pupil=4&page=2");
+    expect(historyHref(null, 3, "/admin/pickup-history")).toBe("/admin/pickup-history?page=3");
   });
 });
 

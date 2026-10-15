@@ -239,13 +239,16 @@ export function historyApiPath(pupilId: number | null, page: number): string {
   return `releases?${params}`;
 }
 
-/** Link to /parent/pickup-history with this filter and page, leaving out defaults. */
-export function historyHref(pupilId: number | null, page: number): string {
+/**
+ * Link to a pickup history page (the parent's by default, or base such as
+ * /admin/pickup-history) with this filter and page, leaving out defaults.
+ */
+export function historyHref(pupilId: number | null, page: number, base = "/parent/pickup-history"): string {
   const params = new URLSearchParams();
   if (pupilId !== null) params.set("pupil", String(pupilId));
   if (page > 1) params.set("page", String(page));
   const query = params.toString();
-  return query ? `/parent/pickup-history?${query}` : "/parent/pickup-history";
+  return query ? `${base}?${query}` : base;
 }
 
 export type ReleaseDay = { key: string; label: string; releases: Release[] };
