@@ -85,3 +85,34 @@ test("signed-out visitors are sent to the login page", async ({ page }) => {
   await page.goto("/admin/pupils");
   await expect(page).toHaveURL(/\/login/);
 });
+
+test("admin edits and deactivates gate staff, who are signed out until reactivated", async ({ browser }) => {
+  const admin = await as(browser, "admin");
+  await admin.goto("/admin/users?role=gate_staff");
+  const row = admin.getByRole("row", { name: new RegExp(state.gate.name) });
+
+  await row.getByRole("button", { name: "Edit" }).click();
+  await admin.getByLabel("Phone number").fill("0755555555");
+  await admin.getByRole("button", { name: "Save changes" }).click();
+  await expect(admin.getByRole("status")).toContainText(`${state.gate.name} updated.`);
+  await expect(row).toContainText("0755555555");
+
+  await row.getByRole("button", { name: "Deactivate" }).click();
+  await expect(row).toContainText("They are signed out now");
+  await row.getByRole("button", { name: "Deactivate" }).click();
+  await expect(row.getByText("Inactive")).toBeVisible();
+
+  // Their open session no longer works, and signing in says why.
+  const gate = await as(browser, "gate");
+  await gate.goto("/gate");
+  await expect(gate).toHaveURL(/\/login/);
+  await gate.getByLabel("Email address").fill(state.gate.email);
+  await gate.getByLabel("Password", { exact: true }).fill(state.password);
+  await gate.getByRole("button", { name: "Sign In" }).click();
+  await expect(gate.getByText("This account has been deactivated. Contact your school.")).toBeVisible();
+
+  await row.getByRole("button", { name: "Activate" }).click();
+  await expect(row.getByText("Active", { exact: true })).toBeVisible();
+  await gate.getByRole("button", { name: "Sign In" }).click();
+  await expect(gate).toHaveURL(/\/gate$/);
+});

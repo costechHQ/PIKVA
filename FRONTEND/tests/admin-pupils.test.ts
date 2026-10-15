@@ -82,8 +82,8 @@ describe("newPupilBody", () => {
 
 describe("filterParents", () => {
   const parents: SchoolUser[] = [
-    { id: 1, school_id: 1, name: "Ngozi Okafor", email: "ngozi@example.com", phone: "0701111111", role: "parent" },
-    { id: 2, school_id: 1, name: "Émeka Eze", email: "emeka@example.com", phone: "0702222222", role: "parent" },
+    { id: 1, school_id: 1, name: "Ngozi Okafor", email: "ngozi@example.com", phone: "0701111111", role: "parent", is_active: true },
+    { id: 2, school_id: 1, name: "Émeka Eze", email: "emeka@example.com", phone: "0702222222", role: "parent", is_active: true },
   ];
   const ids = (filter: string) => filterParents(parents, filter).map((p) => p.id);
 

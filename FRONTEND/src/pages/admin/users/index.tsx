@@ -1,16 +1,24 @@
 import type { GetServerSideProps } from "next";
 import Link from "next/link";
+import { useRouter } from "next/router";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
+import { FormError, inputClass } from "@/components/AuthCard";
+import { Field, SuccessNote } from "@/components/ParentUi";
 import { type CurrentUser, getAsUser, requireUser } from "@/lib/auth-guard";
 import { ROLE_LABEL } from "@/lib/navigation";
+import { sendAsUser } from "@/lib/parent-api";
 import type { Role } from "@/lib/roles";
 import {
   ROLE_FILTERS,
   type SchoolUser,
   USERS_PAGE_SIZE,
+  type UserContact,
+  isManageable,
   parsePage,
   parseRoleFilter,
+  userChanges,
   usersApiPath,
   usersPageHref,
 } from "@/lib/users";
@@ -48,7 +56,9 @@ const ROLE_BADGE: Record<Role, string> = {
   parent: "bg-brand-50 text-brand-700",
 };
 
-/** School users list for admins (SRS 6.7): filter by role, page by 50. */
+const NOT_FOUND = "This user is no longer in your school.";
+
+/** School users for admins (SRS 6.7): filter by role, page by 50, edit and deactivate. */
 export default function UsersPage({ user, users, role, page, hasNext }: Props) {
   return (
     <AppShell user={user} title="Users" subtitle={`Parents, gate staff and administrators at ${user.school_name}`}>
@@ -78,37 +88,7 @@ export default function UsersPage({ user, users, role, page, hasNext }: Props) {
         })}
       </nav>
 
-      <div className="mt-4 overflow-x-auto rounded-xl border border-line bg-card">
-        <table className="w-full min-w-[640px] text-left text-sm">
-          <thead className="border-b border-line text-xs font-medium text-ink-muted">
-            <tr>
-              <th scope="col" className="px-4 py-3 font-medium">Name</th>
-              <th scope="col" className="px-4 py-3 font-medium">Email</th>
-              <th scope="col" className="px-4 py-3 font-medium">Phone</th>
-              <th scope="col" className="px-4 py-3 font-medium">Role</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((row) => (
-              <tr key={row.id} className="border-b border-line last:border-0">
-                <td className="px-4 py-3 font-medium">{row.name}</td>
-                <td className="px-4 py-3 text-ink-muted">{row.email}</td>
-                <td className="px-4 py-3 text-ink-muted">{row.phone}</td>
-                <td className="px-4 py-3">
-                  <span className={`rounded-md px-2 py-1 text-xs font-medium ${ROLE_BADGE[row.role] ?? ""}`}>
-                    {ROLE_LABEL[row.role] ?? row.role}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {users.length === 0 && (
-          <p className="px-4 py-10 text-center text-sm text-ink-muted">
-            {page > 1 ? "No more users." : "No users match this filter yet."}
-          </p>
-        )}
-      </div>
+      <UserTable initialUsers={users} page={page} />
 
       {(page > 1 || hasNext) && (
         <nav aria-label="Pages" className="mt-4 flex items-center justify-end gap-2 text-sm">
@@ -126,5 +106,295 @@ export default function UsersPage({ user, users, role, page, hasNext }: Props) {
         </nav>
       )}
     </AppShell>
+  );
+}
+
+function UserTable({ initialUsers, page }: { initialUsers: SchoolUser[]; page: number }) {
+  const router = useRouter();
+  const [users, setUsers] = useState(initialUsers);
+  const [editing, setEditing] = useState<SchoolUser | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  // Fresh rows from a reload replace the local copy (set during render, as React recommends).
+  const [shownUsers, setShownUsers] = useState(initialUsers);
+  if (initialUsers !== shownUsers) {
+    setShownUsers(initialUsers);
+    setUsers(initialUsers);
+  }
+
+  function changed(updated: SchoolUser, message: string) {
+    setUsers((current) => current.map((row) => (row.id === updated.id ? updated : row)));
+    setEditing(null);
+    setNotice(message);
+    void router.replace(router.asPath, undefined, { scroll: false });
+  }
+
+  return (
+    <>
+      <div className="mt-4 space-y-4">
+        <SuccessNote message={notice} />
+        {editing && (
+          <UserEditor
+            key={editing.id}
+            user={editing}
+            onCancel={() => setEditing(null)}
+            onSaved={(updated) => changed(updated, `${updated.name} updated.`)}
+          />
+        )}
+      </div>
+
+      {/* relative: keeps the visually hidden "Actions" header inside the scroll box on phones. */}
+      <div className="relative mt-4 overflow-x-auto rounded-xl border border-line bg-card">
+        <table className="w-full min-w-[860px] text-left text-sm">
+          <thead className="border-b border-line text-xs font-medium text-ink-muted">
+            <tr>
+              <th scope="col" className="px-4 py-3 font-medium">Name</th>
+              <th scope="col" className="px-4 py-3 font-medium">Email</th>
+              <th scope="col" className="px-4 py-3 font-medium">Phone</th>
+              <th scope="col" className="px-4 py-3 font-medium">Role</th>
+              <th scope="col" className="px-4 py-3 font-medium">Status</th>
+              <th scope="col" className="px-4 py-3 font-medium">
+                <span className="sr-only">Actions</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.map((row) => (
+              <tr key={row.id} className={`border-b border-line last:border-0 ${row.is_active ? "" : "bg-surface/60"}`}>
+                <td className="px-4 py-3 font-medium">{row.name}</td>
+                <td className="px-4 py-3 text-ink-muted">{row.email}</td>
+                <td className="px-4 py-3 text-ink-muted">{row.phone}</td>
+                <td className="px-4 py-3">
+                  <span className={`rounded-md px-2 py-1 text-xs font-medium ${ROLE_BADGE[row.role] ?? ""}`}>
+                    {ROLE_LABEL[row.role] ?? row.role}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  {row.is_active ? (
+                    <span className="rounded-full bg-success-50 px-2.5 py-0.5 text-xs font-medium text-success-600">Active</span>
+                  ) : (
+                    <span className="rounded-full bg-danger-50 px-2.5 py-0.5 text-xs font-medium text-danger-600">Inactive</span>
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  {isManageable(row) && (
+                    <UserActions
+                      user={row}
+                      editingAnother={editing !== null}
+                      onEdit={() => {
+                        setNotice(null);
+                        setEditing(row);
+                      }}
+                      onChanged={changed}
+                    />
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {users.length === 0 && (
+          <p className="px-4 py-10 text-center text-sm text-ink-muted">
+            {page > 1 ? "No more users." : "No users match this filter yet."}
+          </p>
+        )}
+      </div>
+    </>
+  );
+}
+
+/** Edit, and Deactivate (after confirming) or Activate, for one parent or gate staff member. */
+function UserActions({
+  user,
+  editingAnother,
+  onEdit,
+  onChanged,
+}: {
+  user: SchoolUser;
+  editingAnother: boolean;
+  onEdit: () => void;
+  onChanged: (user: SchoolUser, message: string) => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function setActive(active: boolean) {
+    setBusy(true);
+    setError(null);
+    const result = await sendAsUser<SchoolUser>(
+      `schools/users/${user.id}/${active ? "activate" : "deactivate"}`,
+      "POST",
+      undefined,
+      NOT_FOUND,
+    );
+    setBusy(false);
+    setConfirming(false);
+
+    if (result.ok) onChanged(result.data, `${user.name} ${active ? "activated. They can sign in again." : "deactivated."}`);
+    else setError(result.message);
+  }
+
+  if (confirming) {
+    return (
+      <div className="w-72 space-y-2">
+        <p className="text-xs">
+          Deactivate {user.name}? They are signed out now and cannot sign in until you activate them again.
+          {user.role === "parent" &&
+            " Their pickup people and any code already issued keep working: deactivate those on Pickup People if they should not collect."}
+        </p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => void setActive(false)}
+            disabled={busy}
+            className="rounded-lg bg-danger-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60"
+          >
+            {busy ? "Deactivating…" : "Deactivate"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirming(false)}
+            disabled={busy}
+            className="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink-muted hover:text-ink"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <div className="flex justify-end gap-2">
+        {!editingAnother && (
+          <button
+            type="button"
+            onClick={onEdit}
+            className="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink-muted hover:text-ink"
+          >
+            Edit
+          </button>
+        )}
+        {user.is_active ? (
+          <button
+            type="button"
+            onClick={() => setConfirming(true)}
+            className="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-danger-600 hover:border-danger-600"
+          >
+            Deactivate
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => void setActive(true)}
+            disabled={busy}
+            className="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-success-600 hover:border-success-600 disabled:opacity-60"
+          >
+            {busy ? "Activating…" : "Activate"}
+          </button>
+        )}
+      </div>
+      {error && <p role="alert" className="max-w-56 text-right text-xs text-danger-600">{error}</p>}
+    </div>
+  );
+}
+
+/** Change a user's name, email or phone. Only changed fields are sent. */
+function UserEditor({
+  user,
+  onCancel,
+  onSaved,
+}: {
+  user: SchoolUser;
+  onCancel: () => void;
+  onSaved: (user: SchoolUser) => void;
+}) {
+  const [form, setForm] = useState<UserContact>({ name: user.name, email: user.email, phone: user.phone });
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const panel = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    panel.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const checked = userChanges(user, form);
+    if ("error" in checked) {
+      setError(checked.error);
+      return;
+    }
+    if (Object.keys(checked.body).length === 0) {
+      onCancel();
+      return;
+    }
+
+    setError(null);
+    setSaving(true);
+    const result = await sendAsUser<SchoolUser>(`schools/users/${user.id}`, "PATCH", checked.body, NOT_FOUND);
+    setSaving(false);
+
+    if (result.ok) onSaved(result.data);
+    else setError(result.message);
+  }
+
+  const update = (field: keyof UserContact) => (event: { target: { value: string } }) =>
+    setForm((current) => ({ ...current, [field]: event.target.value }));
+
+  return (
+    <form
+      ref={panel}
+      onSubmit={handleSubmit}
+      noValidate
+      aria-labelledby="edit-user-heading"
+      className="scroll-mt-20 max-w-2xl rounded-2xl border border-brand-100 bg-card p-5 shadow-sm ring-4 ring-brand-50 sm:p-6"
+    >
+      <h2 id="edit-user-heading" className="text-lg font-semibold">
+        Edit {user.name}
+      </h2>
+      <p className="mt-2 text-sm text-ink-muted">
+        A new email becomes the one they sign in with. Their password and role do not change.
+      </p>
+
+      <div className="mt-4">
+        <FormError message={error} />
+      </div>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className="sm:col-span-2">
+          <Field label="Full name" id="edit-name">
+            <input id="edit-name" className={inputClass} value={form.name} onChange={update("name")} maxLength={150} autoComplete="off" required />
+          </Field>
+        </div>
+        <Field label="Email" id="edit-email">
+          <input id="edit-email" type="email" inputMode="email" className={inputClass} value={form.email} onChange={update("email")} maxLength={255} autoComplete="off" required />
+        </Field>
+        <Field label="Phone number" id="edit-phone">
+          <input id="edit-phone" type="tel" inputMode="tel" className={inputClass} value={form.phone} onChange={update("phone")} maxLength={30} autoComplete="off" required />
+        </Field>
+      </div>
+
+      <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={saving}
+          className="rounded-lg border border-line px-4 py-2.5 text-sm font-medium text-ink-muted hover:text-ink"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={saving}
+          className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+        >
+          {saving ? "Saving…" : "Save changes"}
+        </button>
+      </div>
+    </form>
   );
 }
