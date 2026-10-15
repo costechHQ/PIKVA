@@ -42,3 +42,8 @@ yarn-error.log*
 next-env.d.ts
 
 Pikva School Pickup Management Showcase.png
+# browser tests (Playwright): results and the throwaway school's sign-in details
+/test-results
+/playwright-report
+/e2e/.auth
+/e2e/.state.json

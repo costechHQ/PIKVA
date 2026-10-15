@@ -170,7 +170,8 @@ function PeopleTable({
         )}
       </div>
 
-      <div className="mt-4 overflow-x-auto rounded-xl border border-line bg-card">
+      {/* relative: keeps the visually hidden "Actions" header inside the scroll box on phones. */}
+      <div className="relative mt-4 overflow-x-auto rounded-xl border border-line bg-card">
         <table className="w-full min-w-[960px] text-left text-sm">
           <thead className="border-b border-line text-xs font-medium text-ink-muted">
             <tr>
