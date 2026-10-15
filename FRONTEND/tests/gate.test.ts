@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { type CheckResult, failureText, normaliseCode } from "@/lib/gate";
+import { type CheckResult, NOT_A_PICKUP_QR, cameraErrorText, failureText, normaliseCode, parseQrData } from "@/lib/gate";
 
 describe("normaliseCode", () => {
   test("removes spaces and dashes and upper-cases", () => {
@@ -34,4 +34,26 @@ test("every failed result has gate text, and an unknown one has a fallback", () 
   ];
   for (const result of failures) expect(failureText(result).title).not.toBe("Check failed");
   expect(failureText("something_new" as CheckResult).title).toBe("Check failed");
+});
+
+describe("parseQrData", () => {
+  const qr = '{"code":"7F3B9K2D","code_date":"2026-10-15","expires_at":"2026-10-16T00:00:00Z"}';
+
+  test("passes a Pikva pickup QR through unchanged", () => {
+    expect(parseQrData(qr)).toEqual({ qr_data: qr });
+  });
+
+  test("rejects anything else without contacting the backend", () => {
+    for (const text of ["https://example.com", "7F3B9K2D", "[]", "null", '{"code":5}', '{"code":"OOPS"}', `{"code":"7F3B9K2D","x":"${"a".repeat(600)}"}`]) {
+      expect(parseQrData(text)).toEqual({ error: NOT_A_PICKUP_QR });
+    }
+  });
+});
+
+test("cameraErrorText explains each camera problem", () => {
+  const named = (name: string) => Object.assign(new Error("x"), { name });
+  expect(cameraErrorText(named("NotAllowedError"))).toContain("blocked");
+  expect(cameraErrorText(named("NotFoundError"))).toContain("No camera");
+  expect(cameraErrorText(named("NotReadableError"))).toContain("another app");
+  expect(cameraErrorText("weird")).toBe("The camera could not start. Type the code instead.");
 });

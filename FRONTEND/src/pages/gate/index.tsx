@@ -12,8 +12,10 @@ import {
   type GatePupil,
   type ReleaseResponse,
   type VerifyResponse,
+  cameraErrorText,
   failureText,
   normaliseCode,
+  parseQrData,
 } from "@/lib/gate";
 import { formatTime, isWebPhoto } from "@/lib/parent";
 import { sendAsUser } from "@/lib/parent-api";
@@ -22,9 +24,12 @@ type Props = { user: CurrentUser };
 
 export const getServerSideProps: GetServerSideProps<Props> = (context) => requireUser(context, ["gate_staff"]);
 
+/** What the gate sends to verify and release: the typed code or the scanned QR text. */
+type GateRequest = { method: "manual"; code: string } | { method: "qr"; qr_data: string };
+
 type Step =
   | { kind: "enter" }
-  | { kind: "verified"; code: string; pupil: GatePupil; picker: GatePicker }
+  | { kind: "verified"; request: GateRequest; pupil: GatePupil; picker: GatePicker }
   | { kind: "failed"; result: CheckResult }
   | { kind: "released"; pupil: GatePupil; picker: GatePicker; releasedAt: string };
 
@@ -53,29 +58,21 @@ function CodeEntry({ onResult }: { onResult: (step: Step) => void }) {
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const input = useRef<HTMLInputElement>(null);
 
   // Ready to type as soon as the page or the next pickup opens.
   useEffect(() => {
-    input.current?.focus();
-  }, []);
+    if (!scanning) input.current?.focus();
+  }, [scanning]);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const checked = normaliseCode(value);
-    if ("error" in checked) {
-      setError(checked.error);
-      input.current?.focus();
-      return;
-    }
-
+  async function check(request: GateRequest) {
     setError(null);
     setChecking(true);
     const result = await sendAsUser<VerifyResponse>(
       "pickup/verify",
       "POST",
-      { method: "manual", code: checked.code },
+      request,
       "The gate check is not available.",
       GATE_TOO_MANY,
     );
@@ -85,12 +82,46 @@ function CodeEntry({ onResult }: { onResult: (step: Step) => void }) {
       setError(result.message);
       return;
     }
-    const check = result.data;
-    if (check.verified && check.pupil && check.authorisation) {
-      onResult({ kind: "verified", code: checked.code, pupil: check.pupil, picker: check.authorisation });
+    const outcome = result.data;
+    if (outcome.verified && outcome.pupil && outcome.authorisation) {
+      onResult({ kind: "verified", request, pupil: outcome.pupil, picker: outcome.authorisation });
     } else {
-      onResult({ kind: "failed", result: check.result });
+      onResult({ kind: "failed", result: outcome.result });
     }
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const typed = normaliseCode(value);
+    if ("error" in typed) {
+      setError(typed.error);
+      input.current?.focus();
+      return;
+    }
+    await check({ method: "manual", code: typed.code });
+  }
+
+  function scanned(text: string) {
+    setScanning(false);
+    const qr = parseQrData(text);
+    if ("error" in qr) {
+      setError(qr.error);
+      return;
+    }
+    void check({ method: "qr", qr_data: qr.qr_data });
+  }
+
+  if (scanning) {
+    return (
+      <QrScanner
+        onScan={scanned}
+        onCancel={(message) => {
+          setScanning(false);
+          setError(message);
+        }}
+      />
+    );
   }
 
   return (
@@ -126,7 +157,93 @@ function CodeEntry({ onResult }: { onResult: (step: Step) => void }) {
       >
         {checking ? "Checking…" : "Check code"}
       </button>
+      <button
+        type="button"
+        onClick={() => {
+          setError(null);
+          setScanning(true);
+        }}
+        disabled={checking}
+        className="mt-3 w-full rounded-xl border border-line px-4 py-3 text-base font-medium text-brand-600 hover:border-brand-500 disabled:opacity-60"
+      >
+        Scan QR code
+      </button>
     </form>
+  );
+}
+
+/**
+ * The device camera reading a QR code (SRS 18.6 "QR scanning where
+ * available"). The scanning library loads only when this opens, and the
+ * camera stops as soon as a code is read or the scanner closes.
+ */
+function QrScanner({ onScan, onCancel }: { onScan: (text: string) => void; onCancel: (message: string | null) => void }) {
+  const video = useRef<HTMLVideoElement>(null);
+  const [starting, setStarting] = useState(true);
+  // Latest callbacks, so the camera effect runs once and never restarts.
+  const callbacks = useRef({ onScan, onCancel });
+  useEffect(() => {
+    callbacks.current = { onScan, onCancel };
+  });
+
+  useEffect(() => {
+    let controls: { stop: () => void } | null = null;
+    let finished = false;
+
+    async function start() {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        callbacks.current.onCancel("The camera only works over a secure (https) connection. Type the code instead.");
+        return;
+      }
+      try {
+        const { BrowserQRCodeReader } = await import("@zxing/browser");
+        if (finished || !video.current) return;
+        const reader = new BrowserQRCodeReader();
+        controls = await reader.decodeFromConstraints(
+          { video: { facingMode: "environment" } },
+          video.current,
+          (result, _error, scanControls) => {
+            if (!result || finished) return;
+            finished = true;
+            scanControls.stop();
+            callbacks.current.onScan(result.getText());
+          },
+        );
+        if (finished) controls.stop();
+        else setStarting(false);
+      } catch (error) {
+        if (!finished) callbacks.current.onCancel(cameraErrorText(error));
+      }
+    }
+
+    void start();
+    return () => {
+      finished = true;
+      controls?.stop();
+    };
+  }, []);
+
+  return (
+    <section aria-labelledby="scan-heading" className="rounded-2xl border border-line bg-card p-5 shadow-sm sm:p-8">
+      <h2 id="scan-heading" className="text-lg font-semibold">
+        Scan QR code
+      </h2>
+      <p className="mt-1 text-sm text-ink-muted">Hold the pickup person&apos;s QR code inside the frame.</p>
+      <div className="relative mt-4 aspect-square overflow-hidden rounded-xl bg-navy-900">
+        <video ref={video} muted playsInline aria-label="Camera view" className="h-full w-full object-cover" />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-[15%] rounded-2xl border-4 border-white/80" />
+        {starting && (
+          <p className="absolute inset-0 flex items-center justify-center text-sm text-white/80">Starting camera…</p>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={() => callbacks.current.onCancel(null)}
+        className="mt-4 w-full rounded-xl border border-line px-4 py-3 text-base font-medium text-ink-muted hover:text-ink"
+      >
+        Type the code instead
+      </button>
+    </section>
   );
 }
 
@@ -147,7 +264,7 @@ function ConfirmRelease({
     const result = await sendAsUser<ReleaseResponse>(
       "pickup/release",
       "POST",
-      { method: "manual", code: step.code },
+      step.request,
       "The gate check is not available.",
       GATE_TOO_MANY,
     );

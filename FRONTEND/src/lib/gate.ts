@@ -82,3 +82,39 @@ export function failureText(result: CheckResult): { title: string; detail: strin
     }
   );
 }
+
+/** Longest QR payload the backend accepts. */
+const QR_MAX = 512;
+
+export const NOT_A_PICKUP_QR = "This is not a Pikva pickup code. Ask for the QR code from the Pikva app, or type the code.";
+
+/**
+ * Check scanned QR text is a Pikva pickup code ({"code": ...} as the parent
+ * app shows it) and return it unchanged for the backend, which reads only
+ * the code. Anything else is rejected here, so scanning the wrong QR code
+ * never raises a security alert.
+ */
+export function parseQrData(text: string): { qr_data: string } | { error: string } {
+  if (text.length > QR_MAX) return { error: NOT_A_PICKUP_QR };
+  let payload: unknown;
+  try {
+    payload = JSON.parse(text);
+  } catch {
+    return { error: NOT_A_PICKUP_QR };
+  }
+  const code = typeof payload === "object" && payload !== null ? (payload as { code?: unknown }).code : undefined;
+  if (typeof code !== "string" || "error" in normaliseCode(code)) return { error: NOT_A_PICKUP_QR };
+  return { qr_data: text };
+}
+
+/** What to tell gate staff when the camera cannot start. */
+export function cameraErrorText(error: unknown): string {
+  // getUserMedia rejects with a DOMException, which is not an Error in every browser.
+  const name = typeof error === "object" && error !== null && "name" in error ? String(error.name) : "";
+  if (name === "NotAllowedError" || name === "SecurityError") {
+    return "Camera access is blocked. Allow the camera for this site in the browser settings, or type the code.";
+  }
+  if (name === "NotFoundError" || name === "OverconstrainedError") return "No camera was found on this device. Type the code instead.";
+  if (name === "NotReadableError") return "The camera is being used by another app. Close it, or type the code.";
+  return "The camera could not start. Type the code instead.";
+}
