@@ -144,3 +144,18 @@ export function personBody(
 
   return { body };
 }
+
+/** A code as POST /api/v1/pickup/codes returns it: plaintext, shown once (SRS 10). */
+export type PickupCode = {
+  authorisation_id: number;
+  pupil_id: number;
+  code: string;
+  code_date: string;
+  expires_at: string;
+  qr_data: string;
+};
+
+/** The code in groups of four for easier reading aloud: "7F3B9K2D" → "7F3B 9K2D". */
+export function formatCode(code: string): string {
+  return code.match(/.{1,4}/g)?.join(" ") ?? code;
+}

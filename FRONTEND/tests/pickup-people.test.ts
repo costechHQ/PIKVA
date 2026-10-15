@@ -1,16 +1,17 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 
-import { actionErrorMessage } from "@/lib/parent-api";
+import { actionErrorMessage, sendAsParent } from "@/lib/parent-api";
 import type { PickupPerson } from "@/lib/parent";
 import {
   type PersonForm,
   emptyPersonForm,
+  formatCode,
   fromLocalInput,
   personBody,
   personForm,
   toLocalInput,
 } from "@/lib/pickup-people";
-import { UNAVAILABLE } from "@/lib/api-errors";
+import { OFFLINE, UNAVAILABLE } from "@/lib/api-errors";
 
 // Local times, so the tests pass in any time zone.
 const NOW = new Date(2026, 9, 15, 9, 30);
@@ -131,5 +132,55 @@ describe("actionErrorMessage", () => {
       "Check the details and try again.",
     );
     expect(actionErrorMessage(500, null, "Gone.")).toBe(UNAVAILABLE);
+  });
+});
+
+describe("formatCode", () => {
+  test("groups the code in fours", () => {
+    expect(formatCode("7F3B9K2D")).toBe("7F3B 9K2D");
+    expect(formatCode("ABC")).toBe("ABC");
+    expect(formatCode("")).toBe("");
+  });
+});
+
+describe("sendAsParent", () => {
+  const realFetch = globalThis.fetch;
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  function answer(response: Response) {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    globalThis.fetch = (async (url: string, init?: RequestInit) => {
+      calls.push({ url, init });
+      return response;
+    }) as typeof fetch;
+    return calls;
+  }
+
+  test("POSTs JSON through the proxy and returns the body", async () => {
+    const calls = answer(Response.json({ code: "7F3B9K2D" }, { status: 201 }));
+
+    const result = await sendAsParent("pickup/codes", "POST", { authorisation_id: 12 }, "Gone.");
+
+    expect(result).toEqual({ ok: true, data: { code: "7F3B9K2D" } });
+    expect(calls[0].url).toBe("/api/proxy/pickup/codes");
+    expect(calls[0].init?.body).toBe('{"authorisation_id":12}');
+  });
+
+  test("a 429 names the wait from Retry-After", async () => {
+    answer(new Response(null, { status: 429, headers: { "Retry-After": "600" } }));
+
+    const result = await sendAsParent("pickup/codes", "POST", {}, "Gone.", "code requests");
+
+    expect(result).toEqual({ ok: false, message: "Too many code requests. Try again in 10 minutes." });
+  });
+
+  test("a network failure gives the offline message", async () => {
+    globalThis.fetch = (async () => {
+      throw new TypeError("network");
+    }) as unknown as typeof fetch;
+
+    expect(await sendAsParent("pickers", "POST", {}, "Gone.")).toEqual({ ok: false, message: OFFLINE });
   });
 });

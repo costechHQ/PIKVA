@@ -2,7 +2,7 @@
  * Browser-side calls the parent portal makes through /api/proxy (SRS 18.9).
  * Turns every answer into either the JSON body or a message for the page.
  */
-import { OFFLINE, UNAVAILABLE, detailText } from "@/lib/api-errors";
+import { OFFLINE, UNAVAILABLE, detailText, tooManyMessage } from "@/lib/api-errors";
 import { LOGIN_PATH } from "@/lib/roles";
 
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; message: string };
@@ -22,13 +22,15 @@ export function actionErrorMessage(status: number, body: unknown, notFound: stri
 /**
  * Send a request to FastAPI /api/v1/<path> as the signed-in parent. A 401
  * (session ended) goes to the login page. notFound is the message for a 404,
- * which FastAPI also gives for records that belong to someone else.
+ * which FastAPI also gives for records that belong to someone else; a 429
+ * says "Too many <tooManyWhat>" with the wait from Retry-After.
  */
 export async function sendAsParent<T>(
   path: string,
   method: "POST" | "PATCH",
   body: unknown,
   notFound: string,
+  tooManyWhat = "requests",
 ): Promise<ActionResult<T>> {
   let response: Response;
 
@@ -45,6 +47,10 @@ export async function sendAsParent<T>(
   if (response.status === 401) {
     window.location.assign(LOGIN_PATH);
     return { ok: false, message: "Your session has ended. Please sign in again." };
+  }
+
+  if (response.status === 429) {
+    return { ok: false, message: tooManyMessage(tooManyWhat, response.headers.get("retry-after")) };
   }
 
   const json: unknown = await response.json().catch(() => null);

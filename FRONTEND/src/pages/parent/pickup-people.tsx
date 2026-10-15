@@ -9,8 +9,10 @@ import { type PickupPerson, type Pupil, formatDateTime, pupilName } from "@/lib/
 import { sendAsParent } from "@/lib/parent-api";
 import {
   type PersonForm,
+  type PickupCode,
   TYPE_SUGGESTIONS,
   emptyPersonForm,
+  formatCode,
   personBody,
   personForm,
 } from "@/lib/pickup-people";
@@ -224,6 +226,9 @@ function PersonCard({
 
       {error && <div className="mt-4"><FormError message={error} /></div>}
 
+      {/* Not hidden while another form is open, so a shown code is never lost by accident. */}
+      {person.status === "active" && !confirming && <TodaysCode person={person} pupil={pupil} />}
+
       {confirming ? (
         <div className="mt-4 rounded-xl bg-danger-50 p-3">
           <p className="text-sm">
@@ -421,5 +426,132 @@ function PersonEditor({
         </button>
       </div>
     </form>
+  );
+}
+
+/**
+ * Today's pickup code for an active pickup person (SRS 10, 18.9). The backend
+ * shows a code only once and getting a new one expires any earlier unused
+ * code, so the parent confirms first. The code lives only in this
+ * component's memory: never stored, never put in the URL.
+ */
+function TodaysCode({ person, pupil }: { person: PickupPerson; pupil: Pupil }) {
+  const [step, setStep] = useState<"idle" | "confirm" | "shown">("idle");
+  const [code, setCode] = useState<PickupCode | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  async function getCode() {
+    setBusy(true);
+    setError(null);
+    const result = await sendAsParent<PickupCode>(
+      "pickup/codes",
+      "POST",
+      { authorisation_id: person.id },
+      "This pickup person is no longer linked to your account.",
+      "code requests",
+    );
+    setBusy(false);
+
+    if (result.ok) {
+      setCode(result.data);
+      setStep("shown");
+    } else {
+      setError(result.message);
+      setStep("idle");
+    }
+  }
+
+  async function copy() {
+    if (!code) return;
+    try {
+      await navigator.clipboard.writeText(code.code);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  function hide() {
+    setCode(null);
+    setCopied(false);
+    setStep("idle");
+  }
+
+  if (step === "shown" && code) {
+    return (
+      <div className="mt-4 overflow-hidden rounded-2xl bg-gradient-to-br from-navy-900 via-navy-800 to-brand-600 p-5 text-white">
+        <p className="text-xs font-medium uppercase tracking-wide text-accent-400">Today&apos;s pickup code</p>
+        <p className="mt-2 font-mono text-3xl font-semibold tracking-[0.2em] sm:text-4xl" aria-label={`Code ${code.code.split("").join(" ")}`}>
+          {formatCode(code.code)}
+        </p>
+        <p className="mt-2 text-sm text-white/80">
+          For {person.picker_name} to collect {pupil.first_name}. Works once, until {formatDateTime(code.expires_at)}.
+        </p>
+        <p className="mt-3 text-xs text-white/70">
+          Share it only with {person.picker_name}. It will not be shown again; if it is lost, get a new code.
+        </p>
+        <div className="mt-4 flex gap-2">
+          <button
+            type="button"
+            onClick={() => void copy()}
+            className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-navy-900 hover:bg-brand-50"
+          >
+            {copied ? "Copied" : "Copy code"}
+          </button>
+          <button
+            type="button"
+            onClick={hide}
+            className="rounded-lg border border-white/30 px-3 py-2 text-sm font-medium text-white hover:bg-white/10"
+          >
+            Hide
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "confirm") {
+    return (
+      <div className="mt-4 rounded-xl border border-warning-600/30 bg-warning-50 p-4">
+        <p className="text-sm font-medium">Get a new pickup code for {person.picker_name}?</p>
+        <p className="mt-1 text-sm text-ink-muted">
+          Any earlier code for {person.picker_name} that has not been used will stop working. The code is shown once
+          and works for one pickup today.
+        </p>
+        <div className="mt-3 flex gap-2">
+          <button
+            type="button"
+            onClick={() => void getCode()}
+            disabled={busy}
+            className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+          >
+            {busy ? "Getting code…" : "Get new code"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setStep("idle")}
+            disabled={busy}
+            className="rounded-lg border border-line bg-card px-3 py-2 text-sm font-medium text-ink-muted hover:text-ink"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-4">
+      {error && <FormError message={error} />}
+      <button
+        type="button"
+        onClick={() => setStep("confirm")}
+        className={`${error ? "mt-3 " : ""}w-full rounded-lg bg-brand-50 px-3 py-2.5 text-sm font-medium text-brand-700 hover:bg-brand-100`}
+      >
+        Get today&apos;s code
+      </button>
+    </div>
   );
 }
