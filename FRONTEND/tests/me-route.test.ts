@@ -93,12 +93,42 @@ describe("GET /api/auth/me", () => {
     expect(res.headers["set-cookie"]).toBeUndefined();
   });
 
-  test("allows only GET", async () => {
+  test("allows only GET and PATCH", async () => {
     const res = fakeResponse();
 
     await me(fakeRequest({ method: "POST" }), res);
 
     expect(res.statusCode).toBe(405);
-    expect(res.headers.allow).toBe("GET");
+    expect(res.headers.allow).toBe("GET, PATCH");
+  });
+});
+
+describe("PATCH /api/auth/me (SRS 6.9)", () => {
+  test("passes on only name and phone, with the session's token", async () => {
+    const token = tokenExpiringIn(1800);
+    const fake = useBackend(() => Response.json({ ...USER, name: "Ada Okafor" }));
+    const res = fakeResponse();
+
+    await me(
+      fakeRequest({
+        method: "PATCH",
+        cookies: { [SESSION_COOKIE]: token },
+        body: { name: "Ada Okafor", phone: "0700000000", email: "sneaky@example.com", role: "parent" },
+      }),
+      res,
+    );
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body).name).toBe("Ada Okafor");
+    const [call] = fake.requests;
+    expect(call.method).toBe("PATCH");
+    expect(call.headers.get("authorization")).toBe(`Bearer ${token}`);
+    expect(JSON.parse(call.body)).toEqual({ name: "Ada Okafor", phone: "0700000000" });
+  });
+
+  test("needs a session", async () => {
+    const res = fakeResponse();
+    await me(fakeRequest({ method: "PATCH", body: { name: "X" } }), res);
+    expect(res.statusCode).toBe(401);
   });
 });

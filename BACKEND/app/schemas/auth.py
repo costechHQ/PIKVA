@@ -91,6 +91,28 @@ class SchoolUserUpdate(BaseModel):
         return self
 
 
+class OwnDetailsUpdate(BaseModel):
+    """Define the details a user may change on their own account (SRS 6.9).
+
+    Name and phone only: the email is the sign-in identity. Unknown fields
+    (such as email or role) are rejected.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: Name | None = None
+    phone: Phone | None = None
+
+    @model_validator(mode="after")
+    def reject_nulls(self) -> "OwnDetailsUpdate":
+        """Reject an explicit null; leave a field out to keep it."""
+
+        null_fields = sorted(field for field in self.model_fields_set if getattr(self, field) is None)
+        if null_fields:
+            raise ValueError(f"Fields cannot be null: {', '.join(null_fields)}")
+        return self
+
+
 class PasswordChange(BaseModel):
     """Define a signed-in user's password change (SRS 6.8)."""
 

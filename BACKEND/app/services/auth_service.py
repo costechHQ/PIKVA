@@ -9,8 +9,8 @@ from app.core.security import (
 )
 from app.models.school import School
 from app.models.user import User, UserRole
-from app.schemas.auth import UserLogin, UserRegister
-from app.services.audit_service import USER_CREATED, record_audit
+from app.schemas.auth import OwnDetailsUpdate, UserLogin, UserRegister
+from app.services.audit_service import USER_CREATED, USER_UPDATED, record_audit
 
 ACCOUNT_DEACTIVATED = "This account has been deactivated. Contact your school."
 
@@ -93,3 +93,41 @@ async def login_user(
         "access_token": access_token,
         "token_type": "bearer",
     }
+
+
+async def update_own_details(
+        session: AsyncSession,
+        user: User,
+        data: OwnDetailsUpdate,
+) -> User:
+    """Change the signed-in user's own name and/or phone (SRS 6.9).
+
+    Only changed fields are written and audited, by name only.
+    """
+
+    changes = {
+        field: value
+        for field, value in data.model_dump(exclude_unset=True).items()
+        if getattr(user, field) != value
+    }
+
+    if not changes:
+        return user
+
+    for field, value in changes.items():
+        setattr(user, field, value)
+
+    await record_audit(
+        session=session,
+        school_id=user.school_id,
+        user_id=user.id,
+        action=USER_UPDATED,
+        entity_type="user",
+        entity_id=user.id,
+        metadata={"fields": sorted(changes)},
+    )
+
+    await session.commit()
+    await session.refresh(user)
+
+    return user

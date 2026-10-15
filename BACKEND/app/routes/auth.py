@@ -25,6 +25,7 @@ from app.models.user import User
 from app.schemas.auth import (
     CurrentUserResponse,
     MessageResponse,
+    OwnDetailsUpdate,
     PasswordChange,
     PasswordResetConfirm,
     PasswordResetEmail,
@@ -33,7 +34,7 @@ from app.schemas.auth import (
     UserRegister,
     UserResponse,
 )
-from app.services.auth_service import register_school_admin, login_user
+from app.services.auth_service import login_user, register_school_admin, update_own_details
 from app.services.notification_service import send_email_safely
 from app.services.password_reset_service import (
     change_password,
@@ -264,6 +265,26 @@ async def read_current_user(
 ):
 
     """Return the signed-in user, their role and their school's name."""
+
+    return await _current_user_response(session, current_user)
+
+
+@router.patch("/me", response_model=CurrentUserResponse)
+async def update_current_user(
+    data: OwnDetailsUpdate,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+
+    """Change the signed-in user's own name and/or phone (SRS 6.9); never the email."""
+
+    user = await update_own_details(session, current_user, data)
+
+    return await _current_user_response(session, user)
+
+
+async def _current_user_response(session: AsyncSession, current_user: User) -> CurrentUserResponse:
+    """The user and their school's name, as GET and PATCH /auth/me answer."""
 
     school = await session.get(School, current_user.school_id)
 

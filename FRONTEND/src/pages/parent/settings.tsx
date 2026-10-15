@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import { FormError } from "@/components/AuthCard";
 import { ChangePasswordForm } from "@/components/ChangePasswordForm";
+import { OwnDetailsCard } from "@/components/OwnDetailsCard";
 import { ParentShell } from "@/components/ParentShell";
 import { SuccessNote } from "@/components/ParentUi";
 import { OFFLINE } from "@/lib/api-errors";
@@ -14,39 +15,23 @@ type Props = { user: CurrentUser };
 export const getServerSideProps: GetServerSideProps<Props> = (context) => requireUser(context, ["parent"]);
 
 /**
- * Parent settings (SRS 18.9): account details from GET /auth/me (read-only:
- * no endpoint edits them), changing the password while signed in (SRS 6.8),
+ * Parent settings (SRS 18.9): their details (name and phone editable, SRS 6.9),
+ * changing the password while signed in (SRS 6.8),
  * and a reset email (SRS 6.6) for a forgotten current password.
  */
 export default function ParentSettingsPage({ user }: Props) {
   return (
     <ParentShell user={user} title="Settings" subtitle="Your account and sign-in.">
       <div className="grid gap-6 lg:grid-cols-2">
-        <section aria-labelledby="account-heading" className="rounded-2xl border border-line bg-card p-5 shadow-sm sm:p-6">
-          <h2 id="account-heading" className="font-semibold">
-            Account
-          </h2>
-          <dl className="mt-4 divide-y divide-line text-sm">
-            <Row label="Name" value={user.name} />
-            <Row label="Email" value={user.email} />
-            <Row label="Phone" value={user.phone ?? "Not set"} />
-            <Row label="School" value={user.school_name} />
-          </dl>
-          <p className="mt-4 text-xs text-ink-muted">Changing these details is not available yet.</p>
-        </section>
+        <OwnDetailsCard
+          user={user}
+          extraRows={[["School", user.school_name]]}
+          emailNote="Your email is how you sign in. To change it, ask your school."
+        />
 
         <PasswordSection email={user.email} />
       </div>
     </ParentShell>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-col gap-0.5 py-3 sm:flex-row sm:justify-between sm:gap-4">
-      <dt className="text-ink-muted">{label}</dt>
-      <dd className="min-w-0 break-words font-medium sm:text-right">{value}</dd>
-    </div>
   );
 }
 
