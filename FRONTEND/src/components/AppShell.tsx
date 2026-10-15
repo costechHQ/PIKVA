@@ -121,10 +121,10 @@ export function AppShell({ user, title, subtitle, children }: AppShellProps) {
             <div className="ml-auto flex items-center gap-4">
               {/* SRS 18.2: the bell links to Security Alerts (admins only). */}
               {user.role === "school_admin" && <AlertBell />}
-              <div className="hidden text-right sm:block">
-                <p className="text-sm font-medium">{user.name}</p>
-                <p className="text-xs text-ink-muted">{ROLE_LABEL[user.role]}</p>
-              </div>
+              <Link href="/account" className="hidden rounded-lg px-2 py-1 text-right hover:bg-surface sm:block">
+                <span className="block text-sm font-medium">{user.name}</span>
+                <span className="block text-xs text-ink-muted">{ROLE_LABEL[user.role]}</span>
+              </Link>
               <button
                 type="button"
                 onClick={handleSignOut}

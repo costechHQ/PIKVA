@@ -26,6 +26,7 @@ export const ACTION_LABELS: Record<string, string> = {
   "user.activated": "Activated a user",
   "user.password_reset_requested": "Asked to reset a password",
   "user.password_reset": "Reset a password",
+  "user.password_changed": "Changed their password",
   "pupil.created": "Added a pupil",
   "pupil.updated": "Changed a pupil",
   "pickup_authorisation.created": "Added a pickup person",

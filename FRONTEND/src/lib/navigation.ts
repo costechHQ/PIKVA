@@ -20,8 +20,12 @@ const MENUS: Record<Role, readonly NavItem[]> = {
     { label: "Audit Log", href: "/admin/audit-log", icon: "audit" },
     { label: "Users", href: "/admin/users", icon: "users" },
     { label: "Approvals", href: "/admin/approvals", icon: "approvals" },
+    { label: "Account", href: "/account", icon: "settings" },
   ],
-  gate_staff: [{ label: "Gate Verification", href: "/gate", icon: "gate" }],
+  gate_staff: [
+    { label: "Gate Verification", href: "/gate", icon: "gate" },
+    { label: "Account", href: "/account", icon: "settings" },
+  ],
   // Parent portal (SRS 18.9): its own layout, ParentShell.
   parent: [
     { label: "Overview", href: "/parent", icon: "dashboard" },

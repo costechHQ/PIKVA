@@ -2,6 +2,7 @@ import type { GetServerSideProps } from "next";
 import { useState } from "react";
 
 import { FormError } from "@/components/AuthCard";
+import { ChangePasswordForm } from "@/components/ChangePasswordForm";
 import { ParentShell } from "@/components/ParentShell";
 import { SuccessNote } from "@/components/ParentUi";
 import { OFFLINE } from "@/lib/api-errors";
@@ -14,8 +15,8 @@ export const getServerSideProps: GetServerSideProps<Props> = (context) => requir
 
 /**
  * Parent settings (SRS 18.9): account details from GET /auth/me (read-only:
- * no endpoint edits them) and a password reset email (SRS 6.6), because
- * there is no signed-in change-password endpoint yet.
+ * no endpoint edits them), changing the password while signed in (SRS 6.8),
+ * and a reset email (SRS 6.6) for a forgotten current password.
  */
 export default function ParentSettingsPage({ user }: Props) {
   return (
@@ -81,21 +82,26 @@ function PasswordSection({ email }: { email: string }) {
       <h2 id="password-heading" className="font-semibold">
         Password
       </h2>
-      <p className="mt-2 text-sm text-ink-muted">
-        We&apos;ll email a link to <span className="font-medium text-ink">{email}</span> to choose a new password. The
-        link works for 30 minutes. Setting a new password signs you out on every device.
-      </p>
-      <div className="mt-4 space-y-3">
-        <FormError message={error} />
-        <SuccessNote message={sent ? "Check your email for the link." : null} />
-        <button
-          type="button"
-          onClick={() => void sendLink()}
-          disabled={sending}
-          className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-        >
-          {sending ? "Sending…" : sent ? "Send another link" : "Email me a reset link"}
-        </button>
+      <ChangePasswordForm />
+
+      <div className="mt-6 border-t border-line pt-4">
+        <h3 className="text-sm font-medium">Forgot your current password?</h3>
+        <p className="mt-1 text-sm text-ink-muted">
+          We&apos;ll email a link to <span className="font-medium text-ink">{email}</span> to choose a new one. It works
+          for 30 minutes and signs you out on every device.
+        </p>
+        <div className="mt-3 space-y-3">
+          <FormError message={error} />
+          <SuccessNote message={sent ? "Check your email for the link." : null} />
+          <button
+            type="button"
+            onClick={() => void sendLink()}
+            disabled={sending}
+            className="rounded-lg border border-line px-4 py-2.5 text-sm font-medium text-ink-muted hover:text-ink disabled:opacity-60"
+          >
+            {sending ? "Sending…" : sent ? "Send another link" : "Email me a reset link"}
+          </button>
+        </div>
       </div>
     </section>
   );

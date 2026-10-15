@@ -10,8 +10,12 @@ describe("navItems", () => {
     expect(navItems("parent")[0].href).toBe(HOME_PATH.parent);
   });
 
-  test("gate staff see only gate pages", () => {
-    expect(navItems("gate_staff").every((item) => item.href.startsWith("/gate"))).toBe(true);
+  test("gate staff see only gate pages and their own account", () => {
+    expect(navItems("gate_staff").map((item) => item.href)).toEqual(["/gate", "/account"]);
+  });
+
+  test("admins have their account in the menu", () => {
+    expect(navItems("school_admin").some((item) => item.href === "/account")).toBe(true);
   });
 
   test("admins never see gate-only pages", () => {

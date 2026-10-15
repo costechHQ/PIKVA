@@ -106,6 +106,8 @@ test("admin edits and deactivates gate staff, who are signed out until reactivat
   const gate = await as(browser, "gate");
   await gate.goto("/gate");
   await expect(gate).toHaveURL(/\/login/);
+  // Arrived by redirect: let the form finish loading before typing.
+  await gate.waitForLoadState("networkidle");
   await gate.getByLabel("Email address").fill(state.gate.email);
   await gate.getByLabel("Password", { exact: true }).fill(state.password);
   await gate.getByRole("button", { name: "Sign In" }).click();

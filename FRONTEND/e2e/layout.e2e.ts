@@ -22,6 +22,7 @@ const PAGES: Record<Role, string[]> = {
     "/admin/audit-log",
     "/admin/users",
     "/admin/users/new",
+    "/account",
   ],
   parent: [
     "/parent",
@@ -31,7 +32,7 @@ const PAGES: Record<Role, string[]> = {
     "/parent/pickup-history",
     "/parent/settings",
   ],
-  gate: ["/gate"],
+  gate: ["/gate", "/account"],
 };
 
 const VIEWPORTS = { phone: { width: 390, height: 844 }, laptop: { width: 1280, height: 800 } };
