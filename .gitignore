@@ -32,3 +32,5 @@ Thumbs.db
 *.log
 
 PIKVA_SRS.md
+# curl cookie jars from manual testing (curl -c jar.txt)
+jar.txt

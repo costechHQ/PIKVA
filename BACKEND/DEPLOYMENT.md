@@ -1,7 +1,8 @@
 # Pikva backend deployment checklist
 
 Covers SRS 27 (deployment), 28 (observability) and 21 (security). Work
-through it top to bottom for every new environment; tick each line.
+through it top to bottom for every new environment; tick each line. The
+web app has its own checklist: `../FRONTEND/DEPLOYMENT.md`.
 
 ## 1. Services
 
@@ -44,6 +45,9 @@ secret store) and set:
       `FORWARDED_ALLOW_IPS` to its address. Never use `*` unless the API is
       reachable only through the proxy, or clients can fake their IP and dodge
       the per-IP limits on login and registration.
+- [ ] The web app calls this API for every browser, so `FORWARDED_ALLOW_IPS` must
+      also include the web host's address. Otherwise every sign-in looks like it
+      comes from the web host, and one school's logins share a single IP limit.
 - [ ] Sizing: each password hash or check uses about 64 MiB and 80 ms of CPU, in a
       worker thread (up to `min(32, CPUs + 4)` per worker process). Allow memory
       for bursts of logins: workers x threads x 64 MiB at worst.
