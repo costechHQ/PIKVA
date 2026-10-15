@@ -73,12 +73,13 @@ export function PupilAvatar({ pupil, size = "md" }: { pupil: Pick<Pupil, "first_
 
 const STATUS_STYLE: Record<AuthorisationStatus, { label: string; className: string }> = {
   active: { label: "Active", className: "bg-success-50 text-success-600" },
+  pending_approval: { label: "Awaiting approval", className: "bg-warning-50 text-warning-600" },
   scheduled: { label: "Scheduled", className: "bg-brand-50 text-brand-700" },
   expired: { label: "Expired", className: "bg-surface text-ink-muted" },
   inactive: { label: "Inactive", className: "bg-danger-50 text-danger-600" },
 };
 
-/** A pickup person's status as the backend works it out (SRS 9.1). */
+/** A pickup person's status as the backend works it out (SRS 9.1, 9.2). */
 export function StatusBadge({ status }: { status: AuthorisationStatus }) {
   const { label, className } = STATUS_STYLE[status];
   return <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${className}`}>{label}</span>;

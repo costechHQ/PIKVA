@@ -145,6 +145,19 @@ export function personBody(
   return { body };
 }
 
+export type PersonChange = "added" | "updated" | "activated" | "deactivated";
+
+/**
+ * The note shown after a change. A parent's add, edit or activation can leave
+ * the person waiting for the school's approval (SRS 9.2), so say so.
+ */
+export function changeMessage(person: PickupPerson, change: PersonChange): string {
+  const done = `${person.picker_name} ${change}.`;
+  return person.status === "pending_approval"
+    ? `${done} Your school needs to approve them before they can collect.`
+    : done;
+}
+
 /** A code as POST /api/v1/pickup/codes returns it: plaintext, shown once (SRS 10). */
 export type PickupCode = {
   authorisation_id: number;

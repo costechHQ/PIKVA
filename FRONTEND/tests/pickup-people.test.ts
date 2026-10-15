@@ -4,6 +4,7 @@ import { actionErrorMessage, sendAsParent } from "@/lib/parent-api";
 import type { PickupPerson } from "@/lib/parent";
 import {
   type PersonForm,
+  changeMessage,
   emptyPersonForm,
   formatCode,
   fromLocalInput,
@@ -41,6 +42,7 @@ const existing: PickupPerson = {
   expires_at: local(31, 18).toISOString(),
   is_active: true,
   status: "active",
+  approved_at: local(1, 8).toISOString(),
   created_at: local(1, 8).toISOString(),
   updated_at: local(1, 8).toISOString(),
 };
@@ -132,6 +134,23 @@ describe("actionErrorMessage", () => {
       "Check the details and try again.",
     );
     expect(actionErrorMessage(500, null, "Gone.")).toBe(UNAVAILABLE);
+  });
+});
+
+describe("changeMessage", () => {
+  const pending = { ...existing, status: "pending_approval" as const, approved_at: null };
+
+  test("says plainly what changed when no approval is needed", () => {
+    expect(changeMessage(existing, "updated")).toBe("Emeka Okafor updated.");
+    expect(changeMessage({ ...existing, status: "inactive" }, "deactivated")).toBe("Emeka Okafor deactivated.");
+  });
+
+  test("says the school must approve when the change left the person pending", () => {
+    for (const change of ["added", "updated", "activated"] as const) {
+      expect(changeMessage(pending, change)).toBe(
+        `Emeka Okafor ${change}. Your school needs to approve them before they can collect.`,
+      );
+    }
   });
 });
 

@@ -6,13 +6,16 @@ import { EmptyState, LoadError, PupilAvatar, Skeleton } from "@/components/Paren
 import { type CurrentUser, getAsUser, requireUser } from "@/lib/auth-guard";
 import { firstName } from "@/lib/format";
 import {
+  NO_PEOPLE,
   OVERVIEW_RELEASES_LIMIT,
+  type PeopleCounts,
   type PickupPerson,
   type Pupil,
   type Release,
-  activePeopleByPupil,
   formatTime,
   latestReleaseTodayByPupil,
+  peopleCountsByPupil,
+  peopleCountsText,
   pupilName,
   todaysReleases,
 } from "@/lib/parent";
@@ -67,8 +70,8 @@ function Overview({ data }: { data: Data }) {
     );
   }
 
-  const activeCounts = activePeopleByPupil(people);
-  const activeTotal = [...activeCounts.values()].reduce((sum, count) => sum + count, 0);
+  const counts = peopleCountsByPupil(people);
+  const activeTotal = [...counts.values()].reduce((sum, count) => sum + count.active, 0);
   const latestToday = now ? latestReleaseTodayByPupil(releases, now) : null;
   const today = now ? todaysReleases(releases, now) : null;
 
@@ -90,7 +93,7 @@ function Overview({ data }: { data: Data }) {
               <li key={pupil.id}>
                 <PupilCard
                   pupil={pupil}
-                  activePeople={activeCounts.get(pupil.id) ?? 0}
+                  people={counts.get(pupil.id) ?? NO_PEOPLE}
                   release={latestToday ? (latestToday.get(pupil.id) ?? null) : undefined}
                 />
               </li>
@@ -163,7 +166,7 @@ function Stat({ label, value, highlight = false }: { label: string; value: numbe
  * release: today's latest release, null when none yet, undefined while the
  * browser has not worked out "today".
  */
-function PupilCard({ pupil, activePeople, release }: { pupil: Pupil; activePeople: number; release: Release | null | undefined }) {
+function PupilCard({ pupil, people, release }: { pupil: Pupil; people: PeopleCounts; release: Release | null | undefined }) {
   return (
     <article className="flex h-full flex-col items-start rounded-2xl border border-line bg-card p-5 shadow-sm">
       <div className="flex items-center gap-3">
@@ -191,10 +194,8 @@ function PupilCard({ pupil, activePeople, release }: { pupil: Pupil; activePeopl
         )}
       </div>
 
-      <p className={`mt-4 text-sm ${activePeople === 0 ? "text-warning-600" : "text-ink-muted"}`}>
-        {activePeople === 0
-          ? "No active pickup people"
-          : `${activePeople} active pickup ${activePeople === 1 ? "person" : "people"}`}
+      <p className={`mt-4 text-sm ${people.active === 0 ? "text-warning-600" : "text-ink-muted"}`}>
+        {peopleCountsText(people)}
       </p>
 
       <Link

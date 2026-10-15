@@ -17,7 +17,8 @@ export type Pupil = {
   date_of_birth: string;
 };
 
-export type AuthorisationStatus = "active" | "inactive" | "scheduled" | "expired";
+/** Worked out by the backend in this order: inactive, pending_approval, scheduled, expired, else active (SRS 9.1, 9.2). */
+export type AuthorisationStatus = "active" | "inactive" | "pending_approval" | "scheduled" | "expired";
 
 /** A pickup person (authorisation) as GET /api/v1/pickers returns it. */
 export type PickupPerson = {
@@ -32,6 +33,8 @@ export type PickupPerson = {
   expires_at: string;
   is_active: boolean;
   status: AuthorisationStatus;
+  /** When the school approved the current details; null while waiting (SRS 9.2). */
+  approved_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -78,13 +81,28 @@ export function latestReleaseTodayByPupil(releases: readonly Release[], now: Dat
   return latest;
 }
 
-/** How many pickup people are currently active for each pupil, keyed by pupil id. */
-export function activePeopleByPupil(people: readonly PickupPerson[]): Map<number, number> {
-  const counts = new Map<number, number>();
+export type PeopleCounts = { active: number; pending: number };
+
+export const NO_PEOPLE: PeopleCounts = { active: 0, pending: 0 };
+
+/** How many pickup people are active, and how many await school approval, for each pupil. */
+export function peopleCountsByPupil(people: readonly PickupPerson[]): Map<number, PeopleCounts> {
+  const counts = new Map<number, PeopleCounts>();
   for (const person of people) {
-    if (person.status === "active") counts.set(person.pupil_id, (counts.get(person.pupil_id) ?? 0) + 1);
+    if (person.status !== "active" && person.status !== "pending_approval") continue;
+    const count = counts.get(person.pupil_id) ?? { active: 0, pending: 0 };
+    if (person.status === "active") count.active += 1;
+    else count.pending += 1;
+    counts.set(person.pupil_id, count);
   }
   return counts;
+}
+
+/** "2 active pickup people · 1 awaiting approval", or "No active pickup people". */
+export function peopleCountsText({ active, pending }: PeopleCounts): string {
+  const activeText =
+    active === 0 ? "No active pickup people" : `${active} active pickup ${active === 1 ? "person" : "people"}`;
+  return pending === 0 ? activeText : `${activeText} · ${pending} awaiting approval`;
 }
 
 /** A time such as "10:24 AM" in the viewer's locale and time zone. Browser only (see useNow). */

@@ -5,7 +5,6 @@ import {
   type Pupil,
   type PupilForm,
   type Release,
-  activePeopleByPupil,
   formatDate,
   groupReleasesByDay,
   historyApiPath,
@@ -17,6 +16,8 @@ import {
   pupilForm,
   isSameLocalDay,
   latestReleaseTodayByPupil,
+  peopleCountsByPupil,
+  peopleCountsText,
   pupilName,
   todaysReleases,
 } from "@/lib/parent";
@@ -52,6 +53,7 @@ function person(pupilId: number, status: PickupPerson["status"]): PickupPerson {
     expires_at: localIso(30, 8),
     is_active: status !== "inactive",
     status,
+    approved_at: status === "pending_approval" ? null : localIso(1, 8),
     created_at: localIso(1, 8),
     updated_at: localIso(1, 8),
   };
@@ -80,17 +82,29 @@ describe("today's releases", () => {
   });
 });
 
-describe("activePeopleByPupil", () => {
-  test("counts only active people", () => {
-    const counts = activePeopleByPupil([
+describe("peopleCountsByPupil", () => {
+  test("counts active people and people awaiting approval", () => {
+    const counts = peopleCountsByPupil([
       person(1, "active"),
       person(1, "active"),
+      person(1, "pending_approval"),
       person(1, "expired"),
       person(2, "scheduled"),
       person(2, "inactive"),
+      person(3, "pending_approval"),
     ]);
-    expect(counts.get(1)).toBe(2);
+    expect(counts.get(1)).toEqual({ active: 2, pending: 1 });
     expect(counts.has(2)).toBe(false);
+    expect(counts.get(3)).toEqual({ active: 0, pending: 1 });
+  });
+});
+
+describe("peopleCountsText", () => {
+  test("describes active people, then any awaiting approval", () => {
+    expect(peopleCountsText({ active: 0, pending: 0 })).toBe("No active pickup people");
+    expect(peopleCountsText({ active: 1, pending: 0 })).toBe("1 active pickup person");
+    expect(peopleCountsText({ active: 2, pending: 1 })).toBe("2 active pickup people · 1 awaiting approval");
+    expect(peopleCountsText({ active: 0, pending: 2 })).toBe("No active pickup people · 2 awaiting approval");
   });
 });
 

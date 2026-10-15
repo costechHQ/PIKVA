@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ParentShell } from "@/components/ParentShell";
 import { EmptyState, LoadError, PupilAvatar } from "@/components/ParentUi";
 import { type CurrentUser, getAsUser, requireUser } from "@/lib/auth-guard";
-import { type PickupPerson, type Pupil, activePeopleByPupil, formatDate, pupilName } from "@/lib/parent";
+import { type PickupPerson, type Pupil, NO_PEOPLE, formatDate, peopleCountsByPupil, peopleCountsText, pupilName } from "@/lib/parent";
 
 type Data = { pupils: Pupil[]; people: PickupPerson[] };
 
@@ -45,12 +45,12 @@ function PupilList({ data }: { data: Data }) {
     );
   }
 
-  const activeCounts = activePeopleByPupil(data.people);
+  const counts = peopleCountsByPupil(data.people);
 
   return (
     <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {data.pupils.map((pupil) => {
-        const active = activeCounts.get(pupil.id) ?? 0;
+        const people = counts.get(pupil.id) ?? NO_PEOPLE;
         return (
           <li key={pupil.id}>
             <Link
@@ -61,8 +61,8 @@ function PupilList({ data }: { data: Data }) {
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-semibold">{pupilName(pupil)}</span>
                 <span className="block text-sm text-ink-muted">Born {formatDate(pupil.date_of_birth)}</span>
-                <span className={`mt-1 block text-sm ${active === 0 ? "text-warning-600" : "text-ink-muted"}`}>
-                  {active === 0 ? "No active pickup people" : `${active} active pickup ${active === 1 ? "person" : "people"}`}
+                <span className={`mt-1 block text-sm ${people.active === 0 ? "text-warning-600" : "text-ink-muted"}`}>
+                  {peopleCountsText(people)}
                 </span>
               </span>
               <span aria-hidden="true" className="text-ink-muted">

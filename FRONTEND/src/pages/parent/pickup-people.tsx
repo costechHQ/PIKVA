@@ -11,6 +11,7 @@ import {
   type PersonForm,
   type PickupCode,
   TYPE_SUGGESTIONS,
+  changeMessage,
   emptyPersonForm,
   formatCode,
   personBody,
@@ -84,8 +85,8 @@ function PickupPeopleManager({ data }: { data: Data }) {
     <div className="space-y-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <p className="max-w-xl text-sm text-ink-muted">
-          A pickup person can collect a pupil only while they are active and within their dates. Your school can also
-          see and update them.
+          A pickup person can collect a pupil only once your school has approved them, while they are active and
+          within their dates. Your school can also see and update them.
         </p>
         {!editor && (
           <button
@@ -187,7 +188,7 @@ function PersonCard({
     setConfirming(false);
 
     if (result.ok) {
-      onChanged(result.data, `${person.picker_name} ${active ? "activated" : "deactivated"}.`);
+      onChanged(result.data, changeMessage(result.data, active ? "activated" : "deactivated"));
     } else {
       setError(result.message);
     }
@@ -225,6 +226,12 @@ function PersonCard({
       </dl>
 
       {error && <div className="mt-4"><FormError message={error} /></div>}
+
+      {person.status === "pending_approval" && (
+        <p className="mt-4 rounded-xl bg-warning-50 p-3 text-sm">
+          Waiting for your school to approve {person.picker_name}. You can get a pickup code once they do.
+        </p>
+      )}
 
       {/* Not hidden while another form is open, so a shown code is never lost by accident. */}
       {person.status === "active" && !confirming && <TodaysCode person={person} pupil={pupil} />}
@@ -337,7 +344,7 @@ function PersonEditor({
     setSaving(false);
 
     if (result.ok) {
-      onSaved(result.data, original ? `${result.data.picker_name} updated.` : `${result.data.picker_name} added.`);
+      onSaved(result.data, changeMessage(result.data, original ? "updated" : "added"));
     } else {
       setError(result.message);
     }
@@ -357,6 +364,14 @@ function PersonEditor({
       <h2 id="editor-heading" className="text-lg font-semibold">
         {original ? `Edit ${original.picker_name}` : "Add a pickup person"}
       </h2>
+
+      <p className="mt-2 text-sm text-ink-muted">
+        {!original
+          ? "Your school will approve this person before they can collect."
+          : original.approved_at
+            ? `If you save changes, ${original.picker_name} cannot collect until your school approves them again, and any code you already got for them will stop working.`
+            : `${original.picker_name} is still waiting for your school's approval.`}
+      </p>
 
       <div className="mt-4">
         <FormError message={error} />
