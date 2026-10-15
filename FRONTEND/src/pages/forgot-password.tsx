@@ -1,3 +1,4 @@
+import type { GetServerSideProps } from "next";
 import Link from "next/link";
 import { type FormEvent, useState } from "react";
 
@@ -5,6 +6,9 @@ import { AuthCard, FormError, inputClass, linkClass, primaryButtonClass } from "
 import { OFFLINE, detailText } from "@/lib/api-errors";
 import { forgotErrorMessage } from "@/lib/reset-error";
 import { LOGIN_PATH } from "@/lib/roles";
+
+// Built per request, so the page carries this view's CSP nonce (src/proxy.ts).
+export const getServerSideProps: GetServerSideProps = async () => ({ props: {} });
 
 // Shown if FastAPI's 202 body is unreadable; same meaning as its own text.
 const SENT_FALLBACK = "If an account exists for that email, we have sent a link to reset its password.";

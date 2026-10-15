@@ -7,6 +7,18 @@ type LogoProps = {
   withName?: boolean;
 };
 
+/**
+ * Wordmark size (0.75 of the icon) for each icon size in use, as classes:
+ * the Content Security Policy blocks inline style attributes.
+ */
+const WORDMARK_SIZE: Record<number, string> = {
+  26: "text-[19.5px]",
+  30: "text-[22.5px]",
+  32: "text-[24px]",
+  40: "text-[30px]",
+  48: "text-[36px]",
+};
+
 /** The Pikva shield mark, optionally with its wordmark. */
 export function Logo({ tone = "dark", size = 32, withName = true }: LogoProps) {
   return (
@@ -14,8 +26,9 @@ export function Logo({ tone = "dark", size = 32, withName = true }: LogoProps) {
       <ShieldMark size={size} />
       {withName && (
         <span
-          className={`font-semibold tracking-tight ${tone === "light" ? "text-white" : "text-ink"}`}
-          style={{ fontSize: size * 0.75 }}
+          className={`font-semibold tracking-tight ${WORDMARK_SIZE[size] ?? "text-2xl"} ${
+            tone === "light" ? "text-white" : "text-ink"
+          }`}
         >
           Pikva
         </span>

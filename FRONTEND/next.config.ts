@@ -1,9 +1,10 @@
 import path from "node:path";
 import type { NextConfig } from "next";
 
-// Sent with every page and API answer (SRS 21.1).
+// Sent with every page and API answer (SRS 21.1). Pages also get the full,
+// nonce-based Content Security Policy from src/proxy.ts; browsers enforce both.
 const SECURITY_HEADERS = [
-  // Never shown inside another site's frame (clickjacking).
+  // Never shown inside another site's frame (clickjacking), API answers and files included.
   { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },

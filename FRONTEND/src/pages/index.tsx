@@ -1,7 +1,11 @@
+import type { GetServerSideProps } from "next";
 import Head from "next/head";
 import Link from "next/link";
 
 import { Logo } from "@/components/Logo";
+
+// Built per request, so the page carries this view's CSP nonce (src/proxy.ts).
+export const getServerSideProps: GetServerSideProps = async () => ({ props: {} });
 
 export default function Home() {
   return (
