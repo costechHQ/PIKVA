@@ -97,10 +97,12 @@ function PupilTable({ rows, search, total }: { rows: Row[]; search: string; tota
             {rows.map(({ pupil, people }) => (
               <tr key={pupil.id} className="border-b border-line last:border-0">
                 <td className="px-4 py-3">
-                  <span className="flex items-center gap-3">
+                  <Link href={`/admin/pupils/${pupil.id}`} className="group flex items-center gap-3">
                     <PupilAvatar pupil={pupil} size="sm" />
-                    <span className="font-medium">{pupilName(pupil)}</span>
-                  </span>
+                    <span className="font-medium text-brand-600 group-hover:text-brand-700 group-hover:underline">
+                      {pupilName(pupil)}
+                    </span>
+                  </Link>
                 </td>
                 <td className="px-4 py-3 text-ink-muted">{formatDate(pupil.date_of_birth)}</td>
                 <td className="px-4 py-3">
