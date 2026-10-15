@@ -5,7 +5,7 @@
  */
 import type { Role } from "@/lib/roles";
 
-export type IconName = "dashboard" | "gate" | "users" | "pupils" | "history" | "settings";
+export type IconName = "dashboard" | "gate" | "users" | "pupils" | "history" | "settings" | "approvals";
 
 /** short: a shorter label for the phone bottom bar, when label is too long. */
 export type NavItem = { label: string; href: string; icon: IconName; short?: string };
@@ -14,6 +14,7 @@ const MENUS: Record<Role, readonly NavItem[]> = {
   school_admin: [
     { label: "Dashboard", href: "/admin", icon: "dashboard" },
     { label: "Users", href: "/admin/users", icon: "users" },
+    { label: "Approvals", href: "/admin/approvals", icon: "approvals" },
   ],
   gate_staff: [{ label: "Gate Verification", href: "/gate", icon: "gate" }],
   // Parent portal (SRS 18.9): its own layout, ParentShell.

@@ -6,7 +6,7 @@ import { ParentShell } from "@/components/ParentShell";
 import { EmptyState, Field, LoadError, PupilAvatar, Skeleton, StatusBadge, SuccessNote } from "@/components/ParentUi";
 import { type CurrentUser, getAsUser, requireUser } from "@/lib/auth-guard";
 import { type PickupPerson, type Pupil, formatDateTime, pupilName } from "@/lib/parent";
-import { sendAsParent } from "@/lib/parent-api";
+import { sendAsUser } from "@/lib/parent-api";
 import {
   type PersonForm,
   type PickupCode,
@@ -178,7 +178,7 @@ function PersonCard({
   async function setActive(active: boolean) {
     setBusy(true);
     setError(null);
-    const result = await sendAsParent<PickupPerson>(
+    const result = await sendAsUser<PickupPerson>(
       `pickers/${person.id}/${active ? "activate" : "deactivate"}`,
       "POST",
       undefined,
@@ -334,13 +334,13 @@ function PersonEditor({
     setError(null);
     setSaving(true);
     const result = original
-      ? await sendAsParent<PickupPerson>(
+      ? await sendAsUser<PickupPerson>(
           `pickers/${original.id}`,
           "PATCH",
           checked.body,
           "This pickup person is no longer linked to your account.",
         )
-      : await sendAsParent<PickupPerson>("pickers", "POST", checked.body, "That pupil is not linked to your account.");
+      : await sendAsUser<PickupPerson>("pickers", "POST", checked.body, "That pupil is not linked to your account.");
     setSaving(false);
 
     if (result.ok) {
@@ -460,7 +460,7 @@ function TodaysCode({ person, pupil }: { person: PickupPerson; pupil: Pupil }) {
   async function getCode() {
     setBusy(true);
     setError(null);
-    const result = await sendAsParent<PickupCode>(
+    const result = await sendAsUser<PickupCode>(
       "pickup/codes",
       "POST",
       { authorisation_id: person.id },

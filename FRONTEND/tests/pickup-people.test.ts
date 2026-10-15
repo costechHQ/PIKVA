@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 
-import { actionErrorMessage, sendAsParent } from "@/lib/parent-api";
+import { actionErrorMessage, sendAsUser } from "@/lib/parent-api";
 import type { PickupPerson } from "@/lib/parent";
 import {
   type PersonForm,
@@ -135,6 +135,15 @@ describe("actionErrorMessage", () => {
     );
     expect(actionErrorMessage(500, null, "Gone.")).toBe(UNAVAILABLE);
   });
+
+  test("shows FastAPI's reason for a conflict", () => {
+    expect(actionErrorMessage(409, { detail: "Pickup authorisation is already approved" }, "Gone.")).toBe(
+      "Pickup authorisation is already approved",
+    );
+    expect(actionErrorMessage(409, null, "Gone.")).toBe(
+      "This was changed by someone else. Reload the page and try again.",
+    );
+  });
 });
 
 describe("changeMessage", () => {
@@ -162,7 +171,7 @@ describe("formatCode", () => {
   });
 });
 
-describe("sendAsParent", () => {
+describe("sendAsUser", () => {
   const realFetch = globalThis.fetch;
   afterEach(() => {
     globalThis.fetch = realFetch;
@@ -180,7 +189,7 @@ describe("sendAsParent", () => {
   test("POSTs JSON through the proxy and returns the body", async () => {
     const calls = answer(Response.json({ code: "7F3B9K2D" }, { status: 201 }));
 
-    const result = await sendAsParent("pickup/codes", "POST", { authorisation_id: 12 }, "Gone.");
+    const result = await sendAsUser("pickup/codes", "POST", { authorisation_id: 12 }, "Gone.");
 
     expect(result).toEqual({ ok: true, data: { code: "7F3B9K2D" } });
     expect(calls[0].url).toBe("/api/proxy/pickup/codes");
@@ -190,7 +199,7 @@ describe("sendAsParent", () => {
   test("a 429 names the wait from Retry-After", async () => {
     answer(new Response(null, { status: 429, headers: { "Retry-After": "600" } }));
 
-    const result = await sendAsParent("pickup/codes", "POST", {}, "Gone.", "code requests");
+    const result = await sendAsUser("pickup/codes", "POST", {}, "Gone.", "code requests");
 
     expect(result).toEqual({ ok: false, message: "Too many code requests. Try again in 10 minutes." });
   });
@@ -200,6 +209,6 @@ describe("sendAsParent", () => {
       throw new TypeError("network");
     }) as unknown as typeof fetch;
 
-    expect(await sendAsParent("pickers", "POST", {}, "Gone.")).toEqual({ ok: false, message: OFFLINE });
+    expect(await sendAsUser("pickers", "POST", {}, "Gone.")).toEqual({ ok: false, message: OFFLINE });
   });
 });

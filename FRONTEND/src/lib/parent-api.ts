@@ -1,5 +1,6 @@
 /**
- * Browser-side calls the parent portal makes through /api/proxy (SRS 18.9).
+ * Browser-side calls the web app makes through /api/proxy (parent portal
+ * SRS 18.9, admin pages).
  * Turns every answer into either the JSON body or a message for the page.
  */
 import { OFFLINE, UNAVAILABLE, detailText, tooManyMessage } from "@/lib/api-errors";
@@ -16,16 +17,17 @@ export function actionErrorMessage(status: number, body: unknown, notFound: stri
   if (status === 404) return notFound;
   if (status === 422 || status === 400) return detailText(body) ?? "Check the details and try again.";
   if (status === 403) return "You don't have permission to do that.";
+  if (status === 409) return detailText(body) ?? "This was changed by someone else. Reload the page and try again.";
   return UNAVAILABLE;
 }
 
 /**
- * Send a request to FastAPI /api/v1/<path> as the signed-in parent. A 401
+ * Send a request to FastAPI /api/v1/<path> as the signed-in user. A 401
  * (session ended) goes to the login page. notFound is the message for a 404,
  * which FastAPI also gives for records that belong to someone else; a 429
  * says "Too many <tooManyWhat>" with the wait from Retry-After.
  */
-export async function sendAsParent<T>(
+export async function sendAsUser<T>(
   path: string,
   method: "POST" | "PATCH",
   body: unknown,

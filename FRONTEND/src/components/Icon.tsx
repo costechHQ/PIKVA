@@ -10,6 +10,7 @@ const PATHS: Record<ShellIcon, string> = {
   pupils: "M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 10a7 7 0 0 1 14 0",
   history: "M12 7v5l3 2M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z",
   settings: "M4 7h9M17 7h3M4 17h3M11 17h9M15 5v4M9 15v4",
+  approvals: "M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 10v-1a6 6 0 0 1 9-5.2M15 18l2 2 4-4",
   menu: "M4 6h16M4 12h16M4 18h16",
   close: "M6 6l12 12M18 6 6 18",
   back: "M15 18l-6-6 6-6",

@@ -20,7 +20,7 @@ import {
   pupilForm,
   pupilName,
 } from "@/lib/parent";
-import { sendAsParent } from "@/lib/parent-api";
+import { sendAsUser } from "@/lib/parent-api";
 import { useNow } from "@/lib/use-now";
 
 type Data = { pupil: Pupil; people: PickupPerson[]; releases: Release[] };
@@ -112,7 +112,7 @@ function PupilDetails({ pupil, onSaved }: { pupil: Pupil; onSaved: (pupil: Pupil
 
     setError(null);
     setSaving(true);
-    const result = await sendAsParent<Pupil>(
+    const result = await sendAsUser<Pupil>(
       `pupils/${pupil.id}`,
       "PATCH",
       checked.changes,
