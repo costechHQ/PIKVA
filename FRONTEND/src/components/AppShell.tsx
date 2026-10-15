@@ -6,6 +6,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { Logo } from "@/components/Logo";
 import type { CurrentUser } from "@/lib/auth-guard";
+import { BELL_LIMIT, bellBadge } from "@/lib/alerts";
 import { ROLE_LABEL, isActive, navItems } from "@/lib/navigation";
 import { HOME_PATH } from "@/lib/roles";
 import { signOut } from "@/lib/sign-out";
@@ -118,16 +119,8 @@ export function AppShell({ user, title, subtitle, children }: AppShellProps) {
               <Icon name="menu" />
             </button>
             <div className="ml-auto flex items-center gap-4">
-              {/* SRS 18.2: the bell links to Security Alerts (admins only; no count, so no extra request per page). */}
-              {user.role === "school_admin" && (
-                <Link
-                  href="/admin/alerts"
-                  aria-label="Security alerts"
-                  className="rounded-lg p-2 text-ink-muted hover:bg-surface hover:text-ink"
-                >
-                  <Icon name="alerts" />
-                </Link>
-              )}
+              {/* SRS 18.2: the bell links to Security Alerts (admins only). */}
+              {user.role === "school_admin" && <AlertBell />}
               <div className="hidden text-right sm:block">
                 <p className="text-sm font-medium">{user.name}</p>
                 <p className="text-xs text-ink-muted">{ROLE_LABEL[user.role]}</p>
@@ -152,5 +145,43 @@ export function AppShell({ user, title, subtitle, children }: AppShellProps) {
         </div>
       </div>
     </>
+  );
+}
+
+/**
+ * The top bar bell with the number of open security alerts. The count is
+ * read in the browser after the page has loaded, so it never slows a page
+ * down; if it cannot be read the bell simply shows no number.
+ */
+function AlertBell() {
+  const [badge, setBadge] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(`/api/proxy/alerts?status=open&limit=${BELL_LIMIT}`, { signal: controller.signal })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((alerts: unknown) => {
+        if (Array.isArray(alerts)) setBadge(bellBadge(alerts.length));
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
+
+  return (
+    <Link
+      href="/admin/alerts"
+      aria-label={badge ? `Security alerts, ${badge} open` : "Security alerts"}
+      className="relative rounded-lg p-2 text-ink-muted hover:bg-surface hover:text-ink"
+    >
+      <Icon name="alerts" />
+      {badge && (
+        <span
+          aria-hidden="true"
+          className="absolute -top-0.5 -right-0.5 min-w-5 rounded-full bg-danger-600 px-1 text-center text-[11px] leading-5 font-semibold text-white"
+        >
+          {badge}
+        </span>
+      )}
+    </Link>
   );
 }

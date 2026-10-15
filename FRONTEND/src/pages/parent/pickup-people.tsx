@@ -17,6 +17,7 @@ import {
   personBody,
   personForm,
 } from "@/lib/pickup-people";
+import { encodeQr } from "@/lib/qr";
 import { useNow } from "@/lib/use-now";
 
 type Data = { pupils: Pupil[]; people: PickupPerson[] };
@@ -445,6 +446,38 @@ function PersonEditor({
 }
 
 /**
+ * The code as a QR for the gate scanner. Drawn in the browser from the
+ * code's qr_data, which never leaves this page; the encoder loads on demand.
+ */
+function QrImage({ text, label }: { text: string; label: string }) {
+  const [qr, setQr] = useState<{ size: number; path: string } | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let current = true;
+    encodeQr(text)
+      .then((result) => current && setQr(result))
+      .catch(() => current && setFailed(true));
+    return () => {
+      current = false;
+    };
+  }, [text]);
+
+  if (failed) return null;
+  return (
+    <div className="mt-4 inline-block rounded-xl bg-white p-2">
+      {qr ? (
+        <svg role="img" aria-label={label} viewBox={`0 0 ${qr.size} ${qr.size}`} shapeRendering="crispEdges" className="h-44 w-44 text-navy-900">
+          <path d={qr.path} fill="currentColor" />
+        </svg>
+      ) : (
+        <span aria-hidden="true" className="block h-44 w-44 animate-pulse rounded-lg bg-surface" />
+      )}
+    </div>
+  );
+}
+
+/**
  * Today's pickup code for an active pickup person (SRS 10, 18.9). The backend
  * shows a code only once and getting a new one expires any earlier unused
  * code, so the parent confirms first. The code lives only in this
@@ -504,6 +537,8 @@ function TodaysCode({ person, pupil }: { person: PickupPerson; pupil: Pupil }) {
         <p className="mt-2 text-sm text-white/80">
           For {person.picker_name} to collect {pupil.first_name}. Works once, until {formatDateTime(code.expires_at)}.
         </p>
+        <QrImage text={code.qr_data} label={`QR code for ${person.picker_name}'s pickup code`} />
+        <p className="mt-2 text-xs text-white/70">Gate staff can scan this QR code or type the code above.</p>
         <p className="mt-3 text-xs text-white/70">
           Share it only with {person.picker_name}. It will not be shown again; if it is lost, get a new code.
         </p>

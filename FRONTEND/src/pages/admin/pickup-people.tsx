@@ -1,5 +1,6 @@
 import type { GetServerSideProps } from "next";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
@@ -83,15 +84,25 @@ function PeopleTable({
 }) {
   const countOf = new Map(counts);
   const waiting = countOf.get("pending_approval") ?? 0;
-  // Rows change in place after an action; the filter is applied again on the next load.
+  const router = useRouter();
+  // Rows change in place at once, then the page reloads its data so the
+  // filter, counts and approvals banner catch up.
   const [rows, setRows] = useState(initialRows);
   const [editing, setEditing] = useState<PersonRow | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  // Fresh rows from the reload replace the local copy (set during render, as React recommends).
+  const [shownRows, setShownRows] = useState(initialRows);
+  if (initialRows !== shownRows) {
+    setShownRows(initialRows);
+    setRows(initialRows);
+  }
 
   function changed(person: PickupPerson, message: string) {
     setRows((current) => current.map((row) => (row.person.id === person.id ? { ...row, person } : row)));
     setEditing(null);
     setNotice(message);
+    void router.replace(router.asPath, undefined, { scroll: false });
   }
 
   function startEditing(row: PersonRow) {

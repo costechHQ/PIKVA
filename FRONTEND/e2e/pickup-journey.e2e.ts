@@ -70,6 +70,7 @@ test("parent gets today's code after a warning", async ({ browser }) => {
   await expect(shown).toBeVisible();
   code = ((await shown.textContent()) ?? "").replace(/\s/g, "");
   expect(code).toMatch(/^[2-9A-HJ-NP-Z]{8}$/);
+  await expect(card.getByRole("img", { name: `QR code for ${PICKER}'s pickup code` })).toBeVisible();
 });
 
 test("gate catches a typo locally, then checks and releases", async ({ browser }) => {
@@ -105,13 +106,27 @@ test("admin sees the release, the staff member and the alert", async ({ browser 
   await page.goto("/admin/pickup-history");
   await expect(page.getByRole("row", { name: new RegExp(PICKER) })).toContainText(state.gate.name);
 
-  // The top bar bell (the menu link is "Security Alerts").
-  await page.getByRole("link", { name: "Security alerts", exact: true }).click();
+  // The top bar bell shows the open count (the menu link is "Security Alerts").
+  const bell = page.getByRole("link", { name: /^Security alerts/ });
+  await expect(bell).toHaveAccessibleName("Security alerts, 1 open");
+  await bell.click();
   const alert = page.locator("article", { hasText: "Code used again" });
   await expect(alert).toContainText(state.gate.name);
   await alert.getByRole("button", { name: "Mark resolved" }).click();
   await expect(alert.getByRole("button", { name: "Mark resolved" })).toHaveCount(0);
   await expect(alert.getByText("Resolved", { exact: true }).first()).toBeVisible();
+});
+
+test("admin deactivates from the Active filter and the list catches up", async ({ browser }) => {
+  const page = await as(browser, "admin");
+  await page.goto("/admin/pickup-people?status=active");
+  const row = page.getByRole("row", { name: new RegExp(PICKER) });
+  await row.getByRole("button", { name: "Deactivate" }).click();
+  await row.getByRole("button", { name: "Deactivate" }).click();
+
+  await expect(page.getByRole("status")).toContainText(`${PICKER} deactivated.`);
+  await expect(page.getByRole("row", { name: new RegExp(PICKER) })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /^Inactive 1/ })).toBeVisible();
 });
 
 test("parent history shows the pickup but never the staff member", async ({ browser }) => {

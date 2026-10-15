@@ -72,3 +72,12 @@ export function alertTitle(type: string): string {
 export function isUrgent(alert: SecurityAlert): boolean {
   return alert.alert_type === "repeated_failed_attempts";
 }
+
+/** How many open alerts the bell asks for; a full page shows as "99+". */
+export const BELL_LIMIT = 100;
+
+/** The bell badge for this many open alerts read: none for zero, "99+" when the page was full. */
+export function bellBadge(count: number): string | null {
+  if (count <= 0) return null;
+  return count >= BELL_LIMIT ? "99+" : String(count);
+}
