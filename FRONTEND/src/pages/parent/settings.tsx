@@ -1,0 +1,102 @@
+import type { GetServerSideProps } from "next";
+import { useState } from "react";
+
+import { FormError } from "@/components/AuthCard";
+import { ParentShell } from "@/components/ParentShell";
+import { SuccessNote } from "@/components/ParentUi";
+import { OFFLINE } from "@/lib/api-errors";
+import { type CurrentUser, requireUser } from "@/lib/auth-guard";
+import { forgotErrorMessage } from "@/lib/reset-error";
+
+type Props = { user: CurrentUser };
+
+export const getServerSideProps: GetServerSideProps<Props> = (context) => requireUser(context, ["parent"]);
+
+/**
+ * Parent settings (SRS 18.9): account details from GET /auth/me (read-only:
+ * no endpoint edits them) and a password reset email (SRS 6.6), because
+ * there is no signed-in change-password endpoint yet.
+ */
+export default function ParentSettingsPage({ user }: Props) {
+  return (
+    <ParentShell user={user} title="Settings" subtitle="Your account and sign-in.">
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section aria-labelledby="account-heading" className="rounded-2xl border border-line bg-card p-5 shadow-sm sm:p-6">
+          <h2 id="account-heading" className="font-semibold">
+            Account
+          </h2>
+          <dl className="mt-4 divide-y divide-line text-sm">
+            <Row label="Name" value={user.name} />
+            <Row label="Email" value={user.email} />
+            <Row label="Phone" value={user.phone ?? "Not set"} />
+            <Row label="School" value={user.school_name} />
+          </dl>
+          <p className="mt-4 text-xs text-ink-muted">Changing these details is not available yet.</p>
+        </section>
+
+        <PasswordSection email={user.email} />
+      </div>
+    </ParentShell>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col gap-0.5 py-3 sm:flex-row sm:justify-between sm:gap-4">
+      <dt className="text-ink-muted">{label}</dt>
+      <dd className="min-w-0 break-words font-medium sm:text-right">{value}</dd>
+    </div>
+  );
+}
+
+function PasswordSection({ email }: { email: string }) {
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function sendLink() {
+    setSending(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/auth/password-reset/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (response.ok) {
+        setSent(true);
+      } else {
+        const body = await response.json().catch(() => null);
+        setError(forgotErrorMessage(response.status, body, response.headers.get("Retry-After")));
+      }
+    } catch {
+      setError(OFFLINE);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <section aria-labelledby="password-heading" className="rounded-2xl border border-line bg-card p-5 shadow-sm sm:p-6">
+      <h2 id="password-heading" className="font-semibold">
+        Password
+      </h2>
+      <p className="mt-2 text-sm text-ink-muted">
+        We&apos;ll email a link to <span className="font-medium text-ink">{email}</span> to choose a new password. The
+        link works for 30 minutes. Setting a new password signs you out on every device.
+      </p>
+      <div className="mt-4 space-y-3">
+        <FormError message={error} />
+        <SuccessNote message={sent ? "Check your email for the link." : null} />
+        <button
+          type="button"
+          onClick={() => void sendLink()}
+          disabled={sending}
+          className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+        >
+          {sending ? "Sending…" : sent ? "Send another link" : "Email me a reset link"}
+        </button>
+      </div>
+    </section>
+  );
+}
