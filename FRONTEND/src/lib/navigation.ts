@@ -19,6 +19,7 @@ const MENUS: Record<Role, readonly NavItem[]> = {
   parent: [
     { label: "Overview", href: "/parent", icon: "dashboard" },
     { label: "My Pupils", href: "/parent/pupils", icon: "pupils" },
+    { label: "Pickup People", href: "/parent/pickup-people", icon: "users" },
   ],
 };
 

@@ -1,12 +1,11 @@
 import type { GetServerSideProps } from "next";
 import Link from "next/link";
-import { type FormEvent, type ReactNode, useState } from "react";
+import { type FormEvent, useState } from "react";
 
 import { FormError, inputClass } from "@/components/AuthCard";
 import { Icon } from "@/components/Icon";
 import { ParentShell } from "@/components/ParentShell";
-import { LoadError, PupilAvatar, Skeleton, StatusBadge } from "@/components/ParentUi";
-import { OFFLINE, UNAVAILABLE } from "@/lib/api-errors";
+import { Field, LoadError, PupilAvatar, Skeleton, StatusBadge, SuccessNote } from "@/components/ParentUi";
 import { BackendError, type CurrentUser, getAsUser, requireUser } from "@/lib/auth-guard";
 import {
   type PickupPerson,
@@ -21,7 +20,7 @@ import {
   pupilForm,
   pupilName,
 } from "@/lib/parent";
-import { LOGIN_PATH } from "@/lib/roles";
+import { sendAsParent } from "@/lib/parent-api";
 import { useNow } from "@/lib/use-now";
 
 type Data = { pupil: Pupil; people: PickupPerson[]; releases: Release[] };
@@ -72,7 +71,7 @@ function PupilPage({ user, data }: Props) {
             <PupilDetails pupil={pupil} onSaved={setPupil} />
           </div>
           <div className="space-y-6 lg:col-span-3">
-            <PickupPeople people={data.people} />
+            <PickupPeople pupilId={pupil.id} people={data.people} />
             <RecentPickups releases={data.releases} />
           </div>
         </div>
@@ -113,30 +112,20 @@ function PupilDetails({ pupil, onSaved }: { pupil: Pupil; onSaved: (pupil: Pupil
 
     setError(null);
     setSaving(true);
-    try {
-      const response = await fetch(`/api/proxy/pupils/${pupil.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(checked.changes),
-      });
+    const result = await sendAsParent<Pupil>(
+      `pupils/${pupil.id}`,
+      "PATCH",
+      checked.changes,
+      "This pupil is no longer linked to your account.",
+    );
+    setSaving(false);
 
-      if (response.ok) {
-        onSaved(await response.json());
-        setEditing(false);
-        setSaved(true);
-      } else if (response.status === 401) {
-        window.location.assign(LOGIN_PATH);
-      } else if (response.status === 404) {
-        setError("This pupil is no longer linked to your account.");
-      } else if (response.status === 422) {
-        setError("Check the details and try again.");
-      } else {
-        setError(UNAVAILABLE);
-      }
-    } catch {
-      setError(OFFLINE);
-    } finally {
-      setSaving(false);
+    if (result.ok) {
+      onSaved(result.data);
+      setEditing(false);
+      setSaved(true);
+    } else {
+      setError(result.message);
     }
   }
 
@@ -161,11 +150,9 @@ function PupilDetails({ pupil, onSaved }: { pupil: Pupil; onSaved: (pupil: Pupil
         )}
       </div>
 
-      {saved && (
-        <p role="status" className="mt-4 rounded-lg bg-success-50 px-3 py-2 text-sm text-success-600">
-          Pupil details saved.
-        </p>
-      )}
+      <div className="mt-4">
+        <SuccessNote message={saved ? "Pupil details saved." : null} />
+      </div>
 
       {editing ? (
         <form onSubmit={handleSubmit} noValidate className="mt-5 space-y-4">
@@ -220,17 +207,6 @@ function PupilDetails({ pupil, onSaved }: { pupil: Pupil; onSaved: (pupil: Pupil
   );
 }
 
-function Field({ label, id, children }: { label: string; id: string; children: ReactNode }) {
-  return (
-    <div>
-      <label htmlFor={id} className="mb-1.5 block text-sm font-medium">
-        {label}
-      </label>
-      {children}
-    </div>
-  );
-}
-
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between gap-4">
@@ -240,12 +216,17 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-function PickupPeople({ people }: { people: PickupPerson[] }) {
+function PickupPeople({ pupilId, people }: { pupilId: number; people: PickupPerson[] }) {
   return (
     <section aria-labelledby="people-heading" className="rounded-2xl border border-line bg-card shadow-sm">
-      <h2 id="people-heading" className="px-5 pt-5 font-semibold sm:px-6">
-        Pickup people
-      </h2>
+      <div className="flex items-center justify-between px-5 pt-5 sm:px-6">
+        <h2 id="people-heading" className="font-semibold">
+          Pickup people
+        </h2>
+        <Link href={`/parent/pickup-people#pupil-${pupilId}`} className="text-sm font-medium text-brand-600 hover:text-brand-700">
+          Manage
+        </Link>
+      </div>
       {people.length === 0 ? (
         <p className="px-5 pt-2 pb-5 text-sm text-ink-muted sm:px-6">No pickup people for this pupil yet.</p>
       ) : (

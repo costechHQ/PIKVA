@@ -83,3 +83,25 @@ export function StatusBadge({ status }: { status: AuthorisationStatus }) {
   const { label, className } = STATUS_STYLE[status];
   return <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${className}`}>{label}</span>;
 }
+
+/** A labelled form field. */
+export function Field({ label, id, children }: { label: string; id: string; children: ReactNode }) {
+  return (
+    <div>
+      <label htmlFor={id} className="mb-1.5 block text-sm font-medium">
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+/** Green confirmation after a saved change. */
+export function SuccessNote({ message }: { message: string | null }) {
+  if (!message) return null;
+  return (
+    <p role="status" className="rounded-lg bg-success-50 px-3 py-2 text-sm text-success-600">
+      {message}
+    </p>
+  );
+}
