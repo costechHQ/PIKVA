@@ -21,6 +21,9 @@ export const AUDIT_PAGE_SIZE = 25;
 /** Every action the backend records (app/services/audit_service.py), with its wording. */
 export const ACTION_LABELS: Record<string, string> = {
   "user.created": "Added a user",
+  "user.updated": "Changed a user",
+  "user.deactivated": "Deactivated a user",
+  "user.activated": "Activated a user",
   "user.password_reset_requested": "Asked to reset a password",
   "user.password_reset": "Reset a password",
   "pupil.created": "Added a pupil",
@@ -65,6 +68,9 @@ export function auditHref(action: string | null, page: number): string {
 }
 
 const FIELD_LABELS: Record<string, string> = {
+  name: "name",
+  email: "email",
+  phone: "phone",
   first_name: "first name",
   last_name: "last name",
   date_of_birth: "date of birth",

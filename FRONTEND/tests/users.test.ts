@@ -2,11 +2,13 @@ import { describe, expect, test } from "bun:test";
 
 import {
   USERS_PAGE_SIZE,
+  isManageable,
   newUserBody,
   parseCreatableRole,
   parsePage,
   parseRoleFilter,
   usersApiPath,
+  userChanges,
   usersPageHref,
 } from "@/lib/users";
 
@@ -94,4 +96,36 @@ test("parseCreatableRole only preselects roles an admin may create", () => {
   expect(parseCreatableRole("gate_staff")).toBe("gate_staff");
   expect(parseCreatableRole("school_admin")).toBe("");
   expect(parseCreatableRole(undefined)).toBe("");
+});
+
+describe("userChanges", () => {
+  const user = {
+    id: 3,
+    school_id: 1,
+    name: "Ngozi Okafor",
+    email: "ngozi@example.com",
+    phone: "0700000003",
+    role: "parent" as const,
+    is_active: true,
+  };
+
+  test("sends only what changed, trimmed", () => {
+    expect(userChanges(user, { name: " Ngozi Okafor ", email: "ngozi@example.com", phone: " 0711111111 " })).toEqual({
+      body: { phone: "0711111111" },
+    });
+    expect(userChanges(user, { name: user.name, email: user.email, phone: user.phone })).toEqual({ body: {} });
+  });
+
+  test("uses the same checks as adding a user", () => {
+    expect(userChanges(user, { ...user, email: "ngozi@" })).toEqual({
+      error: "Enter a valid email address. The set-password link is sent there.",
+    });
+    expect(userChanges(user, { ...user, name: "" })).toEqual({ error: "Enter the person's full name." });
+  });
+});
+
+test("isManageable excludes administrators", () => {
+  expect(isManageable({ role: "parent" })).toBe(true);
+  expect(isManageable({ role: "gate_staff" })).toBe(true);
+  expect(isManageable({ role: "school_admin" })).toBe(false);
 });

@@ -12,6 +12,8 @@ export type SchoolUser = {
   email: string;
   phone: string;
   role: Role;
+  /** False once an admin has deactivated the account (SRS 6.7). */
+  is_active: boolean;
 };
 
 export const USERS_PAGE_SIZE = 50;
@@ -83,16 +85,45 @@ const USER_PHONE_MAX = 30;
  * already in use.
  */
 export function newUserBody(form: NewUserForm): { body: NewUserBody } | { error: string } {
+  if (form.role !== "parent" && form.role !== "gate_staff") return { error: "Choose whether this is a parent or gate staff." };
+  const checked = checkContact(form);
+  if ("error" in checked) return checked;
+  return { body: { ...checked, role: form.role } };
+}
+
+/** Trimmed name, email and phone, or the first problem with them (shared by add and edit). */
+function checkContact(form: { name: string; email: string; phone: string }): UserContact | { error: string } {
   const name = form.name.trim();
   const email = form.email.trim();
   const phone = form.phone.trim();
 
-  if (form.role !== "parent" && form.role !== "gate_staff") return { error: "Choose whether this is a parent or gate staff." };
   if (!name) return { error: "Enter the person's full name." };
   if (name.length > USER_NAME_MAX) return { error: `The name can be at most ${USER_NAME_MAX} characters.` };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Enter a valid email address. The set-password link is sent there." };
   if (!phone) return { error: "Enter the person's phone number." };
   if (phone.length > USER_PHONE_MAX) return { error: `The phone number can be at most ${USER_PHONE_MAX} characters.` };
 
-  return { body: { name, email, phone, role: form.role } };
+  return { name, email, phone };
+}
+
+export type UserContact = { name: string; email: string; phone: string };
+
+/** Roles an admin may edit and deactivate (SRS 6.7): never an administrator. */
+export function isManageable(user: Pick<SchoolUser, "role">): boolean {
+  return user.role === "parent" || user.role === "gate_staff";
+}
+
+/**
+ * Check the edit form and return only the fields that changed (the PATCH
+ * body), or an error message. An empty body means nothing changed.
+ */
+export function userChanges(user: SchoolUser, form: UserContact): { body: Partial<UserContact> } | { error: string } {
+  const checked = checkContact(form);
+  if ("error" in checked) return checked;
+
+  const body: Partial<UserContact> = {};
+  for (const field of ["name", "email", "phone"] as const) {
+    if (checked[field] !== user[field]) body[field] = checked[field];
+  }
+  return { body };
 }

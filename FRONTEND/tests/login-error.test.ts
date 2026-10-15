@@ -9,6 +9,11 @@ describe("loginErrorMessage", () => {
     );
   });
 
+  test("401 tells a deactivated user why (SRS 6.7)", () => {
+    const detail = "This account has been deactivated. Contact your school.";
+    expect(loginErrorMessage(401, { detail }, null)).toBe(detail);
+  });
+
   test("401 without a usable detail falls back", () => {
     expect(loginErrorMessage(401, "not json", null)).toBe("Invalid email or password");
   });
