@@ -4,14 +4,15 @@ import { useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { Icon } from "@/components/Icon";
-import { LoadError } from "@/components/ParentUi";
+import { LoadError, SuccessNote } from "@/components/ParentUi";
 import { PickupPeopleList, PupilDetails, RecentPickups } from "@/components/PupilPanels";
 import { BackendError, type CurrentUser, getAsUser, requireUser } from "@/lib/auth-guard";
 import { type PickupPerson, PUPIL_RECENT_RELEASES, type Pupil, type PupilParent, type Release, pupilName } from "@/lib/parent";
 
 type Data = { pupil: Pupil; people: PickupPerson[]; releases: Release[] };
 
-type Props = { user: CurrentUser; data: Data | null };
+/** added: arrived from Add pupil (?added=1), so confirm it. */
+type Props = { user: CurrentUser; data: Data | null; added: boolean };
 
 export const getServerSideProps: GetServerSideProps<Props> = async (context) => {
   const guard = await requireUser(context, ["school_admin"]);
@@ -20,6 +21,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (context) => 
 
   const id = typeof context.params?.id === "string" ? context.params.id : "";
   if (!/^\d{1,9}$/.test(id)) return { notFound: true };
+  const added = context.query.added === "1";
 
   // FastAPI answers 404 for a pupil in another school.
   try {
@@ -28,10 +30,10 @@ export const getServerSideProps: GetServerSideProps<Props> = async (context) => 
       getAsUser<PickupPerson[]>(context, `pickers?pupil_id=${id}`),
       getAsUser<Release[]>(context, `releases?pupil_id=${id}&limit=${PUPIL_RECENT_RELEASES}`),
     ]);
-    return { props: { user, data: { pupil, people, releases } } };
+    return { props: { user, data: { pupil, people, releases }, added } };
   } catch (error) {
     if (error instanceof BackendError && error.status === 404) return { notFound: true };
-    return { props: { user, data: null } };
+    return { props: { user, data: null, added: false } };
   }
 };
 
@@ -41,7 +43,7 @@ export default function AdminPupilPage(props: Props) {
   return <PupilPage key={props.data?.pupil.id ?? "error"} {...props} />;
 }
 
-function PupilPage({ user, data }: Props) {
+function PupilPage({ user, data, added }: Props) {
   const [pupil, setPupil] = useState(data?.pupil ?? null);
   const waiting = data?.people.some((person) => person.status === "pending_approval") ?? false;
 
@@ -51,6 +53,11 @@ function PupilPage({ user, data }: Props) {
         <Icon name="back" className="h-4 w-4" />
         Pupils
       </Link>
+      {added && pupil && (
+        <div className="mb-6">
+          <SuccessNote message={`${pupilName(pupil)} added and linked to ${pupil.parent.name}.`} />
+        </div>
+      )}
       {data && pupil ? (
         <div className="grid gap-6 lg:grid-cols-5">
           <div className="space-y-6 lg:col-span-2">

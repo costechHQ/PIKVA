@@ -77,6 +77,12 @@ function PupilTable({ rows, search, total }: { rows: Row[]; search: string; tota
             </Link>
           )}
         </div>
+        <Link
+          href="/admin/pupils/new"
+          className="rounded-lg bg-brand-600 px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-brand-700 sm:ml-auto"
+        >
+          Add pupil
+        </Link>
       </form>
 
       <p className="mt-4 text-sm text-ink-muted" role="status">

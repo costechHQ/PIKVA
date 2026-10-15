@@ -167,6 +167,25 @@ export function pupilForm(pupil: Pupil): PupilForm {
 }
 
 /**
+ * The first problem with a pupil form, or null when it is fine. today is
+ * "YYYY-MM-DD" in the viewer's time zone. Used when adding and editing.
+ */
+export function pupilFormError(form: PupilForm, today: string): string | null {
+  const first = form.first_name.trim();
+  const last = form.last_name.trim();
+  const photo = form.photo_url.trim();
+
+  if (!first || !last) return "Enter the pupil's first and last name.";
+  if (first.length > NAME_MAX || last.length > NAME_MAX) return `Names can be at most ${NAME_MAX} characters.`;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(form.date_of_birth)) return "Enter the pupil's date of birth.";
+  if (form.date_of_birth > today) return "The date of birth cannot be in the future.";
+  if (photo && (photo.length > PHOTO_MAX || !isWebPhoto(photo))) {
+    return "The photo link must be a web address starting with https://.";
+  }
+  return null;
+}
+
+/**
  * Check the edit form and return only the fields that changed (the PATCH
  * body), or an error message. today is "YYYY-MM-DD" in the viewer's time
  * zone. The backend validates again; this only gives faster, clearer messages.
@@ -176,18 +195,12 @@ export function pupilChanges(
   form: PupilForm,
   today: string,
 ): { changes: PupilChanges } | { error: string } {
+  const error = pupilFormError(form, today);
+  if (error) return { error };
+
   const first = form.first_name.trim();
   const last = form.last_name.trim();
   const photo = form.photo_url.trim();
-
-  if (!first || !last) return { error: "Enter the pupil's first and last name." };
-  if (first.length > NAME_MAX || last.length > NAME_MAX) return { error: `Names can be at most ${NAME_MAX} characters.` };
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(form.date_of_birth)) return { error: "Enter the pupil's date of birth." };
-  if (form.date_of_birth > today) return { error: "The date of birth cannot be in the future." };
-  if (photo && (photo.length > PHOTO_MAX || !isWebPhoto(photo))) {
-    return { error: "The photo link must be a web address starting with https://." };
-  }
-
   const changes: PupilChanges = {};
   if (first !== pupil.first_name) changes.first_name = first;
   if (last !== pupil.last_name) changes.last_name = last;
