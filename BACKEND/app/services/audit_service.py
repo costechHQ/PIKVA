@@ -26,6 +26,7 @@ PICKUP_REFUSED = "pickup.refused"
 ALERT_RESOLVED = "alert.resolved"
 PASSWORD_RESET_REQUESTED = "user.password_reset_requested"
 PASSWORD_RESET = "user.password_reset"
+PASSWORD_CHANGED = "user.password_changed"
 
 # Metadata keys that could carry secrets; audit records must never hold them
 # (SRS 14, 28).

@@ -91,6 +91,21 @@ class SchoolUserUpdate(BaseModel):
         return self
 
 
+class PasswordChange(BaseModel):
+    """Define a signed-in user's password change (SRS 6.8)."""
+
+    current_password: Password = Field(examples=["the-current-password"])
+    new_password: Password = Field(examples=["choose-a-new-strong-password"])
+
+    @model_validator(mode="after")
+    def require_a_different_password(self) -> "PasswordChange":
+        """Reject a "change" to the same password."""
+
+        if self.new_password == self.current_password:
+            raise ValueError("The new password must be different from the current one")
+        return self
+
+
 class PasswordResetEmail(BaseModel):
     """Define the email that asks for a password reset link (SRS 6.6)."""
 

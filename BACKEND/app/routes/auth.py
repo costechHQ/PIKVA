@@ -25,6 +25,7 @@ from app.models.user import User
 from app.schemas.auth import (
     CurrentUserResponse,
     MessageResponse,
+    PasswordChange,
     PasswordResetConfirm,
     PasswordResetEmail,
     TokenResponse,
@@ -35,6 +36,7 @@ from app.schemas.auth import (
 from app.services.auth_service import register_school_admin, login_user
 from app.services.notification_service import send_email_safely
 from app.services.password_reset_service import (
+    change_password,
     password_reset_email,
     request_password_reset,
     reset_password,
@@ -210,6 +212,49 @@ async def confirm_reset(
         )
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/change-password",
+    response_model=TokenResponse,
+    responses={
+        400: {"description": "The current password is not correct"},
+        **rate_limit.RATE_LIMITED_RESPONSE,
+    },
+)
+async def change_own_password(
+    data: PasswordChange,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
+):
+
+    """Change the signed-in user's password (SRS 6.8).
+
+    Signs out every other session and returns a new access token for this
+    one. Wrong current passwords count against the account, as for sign-in,
+    so this cannot be used to guess passwords. A notice is emailed after the
+    response.
+    """
+
+    failures_key = f"pikva:rl:change-password:user:{current_user.id}"
+    await rate_limit.check(redis, failures_key, LOGIN_FAILURE_LIMIT)
+
+    try:
+        changed = await change_password(session, current_user, data.current_password, data.new_password)
+    except ValueError as exc:
+        # The user ID only: never a password (SRS 28).
+        logger.info("Password change refused for user %d", current_user.id)
+        await rate_limit.record(redis, failures_key, LOGIN_WINDOW_SECONDS)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
+
+    background_tasks.add_task(send_email_safely, changed.notice)
+
+    return TokenResponse(access_token=changed.access_token, token_type="bearer")
 
 
 @router.get("/me", response_model=CurrentUserResponse)

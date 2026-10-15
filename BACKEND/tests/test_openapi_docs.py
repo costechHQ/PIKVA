@@ -12,6 +12,8 @@ RATE_LIMITED = [
     ("post", "/api/v1/pickup/codes"),
     ("post", "/api/v1/pickup/verify"),
     ("post", "/api/v1/pickup/release"),
+    ("post", "/api/v1/pickup/refuse"),
+    ("post", "/api/v1/auth/change-password"),
 ]
 
 

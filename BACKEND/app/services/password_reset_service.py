@@ -1,4 +1,4 @@
-"""Password reset by email (SRS 6.6)."""
+"""Password reset by email (SRS 6.6) and changing a password while signed in (SRS 6.8)."""
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -9,13 +9,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.constants import PASSWORD_RESET_TOKEN_MINUTES
 from app.core.security import (
+    create_access_token,
     generate_password_reset_token,
     hash_password,
     hash_password_reset_token,
+    verify_password,
 )
 from app.models.password_reset_token import PasswordResetToken
 from app.models.user import User
 from app.services.audit_service import (
+    PASSWORD_CHANGED,
     PASSWORD_RESET,
     PASSWORD_RESET_REQUESTED,
     record_audit,
@@ -199,3 +202,74 @@ async def _cancel_open_tokens(session: AsyncSession, user_id: int, now: datetime
         )
         .values(expires_at=now)
     )
+
+
+# --- Change password while signed in (SRS 6.8) -----------------------------------
+
+WRONG_CURRENT_PASSWORD = "Your current password is not correct"
+
+
+@dataclass
+class ChangedPassword:
+    """A fresh access token for the device that made the change, and the notice to email."""
+
+    access_token: str
+    notice: EmailMessage
+
+
+def password_changed_email(user: User, changed_at: datetime) -> EmailMessage:
+    """Build the notice that a password was changed. It holds no secret."""
+
+    when = changed_at.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+    return EmailMessage(
+        to=(user.email,),
+        subject="Your Pikva password was changed",
+        text=(
+            f"Hello {user.name},\n\n"
+            f"The password for your Pikva account was changed at {when}. "
+            "You have been signed out on your other devices.\n\n"
+            "If you did not do this, reset your password now with \"Forgot password?\" "
+            "on the Pikva sign-in page, and tell your school.\n"
+        ),
+    )
+
+
+async def change_password(
+        session: AsyncSession,
+        user: User,
+        current_password: str,
+        new_password: str,
+) -> ChangedPassword:
+    """Change a signed-in user's password (SRS 6.8).
+
+    Raises ValueError if the current password is wrong. Otherwise signs out
+    every other session (password_changed_at), cancels open reset links,
+    audits the change and commits. The new token is made after the change,
+    so it is not itself signed out.
+    """
+
+    if not await verify_password(current_password, user.password_hash):
+        raise ValueError(WRONG_CURRENT_PASSWORD)
+
+    now = datetime.now(timezone.utc)
+    user.password_hash = await hash_password(new_password)
+    user.password_changed_at = now
+
+    await _cancel_open_tokens(session, user.id, now)
+
+    await record_audit(
+        session=session,
+        school_id=user.school_id,
+        user_id=user.id,
+        action=PASSWORD_CHANGED,
+        entity_type="user",
+        entity_id=user.id,
+    )
+
+    # Built before the commit, while the user is still loaded.
+    notice = password_changed_email(user, now)
+    user_id = user.id
+    await session.commit()
+
+    return ChangedPassword(access_token=create_access_token(str(user_id)), notice=notice)
