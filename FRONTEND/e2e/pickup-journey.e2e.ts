@@ -145,6 +145,22 @@ test("admin sees the release, the staff member and the alert", async ({ browser 
   await expect(alert.getByText("Resolved", { exact: true }).first()).toBeVisible();
 });
 
+test("admin narrows pickup history to a day in their time zone", async ({ browser }) => {
+  const day = (offsetDays: number) => localInput(new Date(Date.now() + offsetDays * 24 * 3600 * 1000)).slice(0, 10);
+  const page = await as(browser, "admin");
+  await page.goto("/admin/pickup-history");
+  await page.waitForLoadState("networkidle");
+
+  await page.getByLabel("Date").fill(day(0));
+  await page.getByRole("button", { name: "Show" }).click();
+  await expect(page).toHaveURL(new RegExp(`date=${day(0)}&tz=`));
+  await expect(page.getByRole("row", { name: new RegExp(PICKER) })).toBeVisible();
+
+  await page.getByLabel("Date").fill(day(-1));
+  await page.getByRole("button", { name: "Show" }).click();
+  await expect(page.getByText("No pickups recorded on this day.")).toBeVisible();
+});
+
 test("admin deactivates from the Active filter and the list catches up", async ({ browser }) => {
   const page = await as(browser, "admin");
   await page.goto("/admin/pickup-people?status=active");

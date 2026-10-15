@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import AwareDatetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, require_role
@@ -26,19 +27,32 @@ def _parent_scope(current_user: User) -> int | None:
 
 async def list_releases_endpoint(
     pupil_id: int | None = None,
+    since: AwareDatetime | None = Query(default=None, description="Released at or after (with a time zone)"),
+    until: AwareDatetime | None = Query(default=None, description="Released before (with a time zone)"),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
 
-    """List release history the authenticated user may view, newest first."""
+    """List release history the authenticated user may view, newest first.
+
+    since and until narrow it to a time range (SRS 18.8).
+    """
+
+    if since is not None and until is not None and until <= since:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="until must be after since",
+        )
 
     return await list_release_history(
         session=session,
         school_id=current_user.school_id,
         parent_id=_parent_scope(current_user),
         pupil_id=pupil_id,
+        since=since,
+        until=until,
         limit=limit,
         offset=offset,
     )

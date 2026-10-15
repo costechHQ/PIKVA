@@ -231,12 +231,20 @@ export function parsePupilFilter(value: unknown, pupils: readonly Pupil[]): numb
  * FastAPI path for one history page. Asks for one extra row: if it comes
  * back there is a next page (FastAPI sends no total count).
  */
-export function historyApiPath(pupilId: number | null, page: number): string {
+export function historyApiPath(
+  pupilId: number | null,
+  page: number,
+  range: { since: string; until: string } | null = null,
+): string {
   const params = new URLSearchParams({
     limit: String(HISTORY_PAGE_SIZE + 1),
     offset: String((page - 1) * HISTORY_PAGE_SIZE),
   });
   if (pupilId !== null) params.set("pupil_id", String(pupilId));
+  if (range) {
+    params.set("since", range.since);
+    params.set("until", range.until);
+  }
   return `releases?${params}`;
 }
 
@@ -244,9 +252,18 @@ export function historyApiPath(pupilId: number | null, page: number): string {
  * Link to a pickup history page (the parent's by default, or base such as
  * /admin/pickup-history) with this filter and page, leaving out defaults.
  */
-export function historyHref(pupilId: number | null, page: number, base = "/parent/pickup-history"): string {
+export function historyHref(
+  pupilId: number | null,
+  page: number,
+  base = "/parent/pickup-history",
+  day: { day: string; timeZone: string } | null = null,
+): string {
   const params = new URLSearchParams();
   if (pupilId !== null) params.set("pupil", String(pupilId));
+  if (day) {
+    params.set("date", day.day);
+    params.set("tz", day.timeZone);
+  }
   if (page > 1) params.set("page", String(page));
   const query = params.toString();
   return query ? `${base}?${query}` : base;

@@ -113,6 +113,8 @@ async def list_release_history(
         pupil_id: int | None = None,
         limit: int = 50,
         offset: int = 0,
+        since: datetime | None = None,
+        until: datetime | None = None,
 ) -> list[ReleaseHistoryItem]:
     """List accessible releases, newest first.
 
@@ -134,6 +136,13 @@ async def list_release_history(
 
     if pupil_id is not None:
         query = query.where(ReleaseRecord.pupil_id == pupil_id)
+
+    # A half-open range, so consecutive days never share a release (SRS 18.8).
+    if since is not None:
+        query = query.where(ReleaseRecord.released_at >= since)
+
+    if until is not None:
+        query = query.where(ReleaseRecord.released_at < until)
 
     rows = await session.execute(
         query.order_by(ReleaseRecord.released_at.desc(), ReleaseRecord.id.desc())

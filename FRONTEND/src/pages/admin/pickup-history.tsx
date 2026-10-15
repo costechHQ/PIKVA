@@ -1,10 +1,12 @@
 import type { GetServerSideProps } from "next";
 import Link from "next/link";
+import { useEffect, useRef } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { inputClass } from "@/components/AuthCard";
 import { LoadError, PupilAvatar, Skeleton } from "@/components/ParentUi";
 import { type CurrentUser, getAsUser, requireUser } from "@/lib/auth-guard";
+import { type DayFilter, dayLabel, dayRange, parseDay, parseTimeZone } from "@/lib/history-dates";
 import {
   HISTORY_PAGE_SIZE,
   type Pupil,
@@ -13,6 +15,7 @@ import {
   groupReleasesByDay,
   historyApiPath,
   historyHref,
+  localIsoDate,
   parsePupilFilter,
   pupilName,
 } from "@/lib/parent";
@@ -21,7 +24,14 @@ import { parsePage } from "@/lib/users";
 
 const BASE = "/admin/pickup-history";
 
-type Data = { pupils: Pupil[]; releases: Release[]; pupilId: number | null; page: number; hasNext: boolean };
+type Data = {
+  pupils: Pupil[];
+  releases: Release[];
+  pupilId: number | null;
+  day: DayFilter | null;
+  page: number;
+  hasNext: boolean;
+};
 
 type Props = { user: CurrentUser; data: Data | null };
 
@@ -34,8 +44,11 @@ export const getServerSideProps: GetServerSideProps<Props> = async (context) => 
   try {
     const pupils = await getAsUser<Pupil[]>(context, "pupils");
     const pupilId = parsePupilFilter(context.query.pupil, pupils);
+    const date = parseDay(context.query.date);
+    // The browser sends its time zone with the date (see DayField), so "a day" is the viewer's day.
+    const day = date ? { day: date, timeZone: parseTimeZone(context.query.tz) } : null;
     const page = parsePage(context.query.page);
-    const rows = await getAsUser<Release[]>(context, historyApiPath(pupilId, page));
+    const rows = await getAsUser<Release[]>(context, historyApiPath(pupilId, page, day ? dayRange(day) : null));
 
     return {
       props: {
@@ -44,6 +57,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (context) => 
           pupils,
           releases: rows.slice(0, HISTORY_PAGE_SIZE),
           pupilId,
+          day,
           page,
           hasNext: rows.length > HISTORY_PAGE_SIZE,
         },
@@ -64,39 +78,56 @@ export default function AdminPickupHistoryPage({ user, data }: Props) {
 }
 
 function History({ data }: { data: Data }) {
-  const { pupils, releases, pupilId, page, hasNext } = data;
+  const { pupils, releases, pupilId, day, page, hasNext } = data;
   const pupil = pupils.find((p) => p.id === pupilId);
+  const filtered = pupil !== undefined || day !== null;
 
   return (
     <div className="space-y-6">
       {/* A plain GET form, so the filter works before scripts load. */}
-      <form method="get" className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <label htmlFor="pupil" className="text-sm font-medium">
-          Pupil
-        </label>
-        <select id="pupil" name="pupil" defaultValue={pupilId ?? ""} className={`${inputClass} sm:max-w-xs`}>
-          <option value="">All pupils</option>
-          {pupils.map((p) => (
-            <option key={p.id} value={p.id}>
-              {pupilName(p)}
-            </option>
-          ))}
-        </select>
+      <form method="get" className="flex flex-col gap-3 lg:flex-row lg:items-end">
+        <div className="lg:w-64">
+          <label htmlFor="pupil" className="mb-1.5 block text-sm font-medium">
+            Pupil
+          </label>
+          <select id="pupil" name="pupil" defaultValue={pupilId ?? ""} className={inputClass}>
+            <option value="">All pupils</option>
+            {pupils.map((p) => (
+              <option key={p.id} value={p.id}>
+                {pupilName(p)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <DayField day={day?.day ?? ""} />
         <div className="flex gap-2">
           <button type="submit" className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700">
             Show
           </button>
-          {pupil && (
+          {filtered && (
             <Link href={BASE} className="rounded-lg border border-line bg-card px-4 py-2.5 text-sm font-medium text-ink-muted hover:text-ink">
-              All pupils
+              Clear
             </Link>
           )}
         </div>
       </form>
 
+      {day && (
+        <p className="text-sm text-ink-muted" role="status">
+          Showing {dayLabel(day.day)}
+          {pupil ? ` for ${pupilName(pupil)}` : ""}.
+        </p>
+      )}
+
       {releases.length === 0 ? (
         <p className="rounded-xl border border-dashed border-line bg-card px-4 py-10 text-center text-sm text-ink-muted">
-          {page > 1 ? "No more pickups." : pupil ? `No pickups recorded for ${pupil.first_name} yet.` : "No pickups recorded yet."}
+          {page > 1
+            ? "No more pickups."
+            : day
+              ? "No pickups recorded on this day."
+              : pupil
+                ? `No pickups recorded for ${pupil.first_name} yet.`
+                : "No pickups recorded yet."}
         </p>
       ) : (
         <ReleaseDays releases={releases} />
@@ -105,7 +136,7 @@ function History({ data }: { data: Data }) {
       {(page > 1 || hasNext) && (
         <nav aria-label="Pages" className="flex items-center justify-between gap-2 text-sm sm:justify-end">
           {page > 1 ? (
-            <Link href={historyHref(pupilId, page - 1, BASE)} className="rounded-lg border border-line bg-card px-4 py-2 font-medium hover:text-brand-700">
+            <Link href={historyHref(pupilId, page - 1, BASE, day)} className="rounded-lg border border-line bg-card px-4 py-2 font-medium hover:text-brand-700">
               Newer
             </Link>
           ) : (
@@ -113,7 +144,7 @@ function History({ data }: { data: Data }) {
           )}
           <span className="px-2 text-ink-muted">Page {page}</span>
           {hasNext ? (
-            <Link href={historyHref(pupilId, page + 1, BASE)} className="rounded-lg border border-line bg-card px-4 py-2 font-medium hover:text-brand-700">
+            <Link href={historyHref(pupilId, page + 1, BASE, day)} className="rounded-lg border border-line bg-card px-4 py-2 font-medium hover:text-brand-700">
               Older
             </Link>
           ) : (
@@ -187,6 +218,30 @@ function ReleaseDays({ releases }: { releases: Release[] }) {
           </div>
         </section>
       ))}
+    </div>
+  );
+}
+
+/**
+ * The date to show, with the browser's time zone in a hidden field: the
+ * server cannot know it, and "14 October" must mean the viewer's day.
+ * Without scripts the zone stays empty and the server uses UTC.
+ */
+function DayField({ day }: { day: string }) {
+  const zone = useRef<HTMLInputElement>(null);
+  const now = useNow();
+
+  useEffect(() => {
+    if (zone.current) zone.current.value = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  }, []);
+
+  return (
+    <div className="lg:w-48">
+      <label htmlFor="date" className="mb-1.5 block text-sm font-medium">
+        Date
+      </label>
+      <input id="date" name="date" type="date" defaultValue={day} max={now ? localIsoDate(now) : undefined} className={inputClass} />
+      <input ref={zone} type="hidden" name="tz" defaultValue="" />
     </div>
   );
 }

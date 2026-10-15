@@ -192,12 +192,18 @@ describe("pickup history paging", () => {
   test("asks FastAPI for one extra row at the right offset", () => {
     expect(historyApiPath(null, 1)).toBe("releases?limit=26&offset=0");
     expect(historyApiPath(4, 3)).toBe("releases?limit=26&offset=50&pupil_id=4");
+    expect(historyApiPath(null, 1, { since: "2026-10-13T23:00:00.000Z", until: "2026-10-14T23:00:00.000Z" })).toBe(
+      "releases?limit=26&offset=0&since=2026-10-13T23%3A00%3A00.000Z&until=2026-10-14T23%3A00%3A00.000Z",
+    );
   });
 
   test("links leave out defaults", () => {
     expect(historyHref(null, 1)).toBe("/parent/pickup-history");
     expect(historyHref(4, 2)).toBe("/parent/pickup-history?pupil=4&page=2");
     expect(historyHref(null, 3, "/admin/pickup-history")).toBe("/admin/pickup-history?page=3");
+    expect(historyHref(4, 2, "/admin/pickup-history", { day: "2026-10-14", timeZone: "Africa/Lagos" })).toBe(
+      "/admin/pickup-history?pupil=4&date=2026-10-14&tz=Africa%2FLagos&page=2",
+    );
   });
 });
 
