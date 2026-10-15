@@ -57,3 +57,42 @@ export function usersPageHref(role: Role | null, page: number): string {
   const query = params.toString();
   return query ? `/admin/users?${query}` : "/admin/users";
 }
+
+/** Roles an admin may create (SRS 6.7): never another administrator. */
+export const CREATABLE_ROLES: readonly { role: Extract<Role, "parent" | "gate_staff">; label: string; hint: string }[] = [
+  { role: "parent", label: "Parent", hint: "Manages their pupils and pickup people." },
+  { role: "gate_staff", label: "Gate staff", hint: "Checks pickup codes and releases pupils." },
+];
+
+export type NewUserForm = { name: string; email: string; phone: string; role: string };
+
+export type NewUserBody = { name: string; email: string; phone: string; role: "parent" | "gate_staff" };
+
+/** The ?role= to preselect on Add user, when it is one an admin may create. */
+export function parseCreatableRole(value: unknown): "parent" | "gate_staff" | "" {
+  return value === "parent" || value === "gate_staff" ? value : "";
+}
+
+// Limits from the backend's Name and Phone fields.
+const USER_NAME_MAX = 150;
+const USER_PHONE_MAX = 30;
+
+/**
+ * Check the Add user form and return the POST body, or an error message.
+ * The backend validates again (including the email) and rejects an email
+ * already in use.
+ */
+export function newUserBody(form: NewUserForm): { body: NewUserBody } | { error: string } {
+  const name = form.name.trim();
+  const email = form.email.trim();
+  const phone = form.phone.trim();
+
+  if (form.role !== "parent" && form.role !== "gate_staff") return { error: "Choose whether this is a parent or gate staff." };
+  if (!name) return { error: "Enter the person's full name." };
+  if (name.length > USER_NAME_MAX) return { error: `The name can be at most ${USER_NAME_MAX} characters.` };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Enter a valid email address. The set-password link is sent there." };
+  if (!phone) return { error: "Enter the person's phone number." };
+  if (phone.length > USER_PHONE_MAX) return { error: `The phone number can be at most ${USER_PHONE_MAX} characters.` };
+
+  return { body: { name, email, phone, role: form.role } };
+}

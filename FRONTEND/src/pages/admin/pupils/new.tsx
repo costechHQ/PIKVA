@@ -47,11 +47,11 @@ export default function NewPupilPage({ user, parents }: Props) {
         <LoadError message="We couldn't load the school's parents." />
       ) : parents.length === 0 ? (
         <EmptyState title="No parent accounts yet.">
-          A pupil is linked to a parent, so add the parent first on the{" "}
-          <Link href="/admin/users" className="font-medium text-brand-600 hover:text-brand-700">
-            Users
+          A pupil is linked to a parent, so{" "}
+          <Link href="/admin/users/new?role=parent" className="font-medium text-brand-600 hover:text-brand-700">
+            add the parent
           </Link>{" "}
-          page.
+          first.
         </EmptyState>
       ) : (
         <NewPupilFormCard parents={parents} />
@@ -125,6 +125,13 @@ function NewPupilFormCard({ parents }: { parents: SchoolUser[] }) {
             ))}
           </select>
         </Field>
+        <p className="text-xs text-ink-muted">
+          Parent not listed?{" "}
+          <Link href="/admin/users/new?role=parent" className="font-medium text-brand-600 hover:text-brand-700">
+            Add a parent
+          </Link>{" "}
+          first, then come back.
+        </p>
         {parents.length >= PARENTS_LIMIT && (
           <p className="text-xs text-warning-600">
             Only the first {PARENTS_LIMIT} parents by name can be chosen here for now.

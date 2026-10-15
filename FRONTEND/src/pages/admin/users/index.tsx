@@ -52,6 +52,14 @@ const ROLE_BADGE: Record<Role, string> = {
 export default function UsersPage({ user, users, role, page, hasNext }: Props) {
   return (
     <AppShell user={user} title="Users" subtitle={`Parents, gate staff and administrators at ${user.school_name}`}>
+      <div className="mb-4 flex justify-end">
+        <Link
+          href={role === "parent" || role === "gate_staff" ? `/admin/users/new?role=${role}` : "/admin/users/new"}
+          className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700"
+        >
+          Add user
+        </Link>
+      </div>
       <nav aria-label="Filter by role" className="flex flex-wrap gap-2">
         {ROLE_FILTERS.map((filter) => {
           const active = filter.role === role;
