@@ -1,7 +1,7 @@
 /** Tests for requireUser, the getServerSideProps page guard. */
 import { afterEach, describe, expect, test } from "bun:test";
 
-import { type CurrentUser, type Role, getAsUser, redirectIfSignedIn, requireUser } from "@/lib/auth-guard";
+import { BackendError, type CurrentUser, type Role, getAsUser, redirectIfSignedIn, requireUser } from "@/lib/auth-guard";
 import { SESSION_COOKIE } from "@/lib/session";
 import { type FakeBackend, deadBackendUrl, startBackend, tokenExpiringIn } from "./helpers";
 
@@ -193,6 +193,15 @@ describe("getAsUser", () => {
     useBackend(() => Response.json({ detail: "Forbidden" }, { status: 403 }));
 
     await expect(getAsUser(fakeContext().context, "schools/users")).rejects.toThrow("403");
+  });
+
+  test("the error carries FastAPI's status, so a page can answer 404 with notFound", async () => {
+    useBackend(() => Response.json({ detail: "Pupil not found" }, { status: 404 }));
+
+    const error = await getAsUser(fakeContext().context, "pupils/99").catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(BackendError);
+    expect((error as BackendError).status).toBe(404);
   });
 
   test("throws without a session", async () => {

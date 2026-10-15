@@ -2,8 +2,15 @@ import { describe, expect, test } from "bun:test";
 
 import {
   type PickupPerson,
+  type Pupil,
+  type PupilForm,
   type Release,
   activePeopleByPupil,
+  formatDate,
+  isWebPhoto,
+  localIsoDate,
+  pupilChanges,
+  pupilForm,
   isSameLocalDay,
   latestReleaseTodayByPupil,
   pupilName,
@@ -85,4 +92,69 @@ describe("activePeopleByPupil", () => {
 
 test("pupilName joins first and last names", () => {
   expect(pupilName({ first_name: "Ada", last_name: "Okafor" })).toBe("Ada Okafor");
+});
+
+describe("formatDate", () => {
+  test("shows the calendar date without shifting the day", () => {
+    expect(formatDate("2016-05-01")).toBe("1 May 2016");
+    expect(formatDate("2016-12-31")).toBe("31 December 2016");
+  });
+});
+
+describe("isWebPhoto", () => {
+  test("accepts only http and https addresses", () => {
+    expect(isWebPhoto("https://photos.example/ada.jpg")).toBe(true);
+    expect(isWebPhoto("http://photos.example/ada.jpg")).toBe(true);
+    expect(isWebPhoto("javascript:alert(1)")).toBe(false);
+    expect(isWebPhoto("data:image/png;base64,AAAA")).toBe(false);
+    expect(isWebPhoto("not a url")).toBe(false);
+    expect(isWebPhoto(null)).toBe(false);
+  });
+});
+
+describe("pupilChanges", () => {
+  const pupil: Pupil = {
+    id: 4,
+    school_id: 1,
+    parent_id: 2,
+    first_name: "Ada",
+    last_name: "Okafor",
+    photo_url: null,
+    date_of_birth: "2016-05-01",
+  };
+  const TODAY = "2026-10-15";
+  const check = (form: Partial<PupilForm>) => pupilChanges(pupil, { ...pupilForm(pupil), ...form }, TODAY);
+
+  test("an untouched form changes nothing", () => {
+    expect(check({})).toEqual({ changes: {} });
+  });
+
+  test("sends only changed fields, trimmed", () => {
+    expect(check({ first_name: "  Adaeze ", photo_url: " https://photos.example/a.jpg " })).toEqual({
+      changes: { first_name: "Adaeze", photo_url: "https://photos.example/a.jpg" },
+    });
+  });
+
+  test("clearing the photo sends null", () => {
+    const withPhoto = { ...pupil, photo_url: "https://photos.example/a.jpg" };
+    expect(pupilChanges(withPhoto, { ...pupilForm(withPhoto), photo_url: "  " }, TODAY)).toEqual({
+      changes: { photo_url: null },
+    });
+  });
+
+  test("rejects blank names, bad dates and non-web photo links", () => {
+    expect(check({ last_name: "  " })).toHaveProperty("error");
+    expect(check({ first_name: "A".repeat(101) })).toHaveProperty("error");
+    expect(check({ date_of_birth: "" })).toHaveProperty("error");
+    expect(check({ date_of_birth: "2026-10-16" })).toHaveProperty("error");
+    expect(check({ photo_url: "javascript:alert(1)" })).toHaveProperty("error");
+  });
+
+  test("today is an allowed date of birth", () => {
+    expect(check({ date_of_birth: TODAY })).toEqual({ changes: { date_of_birth: TODAY } });
+  });
+});
+
+test("localIsoDate pads month and day", () => {
+  expect(localIsoDate(new Date(2026, 0, 5))).toBe("2026-01-05");
 });

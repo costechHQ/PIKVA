@@ -1,4 +1,5 @@
 import type { GetServerSideProps } from "next";
+import Link from "next/link";
 
 import { ParentShell } from "@/components/ParentShell";
 import { EmptyState, LoadError, PupilAvatar, Skeleton } from "@/components/ParentUi";
@@ -159,7 +160,7 @@ function Stat({ label, value, highlight = false }: { label: string; value: numbe
  */
 function PupilCard({ pupil, activePeople, release }: { pupil: Pupil; activePeople: number; release: Release | null | undefined }) {
   return (
-    <article className="h-full rounded-2xl border border-line bg-card p-5 shadow-sm">
+    <article className="flex h-full flex-col items-start rounded-2xl border border-line bg-card p-5 shadow-sm">
       <div className="flex items-center gap-3">
         <PupilAvatar pupil={pupil} />
         <h3 className="min-w-0 truncate font-semibold">{pupilName(pupil)}</h3>
@@ -190,6 +191,13 @@ function PupilCard({ pupil, activePeople, release }: { pupil: Pupil; activePeopl
           ? "No active pickup people"
           : `${activePeople} active pickup ${activePeople === 1 ? "person" : "people"}`}
       </p>
+
+      <Link
+        href={`/parent/pupils/${pupil.id}`}
+        className="mt-4 inline-flex rounded-lg border border-line px-3 py-2 text-sm font-medium text-brand-600 hover:border-brand-500"
+      >
+        View pupil
+      </Link>
     </article>
   );
 }

@@ -62,10 +62,19 @@ export async function requireUser(
   return { props: { user } };
 }
 
+/** FastAPI answered a page-load GET with an error status. */
+export class BackendError extends Error {
+  constructor(readonly status: number) {
+    super(`FastAPI answered ${status} for a page load`);
+    this.name = "BackendError";
+  }
+}
+
 /**
  * GET a FastAPI /api/v1 path as the signed-in user and return its JSON.
  * Call after requireUser in getServerSideProps. Throws on any failure, so
- * Next.js shows its error page rather than an empty list.
+ * Next.js shows its error page rather than an empty list. A FastAPI error
+ * answer throws a BackendError carrying its status (e.g. 404 → notFound).
  */
 export async function getAsUser<T>(context: GuardContext, path: string): Promise<T> {
   const token = sessionToken(context.req);
@@ -79,7 +88,7 @@ export async function getAsUser<T>(context: GuardContext, path: string): Promise
   });
 
   if (!response.ok) {
-    throw new Error(`FastAPI answered ${response.status} for a page load`);
+    throw new BackendError(response.status);
   }
 
   return response.json();

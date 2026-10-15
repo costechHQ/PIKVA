@@ -5,7 +5,7 @@
  */
 import type { Role } from "@/lib/roles";
 
-export type IconName = "dashboard" | "gate" | "users";
+export type IconName = "dashboard" | "gate" | "users" | "pupils";
 
 export type NavItem = { label: string; href: string; icon: IconName };
 
@@ -16,7 +16,10 @@ const MENUS: Record<Role, readonly NavItem[]> = {
   ],
   gate_staff: [{ label: "Gate Verification", href: "/gate", icon: "gate" }],
   // Parent portal (SRS 18.9): its own layout, ParentShell.
-  parent: [{ label: "Overview", href: "/parent", icon: "dashboard" }],
+  parent: [
+    { label: "Overview", href: "/parent", icon: "dashboard" },
+    { label: "My Pupils", href: "/parent/pupils", icon: "pupils" },
+  ],
 };
 
 export const ROLE_LABEL: Record<Role, string> = {

@@ -87,7 +87,96 @@ export function activePeopleByPupil(people: readonly PickupPerson[]): Map<number
   return counts;
 }
 
-/** A time such as "10:24 AM" in the viewer's locale and time zone. */
+/** A time such as "10:24 AM" in the viewer's locale and time zone. Browser only (see useNow). */
 export function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+/** A date and time such as "15 Oct, 10:24 AM" in the viewer's locale and time zone. Browser only. */
+export function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+}
+
+/**
+ * A calendar date such as "1 May 2016" from "2016-05-01". Fixed locale and
+ * UTC, so the server and browser render the same text and the day never shifts.
+ */
+export function formatDate(isoDate: string): string {
+  return new Date(`${isoDate}T00:00:00Z`).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+/**
+ * Whether a photo URL is a plain web address. The backend accepts any text
+ * for photo URLs, so only http(s) addresses are shown as images.
+ */
+export function isWebPhoto(url: string | null): url is string {
+  if (!url) return false;
+  try {
+    const { protocol } = new URL(url);
+    return protocol === "https:" || protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+/** How many recent pickups the pupil page shows. */
+export const PUPIL_RECENT_RELEASES = 10;
+
+/** Limits from the backend's PupilName and PhotoUrl fields. */
+const NAME_MAX = 100;
+const PHOTO_MAX = 500;
+
+export type PupilForm = { first_name: string; last_name: string; date_of_birth: string; photo_url: string };
+
+export type PupilChanges = Partial<Pick<Pupil, "first_name" | "last_name" | "date_of_birth" | "photo_url">>;
+
+export function pupilForm(pupil: Pupil): PupilForm {
+  return {
+    first_name: pupil.first_name,
+    last_name: pupil.last_name,
+    date_of_birth: pupil.date_of_birth,
+    photo_url: pupil.photo_url ?? "",
+  };
+}
+
+/**
+ * Check the edit form and return only the fields that changed (the PATCH
+ * body), or an error message. today is "YYYY-MM-DD" in the viewer's time
+ * zone. The backend validates again; this only gives faster, clearer messages.
+ */
+export function pupilChanges(
+  pupil: Pupil,
+  form: PupilForm,
+  today: string,
+): { changes: PupilChanges } | { error: string } {
+  const first = form.first_name.trim();
+  const last = form.last_name.trim();
+  const photo = form.photo_url.trim();
+
+  if (!first || !last) return { error: "Enter the pupil's first and last name." };
+  if (first.length > NAME_MAX || last.length > NAME_MAX) return { error: `Names can be at most ${NAME_MAX} characters.` };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(form.date_of_birth)) return { error: "Enter the pupil's date of birth." };
+  if (form.date_of_birth > today) return { error: "The date of birth cannot be in the future." };
+  if (photo && (photo.length > PHOTO_MAX || !isWebPhoto(photo))) {
+    return { error: "The photo link must be a web address starting with https://." };
+  }
+
+  const changes: PupilChanges = {};
+  if (first !== pupil.first_name) changes.first_name = first;
+  if (last !== pupil.last_name) changes.last_name = last;
+  if (form.date_of_birth !== pupil.date_of_birth) changes.date_of_birth = form.date_of_birth;
+  if ((photo || null) !== pupil.photo_url) changes.photo_url = photo || null;
+
+  return { changes };
+}
+
+/** "YYYY-MM-DD" for a date in the viewer's time zone. */
+export function localIsoDate(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
