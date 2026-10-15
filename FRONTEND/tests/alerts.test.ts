@@ -39,6 +39,7 @@ test("alertTitle names every gate failure and keeps unknown types readable", () 
     "authorisation_scheduled",
     "authorisation_expired",
     "repeated_failed_attempts",
+    "pickup_refused",
   ]) {
     expect(alertTitle(type)).not.toContain("_");
   }
@@ -48,6 +49,7 @@ test("alertTitle names every gate failure and keeps unknown types readable", () 
 test("isUrgent marks repeated failed attempts", () => {
   const alert = { alert_type: "repeated_failed_attempts" } as SecurityAlert;
   expect(isUrgent(alert)).toBe(true);
+  expect(isUrgent({ ...alert, alert_type: "pickup_refused" })).toBe(true);
   expect(isUrgent({ ...alert, alert_type: "used_code" })).toBe(false);
 });
 

@@ -10,6 +10,7 @@ import {
   type CheckResult,
   type GatePicker,
   type GatePupil,
+  type RefuseResponse,
   type ReleaseResponse,
   type VerifyResponse,
   cameraErrorText,
@@ -31,7 +32,8 @@ type Step =
   | { kind: "enter" }
   | { kind: "verified"; request: GateRequest; pupil: GatePupil; picker: GatePicker }
   | { kind: "failed"; result: CheckResult }
-  | { kind: "released"; pupil: GatePupil; picker: GatePicker; releasedAt: string };
+  | { kind: "released"; pupil: GatePupil; picker: GatePicker; releasedAt: string }
+  | { kind: "refused"; pupil: GatePupil };
 
 /**
  * Gate verification (SRS 11, 18.6): check a pickup code, confirm the person
@@ -47,6 +49,7 @@ export default function GatePage({ user }: Props) {
         {step.kind === "verified" && <ConfirmRelease step={step} onResult={setStep} />}
         {step.kind === "failed" && <Failed result={step.result} onNext={() => setStep({ kind: "enter" })} />}
         {step.kind === "released" && <Released step={step} onNext={() => setStep({ kind: "enter" })} />}
+        {step.kind === "refused" && <Refused pupil={step.pupil} onNext={() => setStep({ kind: "enter" })} />}
       </div>
     </AppShell>
   );
@@ -255,8 +258,31 @@ function ConfirmRelease({
   onResult: (step: Step) => void;
 }) {
   const [releasing, setReleasing] = useState(false);
+  const [confirmingRefusal, setConfirmingRefusal] = useState(false);
+  const [refusing, setRefusing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { pupil, picker } = step;
+  const busy = releasing || refusing;
+
+  // SRS 11.4: the code is cancelled and the school alerted.
+  async function refuse() {
+    setRefusing(true);
+    setError(null);
+    const result = await sendAsUser<RefuseResponse>(
+      "pickup/refuse",
+      "POST",
+      step.request,
+      "The gate check is not available.",
+      GATE_TOO_MANY,
+    );
+    setRefusing(false);
+
+    if (!result.ok) {
+      setError(result.message);
+      return;
+    }
+    onResult(result.data.refused ? { kind: "refused", pupil } : { kind: "failed", result: result.data.result });
+  }
 
   async function release() {
     setReleasing(true);
@@ -297,22 +323,52 @@ function ConfirmRelease({
       </div>
       <div className="space-y-3 border-t border-line p-5 sm:px-8">
         <FormError message={error} />
-        <button
-          type="button"
-          onClick={() => void release()}
-          disabled={releasing}
-          className="w-full rounded-xl bg-success-600 px-4 py-4 text-lg font-semibold text-white hover:opacity-90 disabled:opacity-60"
-        >
-          {releasing ? "Releasing…" : `Release ${pupil.first_name}`}
-        </button>
-        <button
-          type="button"
-          onClick={() => onResult({ kind: "enter" })}
-          disabled={releasing}
-          className="w-full rounded-xl border border-line px-4 py-3 text-sm font-medium text-ink-muted hover:text-ink"
-        >
-          Don&apos;t release — this is not the right person
-        </button>
+        {confirmingRefusal ? (
+          <div className="rounded-xl bg-danger-50 p-4">
+            <p className="text-sm font-medium">Refuse this pickup?</p>
+            <p className="mt-1 text-sm text-ink-muted">
+              {pupil.first_name} stays at school. The code is cancelled so it cannot be used at another gate, and the
+              school is alerted. If this was a mistake, the parent can get a new code.
+            </p>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => void refuse()}
+                disabled={busy}
+                className="rounded-xl bg-danger-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {refusing ? "Refusing…" : "Refuse pickup"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmingRefusal(false)}
+                disabled={busy}
+                className="rounded-xl border border-line bg-card px-4 py-3 text-sm font-medium text-ink-muted hover:text-ink"
+              >
+                Go back
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => void release()}
+              disabled={busy}
+              className="w-full rounded-xl bg-success-600 px-4 py-4 text-lg font-semibold text-white hover:opacity-90 disabled:opacity-60"
+            >
+              {releasing ? "Releasing…" : `Release ${pupil.first_name}`}
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmingRefusal(true)}
+              disabled={busy}
+              className="w-full rounded-xl border border-line px-4 py-3 text-sm font-medium text-danger-600 hover:border-danger-600"
+            >
+              Don&apos;t release — this is not the right person
+            </button>
+          </>
+        )}
       </div>
     </section>
   );
@@ -329,6 +385,23 @@ function Failed({ result, onNext }: { result: CheckResult; onNext: () => void })
       <div className="p-5 sm:px-8">
         <p className="text-sm">{detail}</p>
         <p className="mt-2 text-xs text-ink-muted">This attempt has been recorded as a security alert for the school.</p>
+        <NextButton onNext={onNext} />
+      </div>
+    </section>
+  );
+}
+
+function Refused({ pupil, onNext }: { pupil: GatePupil; onNext: () => void }) {
+  return (
+    <section role="alert" className="overflow-hidden rounded-2xl border-2 border-danger-600 bg-card shadow-sm">
+      <div className="bg-danger-600 px-5 py-4 text-white sm:px-8">
+        <p className="text-sm font-medium uppercase tracking-wide text-white/90">Do not release</p>
+        <h2 className="text-xl font-semibold">Pickup refused</h2>
+      </div>
+      <div className="p-5 sm:px-8">
+        <p className="text-sm">
+          {pupil.first_name} stays at school. The code has been cancelled and the school has been alerted.
+        </p>
         <NextButton onNext={onNext} />
       </div>
     </section>

@@ -89,6 +89,24 @@ class GatePicker(BaseModel):
     photo_url: str | None
 
 
+class PickupRefuseResponse(BaseModel):
+    """Define the outcome of refusing a pickup at the gate (SRS 11.4).
+
+    result is valid when the refusal was recorded and the code expired;
+    otherwise it is why the code could no longer be refused.
+    """
+
+    result: PickupCodeCheckResult
+    method: VerificationMethod
+
+    @computed_field
+    @property
+    def refused(self) -> bool:
+        """Return whether the refusal was recorded and the code cancelled."""
+
+        return self.result == PickupCodeCheckResult.VALID
+
+
 class PickupVerifyResponse(BaseModel):
     """Define the gate verification result.
 

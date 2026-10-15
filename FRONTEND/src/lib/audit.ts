@@ -36,6 +36,7 @@ export const ACTION_LABELS: Record<string, string> = {
   "pickup_code.generated": "Got a pickup code",
   "pupil.released": "Released a pupil",
   "pickup.verification_failed": "Failed pickup check",
+  "pickup.refused": "Refused a pickup",
   "alert.resolved": "Resolved a security alert",
 };
 
@@ -105,7 +106,7 @@ export function auditNotes(metadata: Record<string, unknown> | null): string[] {
   const method = text("method") ?? text("verification_method");
   if (method) notes.push(method === "qr" ? "QR code" : "Code entered");
   const stage = text("stage");
-  if (stage) notes.push(stage === "release" ? "At release" : "At check");
+  if (stage) notes.push(stage === "release" ? "At release" : stage === "refuse" ? "At refusal" : "At check");
   const alertType = text("alert_type");
   if (alertType) notes.push(alertTitle(alertType));
   const codeDate = text("code_date");

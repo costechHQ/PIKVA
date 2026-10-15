@@ -16,12 +16,13 @@ from app.models.user import User, UserRole
 from app.schemas.pickup import (
     PickupCodeRequest,
     PickupCodeResponse,
+    PickupRefuseResponse,
     PickupVerifyRequest,
     PickupVerifyResponse,
 )
 from app.schemas.release import PickupReleaseResponse
 from app.services.alert_service import notify_security_alerts
-from app.services.pickup_service import AlertNotifier, issue_pickup_code, verify_pickup
+from app.services.pickup_service import AlertNotifier, issue_pickup_code, refuse_pickup, verify_pickup
 from app.services.release_service import release_pupil
 
 router = APIRouter(prefix="/pickup", tags=["Pickup"])
@@ -123,6 +124,34 @@ async def verify_pickup_endpoint(
     """
 
     return await verify_pickup(
+        session=session,
+        school_id=current_user.school_id,
+        staff_id=current_user.id,
+        data=data,
+        notify=_email_admins_later(background_tasks),
+    )
+
+
+@router.post(
+    "/refuse",
+    response_model=PickupRefuseResponse,
+    responses=rate_limit.RATE_LIMITED_RESPONSE,
+    dependencies=[Depends(require_role(UserRole.GATE_STAFF)), Depends(limit_gate_staff)],
+)
+
+async def refuse_pickup_endpoint(
+    data: PickupVerifyRequest,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+
+    """Refuse a pickup: the person does not match, so the code is cancelled (SRS 11.4).
+
+    Always returns 200; refused is false when the code was no longer valid.
+    """
+
+    return await refuse_pickup(
         session=session,
         school_id=current_user.school_id,
         staff_id=current_user.id,

@@ -61,6 +61,7 @@ const TYPE_LABEL: Record<string, string> = {
   authorisation_scheduled: "Pickup person not started",
   authorisation_expired: "Pickup person's permission ended",
   repeated_failed_attempts: "Repeated failed attempts",
+  pickup_refused: "Pickup refused at the gate",
 };
 
 /** A short title for an alert type; unknown types are shown as written. */
@@ -68,9 +69,12 @@ export function alertTitle(type: string): string {
   return TYPE_LABEL[type] ?? type.replaceAll("_", " ");
 }
 
-/** Repeated failed attempts may mean someone is guessing codes, so they stand out. */
+/**
+ * Stand out: repeated failed attempts may mean someone is guessing codes; a
+ * refused pickup means the wrong person came with a valid code (SRS 11.4).
+ */
 export function isUrgent(alert: SecurityAlert): boolean {
-  return alert.alert_type === "repeated_failed_attempts";
+  return alert.alert_type === "repeated_failed_attempts" || alert.alert_type === "pickup_refused";
 }
 
 /** How many open alerts the bell asks for; a full page shows as "99+". */

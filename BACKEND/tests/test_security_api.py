@@ -48,6 +48,7 @@ ACCESS = {
     ("POST", "/api/v1/pickup/codes"): PARENT,
     ("POST", "/api/v1/pickup/verify"): GATE,
     ("POST", "/api/v1/pickup/release"): GATE,
+    ("POST", "/api/v1/pickup/refuse"): GATE,
     ("GET", "/api/v1/releases"): MANAGERS,
     ("GET", "/api/v1/alerts"): STAFF,
     ("GET", "/api/v1/alerts/{alert_id}"): STAFF,

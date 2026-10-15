@@ -101,6 +101,32 @@ test("gate catches a typo locally, then checks and releases", async ({ browser }
   await expect(page.getByRole("heading", { name: "Code already used" })).toBeVisible();
 });
 
+test("gate refuses the wrong person and the code is cancelled", async ({ browser }) => {
+  // A fresh code for the same pickup person.
+  const parent = await as(browser, "parent");
+  await parent.goto("/parent/pickup-people");
+  const card = parent.locator("article", { hasText: PICKER });
+  await card.getByRole("button", { name: "Get today's code" }).click();
+  await card.getByRole("button", { name: "Get new code" }).click();
+  const fresh = ((await card.locator('[aria-label^="Code "]').textContent()) ?? "").replace(/\s/g, "");
+
+  const page = await as(browser, "gate");
+  await page.goto("/gate");
+  await page.getByLabel("Pickup code").fill(fresh);
+  await page.getByRole("button", { name: "Check code" }).click();
+  await expect(page.getByRole("heading", { name: "Code valid" })).toBeVisible();
+
+  await page.getByRole("button", { name: /Don.t release/ }).click();
+  await expect(page.getByText("The code is cancelled so it cannot be used at another gate")).toBeVisible();
+  await page.getByRole("button", { name: "Refuse pickup" }).click();
+  await expect(page.getByRole("heading", { name: "Pickup refused" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Next pickup" }).click();
+  await page.getByLabel("Pickup code").fill(fresh);
+  await page.getByRole("button", { name: "Check code" }).click();
+  await expect(page.getByRole("heading", { name: "Code has expired" })).toBeVisible();
+});
+
 test("admin sees the release, the staff member and the alert", async ({ browser }) => {
   const page = await as(browser, "admin");
   await page.goto("/admin/pickup-history");
@@ -108,8 +134,10 @@ test("admin sees the release, the staff member and the alert", async ({ browser 
 
   // The top bar bell shows the open count (the menu link is "Security Alerts").
   const bell = page.getByRole("link", { name: /^Security alerts/ });
-  await expect(bell).toHaveAccessibleName("Security alerts, 1 open");
+  // The reused code from the release test, and the refusal (plus the expired re-check).
+  await expect(bell).toHaveAccessibleName(/^Security alerts, [1-9]\d* open$/);
   await bell.click();
+  await expect(page.locator("article", { hasText: "Pickup refused at the gate" })).toContainText("Open · urgent");
   const alert = page.locator("article", { hasText: "Code used again" });
   await expect(alert).toContainText(state.gate.name);
   await alert.getByRole("button", { name: "Mark resolved" }).click();

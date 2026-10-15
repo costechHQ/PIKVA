@@ -16,13 +16,15 @@ from app.schemas.pickup import (
     GatePicker,
     GatePupil,
     PickupCodeResponse,
+    PickupRefuseResponse,
     PickupVerifyRequest,
     PickupVerifyResponse,
     VerificationMethod,
 )
-from app.services.alert_service import record_failed_verification
+from app.services.alert_service import record_failed_verification, refused_pickup_alert
 from app.services.audit_service import (
     PICKUP_CODE_GENERATED,
+    PICKUP_REFUSED,
     PICKUP_VERIFICATION_FAILED,
     record_audit,
 )
@@ -333,6 +335,111 @@ async def record_failed_check(
     )
 
     return alert_ids
+
+
+async def expire_code_now(
+        session: AsyncSession,
+        school_id: int,
+        code_id: int,
+) -> bool:
+    """Atomically expire an unused, unexpired code in the school.
+
+    Returns False if it was already used or expired, so a code used at
+    another gate meanwhile is never counted as refused. Does not commit.
+    """
+
+    now = datetime.now(timezone.utc)
+
+    expired_id = await session.scalar(
+        update(DailyPickupCode)
+        .where(
+            DailyPickupCode.id == code_id,
+            DailyPickupCode.used_at.is_(None),
+            DailyPickupCode.expires_at > now,
+            DailyPickupCode.pupil_id.in_(
+                select(Pupil.id).where(Pupil.school_id == school_id)
+            ),
+        )
+        .values(expires_at=now)
+        .returning(DailyPickupCode.id)
+    )
+
+    return expired_id is not None
+
+
+async def refuse_pickup(
+        session: AsyncSession,
+        school_id: int,
+        staff_id: int,
+        data: PickupVerifyRequest,
+        notify: AlertNotifier | None = None,
+) -> PickupRefuseResponse:
+    """Refuse a pickup the gate staff do not trust (SRS 11.4).
+
+    A valid code is expired at once and a pickup_refused alert and audit
+    entry are recorded. If the code is no longer valid, the failure is
+    recorded like any failed check instead. notify (if given) is told about
+    the new alerts once they are committed.
+    """
+
+    check = await check_presented_code(session, school_id, data)
+
+    if check.result == PickupCodeCheckResult.VALID and not await expire_code_now(
+        session, school_id, check.code.id
+    ):
+        # Used at another gate, or expired, since it was checked.
+        reason = (
+            PickupCodeCheckResult.EXPIRED_CODE
+            if datetime.now(timezone.utc) >= check.code.expires_at
+            else PickupCodeCheckResult.USED_CODE
+        )
+        check = PickupCodeCheck(reason, check.code, check.authorisation)
+
+    if check.result != PickupCodeCheckResult.VALID:
+        alert_ids = await record_failed_check(
+            session, school_id, staff_id, check, data.method, "refuse"
+        )
+        await session.commit()
+        if notify is not None:
+            notify(school_id, alert_ids)
+        return PickupRefuseResponse(result=check.result, method=data.method)
+
+    alert = refused_pickup_alert(
+        school_id=school_id,
+        staff_id=staff_id,
+        method=data.method.value,
+        pupil_id=check.code.pupil_id,
+        authorisation_id=check.authorisation.id,
+    )
+    session.add(alert)
+    await session.flush()
+
+    await record_audit(
+        session=session,
+        school_id=school_id,
+        user_id=staff_id,
+        action=PICKUP_REFUSED,
+        entity_type="daily_pickup_code",
+        entity_id=check.code.id,
+        metadata={
+            "pupil_id": check.code.pupil_id,
+            "authorisation_id": check.authorisation.id,
+            "method": data.method.value,
+            "alert_ids": [alert.id],
+        },
+    )
+    alert_id = alert.id
+    await session.commit()
+
+    # IDs only; never the presented code (SRS 28).
+    logger.warning(
+        "Pickup refused at the gate: alert=%d school=%d staff=%d", alert_id, school_id, staff_id
+    )
+
+    if notify is not None:
+        notify(school_id, [alert_id])
+
+    return PickupRefuseResponse(result=PickupCodeCheckResult.VALID, method=data.method)
 
 
 async def verify_pickup(

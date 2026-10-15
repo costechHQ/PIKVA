@@ -33,6 +33,9 @@ export type VerifyResponse = {
   code_expires_at: string | null;
 };
 
+/** POST /api/v1/pickup/refuse (SRS 11.4). result says why when nothing was refused. */
+export type RefuseResponse = { result: CheckResult; method: "qr" | "manual"; refused: boolean };
+
 /** POST /api/v1/pickup/release. */
 export type ReleaseResponse = {
   result: CheckResult;

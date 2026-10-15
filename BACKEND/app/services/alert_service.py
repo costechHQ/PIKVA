@@ -24,6 +24,12 @@ REPEATED_FAILURE_LIMIT = 5
 REPEATED_FAILURE_WINDOW = timedelta(minutes=10)
 REPEATED_FAILED_ATTEMPTS = "repeated_failed_attempts"
 
+# Gate staff refused the person presenting a valid code (SRS 11.4). Not a
+# staff failure, so it never counts towards repeated attempts, and it is
+# always emailed.
+PICKUP_REFUSED = "pickup_refused"
+URGENT_ALERT_TYPES = frozenset({REPEATED_FAILED_ATTEMPTS, PICKUP_REFUSED})
+
 # At most one alert email per school in this time, so a burst of failures
 # cannot flood admins or use up the email quota (SRS 20). Repeated-attempts
 # alerts are always sent; every alert is still recorded for the dashboard.
@@ -89,6 +95,7 @@ async def record_failed_verification(
     counts = dict((await session.execute(recent)).all())
 
     already_alerted = counts.pop(REPEATED_FAILED_ATTEMPTS, 0) > 0
+    counts.pop(PICKUP_REFUSED, None)
 
     if sum(counts.values()) >= REPEATED_FAILURE_LIMIT and not already_alerted:
         repeated = SecurityAlert(
@@ -105,6 +112,26 @@ async def record_failed_verification(
         alerts.append(repeated)
 
     return alerts
+
+
+def refused_pickup_alert(
+        school_id: int,
+        staff_id: int,
+        method: str,
+        pupil_id: int,
+        authorisation_id: int,
+) -> SecurityAlert:
+    """Build the alert for a pickup gate staff refused (SRS 11.4). The caller adds it."""
+
+    return SecurityAlert(
+        school_id=school_id,
+        pupil_id=pupil_id,
+        authorisation_id=authorisation_id,
+        attempted_by=staff_id,
+        alert_type=PICKUP_REFUSED,
+        message=f"Gate staff refused to release the pupil: the person did not match ({method} verification)",
+        created_at=datetime.now(timezone.utc),
+    )
 
 
 async def list_alerts(
@@ -310,7 +337,7 @@ async def notify_security_alerts(
         logger.error("Security alert notification failed: %s", type(exc).__name__)
         return False
 
-    urgent = any(alert.alert_type == REPEATED_FAILED_ATTEMPTS for alert in alerts)
+    urgent = any(alert.alert_type in URGENT_ALERT_TYPES for alert in alerts)
 
     if not await _claim_email_slot(redis, school_id, urgent):
         logger.info("Security alert email skipped during cooldown: %d alert(s)", len(alerts))
