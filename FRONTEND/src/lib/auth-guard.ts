@@ -63,6 +63,29 @@ export async function requireUser(
 }
 
 /**
+ * GET a FastAPI /api/v1 path as the signed-in user and return its JSON.
+ * Call after requireUser in getServerSideProps. Throws on any failure, so
+ * Next.js shows its error page rather than an empty list.
+ */
+export async function getAsUser<T>(context: GuardContext, path: string): Promise<T> {
+  const token = sessionToken(context.req);
+
+  if (!token) {
+    throw new Error("getAsUser called without a session; call requireUser first");
+  }
+
+  const response = await fetch(`${apiBaseUrl()}/api/v1/${path.replace(/^\/+/, "")}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    throw new Error(`FastAPI answered ${response.status} for a page load`);
+  }
+
+  return response.json();
+}
+
+/**
  * For signed-out pages such as /login: send a user who is already signed in
  * to their home page. Anything uncertain (no cookie, rejected token, FastAPI
  * down, unknown role) shows the page instead, so it can never loop or fail.

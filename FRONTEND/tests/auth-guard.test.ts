@@ -1,7 +1,7 @@
 /** Tests for requireUser, the getServerSideProps page guard. */
 import { afterEach, describe, expect, test } from "bun:test";
 
-import { type CurrentUser, type Role, redirectIfSignedIn, requireUser } from "@/lib/auth-guard";
+import { type CurrentUser, type Role, getAsUser, redirectIfSignedIn, requireUser } from "@/lib/auth-guard";
 import { SESSION_COOKIE } from "@/lib/session";
 import { type FakeBackend, deadBackendUrl, startBackend, tokenExpiringIn } from "./helpers";
 
@@ -175,5 +175,27 @@ describe("redirectIfSignedIn", () => {
     useBackend(() => Response.json({ ...userWithRole("school_admin"), role: "SCHOOL_ADMIN" }));
 
     expect(await redirectIfSignedIn(fakeContext().context)).toEqual(SHOW_PAGE);
+  });
+});
+
+describe("getAsUser", () => {
+  test("GETs the /api/v1 path with the session's Bearer token", async () => {
+    const fake = useBackend(() => Response.json([{ id: 1 }]));
+
+    const rows = await getAsUser<{ id: number }[]>(fakeContext().context, "schools/users?limit=51&offset=0");
+
+    expect(rows).toEqual([{ id: 1 }]);
+    expect(fake.requests[0].path).toBe("/api/v1/schools/users?limit=51&offset=0");
+    expect(fake.requests[0].headers.get("authorization")).toBe(`Bearer ${TOKEN}`);
+  });
+
+  test("throws when FastAPI fails, so the page shows an error, not an empty list", async () => {
+    useBackend(() => Response.json({ detail: "Forbidden" }, { status: 403 }));
+
+    await expect(getAsUser(fakeContext().context, "schools/users")).rejects.toThrow("403");
+  });
+
+  test("throws without a session", async () => {
+    await expect(getAsUser(fakeContext({}).context, "schools/users")).rejects.toThrow();
   });
 });

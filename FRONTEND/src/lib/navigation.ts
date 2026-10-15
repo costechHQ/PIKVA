@@ -5,12 +5,15 @@
  */
 import type { Role } from "@/lib/roles";
 
-export type IconName = "dashboard" | "gate";
+export type IconName = "dashboard" | "gate" | "users";
 
 export type NavItem = { label: string; href: string; icon: IconName };
 
 const MENUS: Record<Role, readonly NavItem[]> = {
-  school_admin: [{ label: "Dashboard", href: "/admin", icon: "dashboard" }],
+  school_admin: [
+    { label: "Dashboard", href: "/admin", icon: "dashboard" },
+    { label: "Users", href: "/admin/users", icon: "users" },
+  ],
   gate_staff: [{ label: "Gate Verification", href: "/gate", icon: "gate" }],
   // Parents use the mobile app; the web shell is never shown to them.
   parent: [],
