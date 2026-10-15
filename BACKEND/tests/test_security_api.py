@@ -41,6 +41,7 @@ ACCESS = {
     ("PATCH", "/api/v1/pickers/{authorisation_id}"): MANAGERS,
     ("POST", "/api/v1/pickers/{authorisation_id}/activate"): MANAGERS,
     ("POST", "/api/v1/pickers/{authorisation_id}/deactivate"): MANAGERS,
+    ("POST", "/api/v1/pickers/{authorisation_id}/approve"): STAFF,
     ("POST", "/api/v1/pickup/codes"): PARENT,
     ("POST", "/api/v1/pickup/verify"): GATE,
     ("POST", "/api/v1/pickup/release"): GATE,

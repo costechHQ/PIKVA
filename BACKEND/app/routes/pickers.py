@@ -6,11 +6,13 @@ from app.db.session import get_session
 from app.models.pickup_authorisation import PickupAuthorisation
 from app.models.user import User, UserRole
 from app.schemas.pickup_authorisation import (
+    PickupAuthorisationApprove,
     PickupAuthorisationCreate,
     PickupAuthorisationResponse,
     PickupAuthorisationUpdate,
 )
 from app.services.pickup_authorisation_service import (
+    approve_pickup_authorisation,
     create_pickup_authorisation,
     get_pickup_authorisation,
     list_pickup_authorisations,
@@ -209,3 +211,40 @@ async def deactivate_pickup_authorisation_endpoint(
             actor_id=current_user.id,
         )
     )
+
+
+@router.post(
+    "/{authorisation_id}/approve",
+    response_model=PickupAuthorisationResponse,
+    dependencies=[Depends(require_role(UserRole.SCHOOL_ADMIN))],
+)
+
+async def approve_pickup_authorisation_endpoint(
+    authorisation_id: int,
+    data: PickupAuthorisationApprove,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+
+    """Approve a parent-added pickup person so they can collect the pupil (SRS 9.2).
+
+    Send the authorisation's updated_at as shown to the admin; 409 if it is
+    already approved or the parent has changed it since.
+    """
+
+    try:
+        authorisation = await approve_pickup_authorisation(
+            session=session,
+            school_id=current_user.school_id,
+            authorisation_id=authorisation_id,
+            seen_updated_at=data.updated_at,
+            actor_id=current_user.id,
+        )
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
+
+    return _found(authorisation)
