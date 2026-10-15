@@ -55,6 +55,14 @@ class PickupAuthorisationUpdate(BaseModel):
         return self
 
 
+class PickupAuthorisationApprove(BaseModel):
+    """Define the approval request: the version of the details the admin saw."""
+
+    # The authorisation's updated_at as the admin was shown it, so a parent's
+    # later change is never approved unseen (SRS 9.2).
+    updated_at: UtcDatetime
+
+
 class PickupAuthorisationResponse(BaseModel):
     """Define the pickup authorisation data returned by the API"""
 
@@ -71,5 +79,7 @@ class PickupAuthorisationResponse(BaseModel):
     expires_at: datetime
     is_active: bool
     status: AuthorisationStatus
+    # None while awaiting school approval (SRS 9.2).
+    approved_at: datetime | None
     created_at: datetime
     updated_at: datetime

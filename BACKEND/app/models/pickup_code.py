@@ -16,6 +16,7 @@ class PickupCodeCheckResult(str, Enum):
     USED_CODE = "used_code"
     EXPIRED_CODE = "expired_code"
     AUTHORISATION_INACTIVE = "authorisation_inactive"
+    AUTHORISATION_PENDING = "authorisation_pending"
     AUTHORISATION_SCHEDULED = "authorisation_scheduled"
     AUTHORISATION_EXPIRED = "authorisation_expired"
 

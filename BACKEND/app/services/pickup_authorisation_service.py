@@ -1,4 +1,6 @@
-from sqlalchemy import Select, select
+from datetime import datetime, timezone
+
+from sqlalchemy import Select, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.pickup_authorisation import PickupAuthorisation
@@ -9,6 +11,7 @@ from app.schemas.pickup_authorisation import (
 )
 from app.services.audit_service import (
     AUTHORISATION_ACTIVATED,
+    AUTHORISATION_APPROVED,
     AUTHORISATION_CREATED,
     AUTHORISATION_DEACTIVATED,
     AUTHORISATION_UPDATED,
@@ -22,7 +25,11 @@ async def create_pickup_authorisation(
         parent_id: int,
         data: PickupAuthorisationCreate,
 ) -> PickupAuthorisation | None:
-    """Create a pickup authorisation for a parent's pupil."""
+    """Create a pickup authorisation for a parent's pupil.
+
+    It starts unapproved (approved_at None) until a school admin approves
+    it (SRS 9.2).
+    """
 
     pupil = await get_parent_pupil_by_id(
         session=session,
@@ -157,6 +164,10 @@ async def update_pickup_authorisation(
     for field, value in update_data.items():
         setattr(authorisation, field, value)
 
+    # A parent's change needs the school's approval again, so an approved
+    # person cannot be swapped for someone else (SRS 9.2).
+    approval_reset = _reset_approval_if_parent(authorisation, parent_id, changed=bool(update_data))
+
     # Record which fields changed, not their personal values.
     await record_audit(
         session=session,
@@ -165,7 +176,11 @@ async def update_pickup_authorisation(
         action=AUTHORISATION_UPDATED,
         entity_type="pickup_authorisation",
         entity_id=authorisation.id,
-        metadata={"pupil_id": authorisation.pupil_id, "fields": sorted(update_data)},
+        metadata={
+            "pupil_id": authorisation.pupil_id,
+            "fields": sorted(update_data),
+            "approval_reset": approval_reset,
+        },
     )
 
     await session.commit()
@@ -197,13 +212,97 @@ async def set_pickup_authorisation_active(
     if authorisation is None:
         return None
 
+    # A parent re-activating needs the school's approval again, so a parent
+    # cannot undo an admin's deactivation (SRS 9.2).
+    activated = is_active and not authorisation.is_active
     authorisation.is_active = is_active
+    approval_reset = _reset_approval_if_parent(authorisation, parent_id, changed=activated)
 
     await record_audit(
         session=session,
         school_id=school_id,
         user_id=actor_id,
         action=AUTHORISATION_ACTIVATED if is_active else AUTHORISATION_DEACTIVATED,
+        entity_type="pickup_authorisation",
+        entity_id=authorisation.id,
+        metadata={"pupil_id": authorisation.pupil_id, "approval_reset": approval_reset},
+    )
+
+    await session.commit()
+    await session.refresh(authorisation)
+
+    return authorisation
+
+
+def _reset_approval_if_parent(
+        authorisation: PickupAuthorisation,
+        parent_id: int | None,
+        changed: bool,
+) -> bool:
+    """Clear the approval when a parent changed an approved authorisation.
+
+    parent_id is set only for parents; staff changes keep the approval.
+    Returns whether an approval was cleared.
+    """
+
+    if parent_id is None or not changed or authorisation.approved_at is None:
+        return False
+
+    authorisation.approved_at = None
+    return True
+
+
+async def approve_pickup_authorisation(
+        session: AsyncSession,
+        school_id: int,
+        authorisation_id: int,
+        seen_updated_at: datetime,
+        actor_id: int,
+) -> PickupAuthorisation | None:
+    """Approve a pending authorisation in the admin's school (SRS 9.2).
+
+    seen_updated_at is the updated_at the admin was shown; if the parent has
+    changed the authorisation since, nothing is approved, so an admin never
+    approves details they have not seen. Returns None if the authorisation is
+    not in the school. Raises ValueError if it is already approved or has
+    changed; the conditional update means only one approval succeeds.
+    """
+
+    authorisation = await get_pickup_authorisation(
+        session=session,
+        school_id=school_id,
+        parent_id=None,
+        authorisation_id=authorisation_id,
+    )
+
+    if authorisation is None:
+        return None
+
+    approved_id = await session.scalar(
+        update(PickupAuthorisation)
+        .where(
+            PickupAuthorisation.id == authorisation.id,
+            PickupAuthorisation.approved_at.is_(None),
+            PickupAuthorisation.updated_at == seen_updated_at,
+        )
+        .values(approved_at=datetime.now(timezone.utc))
+        .returning(PickupAuthorisation.id)
+    )
+
+    if approved_id is None:
+        # Read the current row, not the copy loaded above, to say why.
+        approved_at = await session.scalar(
+            select(PickupAuthorisation.approved_at).where(PickupAuthorisation.id == authorisation.id)
+        )
+        if approved_at is not None:
+            raise ValueError("Pickup authorisation is already approved")
+        raise ValueError("Pickup authorisation has changed; review it again before approving")
+
+    await record_audit(
+        session=session,
+        school_id=school_id,
+        user_id=actor_id,
+        action=AUTHORISATION_APPROVED,
         entity_type="pickup_authorisation",
         entity_id=authorisation.id,
         metadata={"pupil_id": authorisation.pupil_id},

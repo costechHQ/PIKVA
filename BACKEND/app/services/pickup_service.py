@@ -37,8 +37,11 @@ MAX_CODE_ATTEMPTS = 5
 AlertNotifier = Callable[[int, list[int]], None]
 
 
+# Every status except ACTIVE must be listed: an unlisted status would be
+# treated as valid below (a test checks this).
 _AUTHORISATION_FAILURES = {
     AuthorisationStatus.INACTIVE: PickupCodeCheckResult.AUTHORISATION_INACTIVE,
+    AuthorisationStatus.PENDING_APPROVAL: PickupCodeCheckResult.AUTHORISATION_PENDING,
     AuthorisationStatus.SCHEDULED: PickupCodeCheckResult.AUTHORISATION_SCHEDULED,
     AuthorisationStatus.EXPIRED: PickupCodeCheckResult.AUTHORISATION_EXPIRED,
 }

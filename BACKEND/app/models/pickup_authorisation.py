@@ -10,6 +10,7 @@ class AuthorisationStatus(str, Enum):
 
     ACTIVE = "active"
     INACTIVE = "inactive"
+    PENDING_APPROVAL = "pending_approval"
     SCHEDULED = "scheduled"
     EXPIRED = "expired"
 
@@ -51,6 +52,13 @@ class PickupAuthorisation(Base):
         nullable=False,
     )
 
+    # When a SCHOOL_ADMIN approved this person (SRS 9.2); None = awaiting
+    # approval. The approving admin is recorded in the audit log.
+    approved_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -69,6 +77,10 @@ class PickupAuthorisation(Base):
 
         if not self.is_active:
             return AuthorisationStatus.INACTIVE
+
+        # Not yet approved by the school (SRS 9.2).
+        if self.approved_at is None:
+            return AuthorisationStatus.PENDING_APPROVAL
 
         if moment < self.starts_at:
             return AuthorisationStatus.SCHEDULED

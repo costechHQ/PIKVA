@@ -64,10 +64,12 @@ async def make_family(session, name: str, **authorisation_fields) -> PickupAutho
     session.add(pupil)
     await session.flush()
 
+    # Approved by the school unless a test says otherwise (SRS 9.2).
     fields = {
         "starts_at": now - timedelta(days=1),
         "expires_at": now + timedelta(days=30),
         "is_active": True,
+        "approved_at": now - timedelta(days=1),
     } | authorisation_fields
 
     authorisation = PickupAuthorisation(

@@ -8,6 +8,7 @@ from sqlalchemy import text, update
 
 from app.core.security import hash_password, hash_pickup_code
 from app.db.session import async_session
+from app.models.pickup_authorisation import PickupAuthorisation
 from app.models.user import User
 from app.services.pickup_service import PickupCodeCheckResult, check_pickup_code
 
@@ -103,8 +104,19 @@ async def create_authorisation(client, parent: dict[str, str]) -> int:
         },
     )
     assert response.status_code == 201
+    authorisation_id = response.json()["id"]
 
-    return response.json()["id"]
+    # Parent-added people start pending (SRS 9.2); approve directly so
+    # these tests start from an authorisation that can collect.
+    async with async_session() as session:
+        await session.execute(
+            update(PickupAuthorisation)
+            .where(PickupAuthorisation.id == authorisation_id)
+            .values(approved_at=now - timedelta(hours=1))
+        )
+        await session.commit()
+
+    return authorisation_id
 
 
 @pytest.fixture
@@ -661,7 +673,9 @@ async def test_security_sensitive_actions_are_audited_with_actor(client, school)
         ("patch", f"/api/v1/pupils/{pupil_id}", "parent", {"first_name": "Adaeze"}),
         ("patch", f"/api/v1/pickers/{authorisation_id}", "admin", {"relationship": "aunty"}),
         ("post", f"/api/v1/pickers/{authorisation_id}/deactivate", "admin", None),
-        ("post", f"/api/v1/pickers/{authorisation_id}/activate", "parent", None),
+        # Admin, not parent: a parent's re-activation would need approval
+        # again (SRS 9.2) and the code request below would be refused.
+        ("post", f"/api/v1/pickers/{authorisation_id}/activate", "admin", None),
         ("post", CODES_URL, "parent", {"authorisation_id": authorisation_id}),
     ]
     for method, url, role, body in steps:
@@ -692,7 +706,7 @@ async def test_security_sensitive_actions_are_audited_with_actor(client, school)
         ("pupil.updated", parent, "pupil", pupil_id),
         ("pickup_authorisation.updated", admin, "pickup_authorisation", authorisation_id),
         ("pickup_authorisation.deactivated", admin, "pickup_authorisation", authorisation_id),
-        ("pickup_authorisation.activated", parent, "pickup_authorisation", authorisation_id),
+        ("pickup_authorisation.activated", admin, "pickup_authorisation", authorisation_id),
         ("pickup_code.generated", parent, "daily_pickup_code", rows[-1][3]),
     ]
 

@@ -37,6 +37,7 @@ _FAILURE_MESSAGES = {
     PickupCodeCheckResult.USED_CODE: "Pickup code has already been used",
     PickupCodeCheckResult.EXPIRED_CODE: "Pickup code has expired",
     PickupCodeCheckResult.AUTHORISATION_INACTIVE: "Pickup authorisation is inactive",
+    PickupCodeCheckResult.AUTHORISATION_PENDING: "Pickup authorisation is awaiting school approval",
     PickupCodeCheckResult.AUTHORISATION_SCHEDULED: "Pickup authorisation has not started yet",
     PickupCodeCheckResult.AUTHORISATION_EXPIRED: "Pickup authorisation has expired",
 }
