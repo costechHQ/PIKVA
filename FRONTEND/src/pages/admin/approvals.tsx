@@ -130,11 +130,29 @@ function RequestCard({
         </div>
       </div>
 
-      <div className="mt-4 flex items-center gap-2 rounded-xl bg-surface p-3">
-        {pupil && <PupilAvatar pupil={pupil} size="sm" />}
-        <p className="min-w-0 truncate text-sm">
-          Would collect <span className="font-medium">{pupilText}</span>
-        </p>
+      <div className="mt-4 rounded-xl bg-surface p-3">
+        <div className="flex items-center gap-2">
+          {pupil && <PupilAvatar pupil={pupil} size="sm" />}
+          <p className="min-w-0 truncate text-sm">
+            Would collect <span className="font-medium">{pupilText}</span>
+          </p>
+        </div>
+        {pupil && (
+          <div className="mt-2 text-sm">
+            <p className="truncate">
+              <span className="text-ink-muted">Sent by </span>
+              <span className="font-medium">{pupil.parent.name}</span>
+            </p>
+            <p className="mt-0.5 flex flex-wrap gap-x-3 text-xs">
+              <a href={`tel:${pupil.parent.phone}`} className="font-medium text-brand-600 hover:text-brand-700">
+                {pupil.parent.phone}
+              </a>
+              <a href={`mailto:${pupil.parent.email}`} className="min-w-0 truncate font-medium text-brand-600 hover:text-brand-700">
+                {pupil.parent.email}
+              </a>
+            </p>
+          </div>
+        )}
       </div>
 
       <dl className="mt-4 space-y-1.5 text-sm">

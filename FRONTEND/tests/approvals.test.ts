@@ -7,6 +7,7 @@ const ada: Pupil = {
   id: 4,
   school_id: 1,
   parent_id: 9,
+  parent: { id: 9, name: "Ngozi Okafor", email: "ngozi@example.com", phone: "+2348000000001" },
   first_name: "Ada",
   last_name: "Okafor",
   photo_url: null,

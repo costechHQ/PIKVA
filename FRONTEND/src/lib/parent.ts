@@ -6,11 +6,15 @@
  * pupils; nothing here filters for security.
  */
 
+export type PupilParent = { id: number; name: string; email: string; phone: string };
+
 /** A pupil as GET /api/v1/pupils returns it. */
 export type Pupil = {
   id: number;
   school_id: number;
   parent_id: number;
+  /** The pupil's parent, for school staff to contact the family (SRS 8). */
+  parent: PupilParent;
   first_name: string;
   last_name: string;
   photo_url: string | null;

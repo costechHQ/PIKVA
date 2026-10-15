@@ -135,6 +135,7 @@ describe("pupilChanges", () => {
     id: 4,
     school_id: 1,
     parent_id: 2,
+    parent: { id: 2, name: "Ngozi Okafor", email: "ngozi@example.com", phone: "+2348000000001" },
     first_name: "Ada",
     last_name: "Okafor",
     photo_url: null,
