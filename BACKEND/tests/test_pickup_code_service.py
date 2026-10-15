@@ -785,6 +785,8 @@ async def test_history_parent_scope_and_pupil_filter(session):
     )
 
     assert len(own) == 2
+    assert all(item.verified_by is None for item in own)  # SRS 18.9: staff hidden from parents
+    assert all(item.verified_by is not None for item in filtered)
     assert not_parent == []
     assert len(filtered) == 2
     assert other_pupil == []

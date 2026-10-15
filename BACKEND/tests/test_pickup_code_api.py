@@ -526,6 +526,12 @@ async def test_gate_releases_pupil_after_verification(client, school):
     assert item["verification_method"] == "qr"
     assert item["result"] == "released"
 
+    # The parent sees the same release but not who released the pupil (SRS 18.9).
+    [parent_item] = await history(client, school["headers"]["parent"])
+    assert parent_item["id"] == released["release_id"]
+    assert parent_item["verified_by"] is None
+    assert "alpha gate_staff" not in json.dumps(parent_item)
+
     async with async_session() as session:
         audit = (
             await session.execute(

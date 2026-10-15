@@ -222,7 +222,7 @@ export function RecentPickups({ releases, showStaff = false }: { releases: Relea
                 <p className="truncate text-sm font-medium">Picked up by {release.authorisation.picker_name}</p>
                 <p className="truncate text-xs text-ink-muted">
                   {release.authorisation.relationship} · {release.verification_method === "qr" ? "QR code" : "Code entered"}
-                  {showStaff && ` · released by ${release.verified_by.name}`}
+                  {showStaff && release.verified_by && ` · released by ${release.verified_by.name}`}
                 </p>
               </div>
               {now ? (

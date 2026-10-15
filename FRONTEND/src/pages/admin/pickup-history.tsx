@@ -174,7 +174,7 @@ function ReleaseDays({ releases }: { releases: Release[] }) {
                       <span className="block">{release.authorisation.picker_name}</span>
                       <span className="block text-xs text-ink-muted">{release.authorisation.relationship}</span>
                     </td>
-                    <td className="px-4 py-3 text-ink-muted">{release.verified_by.name}</td>
+                    <td className="px-4 py-3 text-ink-muted">{release.verified_by?.name ?? "—"}</td>
                     <td className="px-4 py-3">
                       <span className="inline-flex rounded-full bg-success-50 px-2.5 py-0.5 text-xs font-medium text-success-600">
                         {release.verification_method === "qr" ? "QR code" : "Code entered"}

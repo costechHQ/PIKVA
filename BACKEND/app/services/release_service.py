@@ -117,8 +117,8 @@ async def list_release_history(
     """List accessible releases, newest first.
 
     Every query is limited to the caller's school; when parent_id is given it
-    is also limited to that parent's pupils. Pass parent_id=None only for
-    school-wide staff roles.
+    is also limited to that parent's pupils, and the releasing staff member
+    is left out. Pass parent_id=None only for school-wide staff roles.
     """
 
     query = (
@@ -146,7 +146,8 @@ async def list_release_history(
             id=release.id,
             pupil=GatePupil.model_validate(pupil),
             authorisation=GatePicker.model_validate(authorisation),
-            verified_by=ReleaseStaff.model_validate(staff),
+            # Parents are not told which staff member released the pupil (SRS 18.9).
+            verified_by=ReleaseStaff.model_validate(staff) if parent_id is None else None,
             verification_method=release.verification_method,
             result=release.result,
             released_at=release.released_at,

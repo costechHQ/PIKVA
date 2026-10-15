@@ -39,12 +39,16 @@ class ReleaseStaff(BaseModel):
 
 
 class ReleaseHistoryItem(BaseModel):
-    """Define one release in the history (SRS 12, 18.8)."""
+    """Define one release in the history (SRS 12, 18.8).
+
+    verified_by is None for parents, who are never told which staff member
+    released their pupil (SRS 18.9).
+    """
 
     id: int
     pupil: GatePupil
     authorisation: GatePicker
-    verified_by: ReleaseStaff
+    verified_by: ReleaseStaff | None
     verification_method: VerificationMethod
     result: ReleaseResult
     released_at: datetime

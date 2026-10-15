@@ -112,7 +112,8 @@ function Dashboard({ data }: { data: Data }) {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{pupilName(release.pupil)}</p>
                     <p className="truncate text-xs text-ink-muted">
-                      by {release.authorisation.picker_name} · released by {release.verified_by.name}
+                      by {release.authorisation.picker_name}
+                      {release.verified_by && ` · released by ${release.verified_by.name}`}
                     </p>
                   </div>
                   <time dateTime={release.released_at} className="shrink-0 text-xs font-medium text-ink-muted">

@@ -48,7 +48,8 @@ export type Release = {
   id: number;
   pupil: { id: number; first_name: string; last_name: string; photo_url: string | null };
   authorisation: { id: number; picker_name: string; relationship: string; photo_url: string | null };
-  verified_by: { id: number; name: string };
+  /** The releasing staff member; null for parents, who are never told (SRS 18.9). */
+  verified_by: { id: number; name: string } | null;
   verification_method: "qr" | "manual";
   result: "released";
   released_at: string;
