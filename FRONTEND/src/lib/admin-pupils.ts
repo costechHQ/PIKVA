@@ -29,7 +29,7 @@ export function searchPupils(pupils: readonly Pupil[], search: string): Pupil[] 
 }
 
 /** Lower case without accents, so "chidi" finds "Chídí". */
-function fold(text: string): string {
+export function fold(text: string): string {
   return text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 }
 
