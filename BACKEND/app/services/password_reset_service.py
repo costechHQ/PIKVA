@@ -37,14 +37,15 @@ async def request_password_reset(
 ) -> PasswordResetRequest | None:
     """Create a reset token for the account with this email, if any.
 
-    Returns None for an unknown email; the caller must answer the same way
+    Returns None for an unknown email or a deactivated account; the caller must answer the same way
     either way. Older unused tokens for the user are cancelled, only the
     token's hash is stored, and the request is audited. Commits.
     """
 
     user = await session.scalar(select(User).where(User.email == email))
 
-    if user is None:
+    # A deactivated account gets no link either, answered the same way (SRS 6.7).
+    if user is None or not user.is_active:
         return None
 
     request = await issue_password_reset_token(session, user)

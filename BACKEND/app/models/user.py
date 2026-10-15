@@ -40,15 +40,27 @@ class User(Base):
         nullable=True,
     )
 
+    # Set when a school admin deactivates the account (SRS 6.7); None means active.
+    deactivated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
-    
+
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
+
+    @property
+    def is_active(self) -> bool:
+        """Return whether the account may sign in and use the API."""
+
+        return self.deactivated_at is None

@@ -31,6 +31,9 @@ ACCESS = {
     ("GET", "/api/v1/schools/me"): STAFF,
     ("GET", "/api/v1/schools/users"): STAFF,
     ("POST", "/api/v1/schools/users"): STAFF,
+    ("PATCH", "/api/v1/schools/users/{user_id}"): STAFF,
+    ("POST", "/api/v1/schools/users/{user_id}/deactivate"): STAFF,
+    ("POST", "/api/v1/schools/users/{user_id}/activate"): STAFF,
     ("GET", "/api/v1/pupils"): MANAGERS,
     ("POST", "/api/v1/pupils"): MANAGERS,
     ("GET", "/api/v1/pupils/{pupil_id}"): MANAGERS,
@@ -77,7 +80,7 @@ async def test_role_restrictions(client, school, method, path):
     """Wrong roles get 403, no token gets 401, allowed roles get past both."""
 
     # Unknown IDs and empty bodies keep allowed calls from changing any data.
-    url = path.format(pupil_id=999999, authorisation_id=999999, alert_id=999999)
+    url = path.format(pupil_id=999999, authorisation_id=999999, alert_id=999999, user_id=999999)
     body = {} if method in ("POST", "PATCH") else None
 
     response = await client.request(method, url, json=body)
@@ -458,7 +461,7 @@ async def test_admin_lists_school_users_by_role(client, school):
 
     assert [u["role"] for u in everyone.json()] == ["school_admin", "gate_staff", "parent", "parent"]
     assert [u["name"] for u in parents.json()] == ["alpha parent", "zara Parent"]
-    assert set(parents.json()[0]) == {"id", "school_id", "name", "email", "phone", "role"}
+    assert set(parents.json()[0]) == {"id", "school_id", "name", "email", "phone", "role", "is_active"}
     assert all(u["school_id"] == school["school_id"] for u in everyone.json())
 
 

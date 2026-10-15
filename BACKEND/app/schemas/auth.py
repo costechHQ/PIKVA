@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 from app.models.user import UserRole
 from app.schemas.fields import Address, Name, Password, Phone, ResetToken
 
@@ -25,6 +25,12 @@ class UserResponse(BaseModel):
     email: EmailStr
     phone: str
     role: str
+
+
+class SchoolUserResponse(UserResponse):
+    """Define a school user as admins see them (SRS 6.7), including whether they are active."""
+
+    is_active: bool
 
 
 class CurrentUserResponse(UserResponse):
@@ -60,6 +66,29 @@ class SchoolUserCreate(BaseModel):
     email: EmailStr = Field(examples=["parent@sunrise-school.example"])
     phone: Phone = Field(examples=["07000000000"])
     role: UserRole
+
+
+class SchoolUserUpdate(BaseModel):
+    """Define the details an admin may change on a school user (SRS 6.7).
+
+    Only name, email and phone; role and password are never changed here,
+    and unknown fields are rejected.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: Name | None = None
+    email: EmailStr | None = None
+    phone: Phone | None = None
+
+    @model_validator(mode="after")
+    def reject_nulls(self) -> "SchoolUserUpdate":
+        """Reject an explicit null; leave a field out to keep it."""
+
+        null_fields = sorted(field for field in self.model_fields_set if getattr(self, field) is None)
+        if null_fields:
+            raise ValueError(f"Fields cannot be null: {', '.join(null_fields)}")
+        return self
 
 
 class PasswordResetEmail(BaseModel):

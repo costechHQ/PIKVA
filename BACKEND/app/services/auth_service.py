@@ -12,6 +12,8 @@ from app.models.user import User, UserRole
 from app.schemas.auth import UserLogin, UserRegister
 from app.services.audit_service import USER_CREATED, record_audit
 
+ACCOUNT_DEACTIVATED = "This account has been deactivated. Contact your school."
+
 
 async def register_school_admin(
         session: AsyncSession,
@@ -80,6 +82,10 @@ async def login_user(
 
     if not await verify_password(data.password, user.password_hash):
         raise ValueError("Invalid email or password")
+
+    # Only after the right password, so it reveals nothing to a guesser (SRS 6.7).
+    if not user.is_active:
+        raise ValueError(ACCOUNT_DEACTIVATED)
 
     access_token = create_access_token(str(user.id))
 

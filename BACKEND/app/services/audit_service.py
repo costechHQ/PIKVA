@@ -9,6 +9,9 @@ from app.schemas.audit_log import AuditActor, AuditLogResponse
 
 # Audit actions (SRS 14).
 USER_CREATED = "user.created"
+USER_UPDATED = "user.updated"
+USER_DEACTIVATED = "user.deactivated"
+USER_ACTIVATED = "user.activated"
 PUPIL_CREATED = "pupil.created"
 PUPIL_UPDATED = "pupil.updated"
 AUTHORISATION_CREATED = "pickup_authorisation.created"

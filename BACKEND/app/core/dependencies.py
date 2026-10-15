@@ -55,6 +55,13 @@ async def get_current_user(
             detail="Invalid or expired token",
         )
 
+    # A deactivated account's sessions stop working at once (SRS 6.7).
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+        )
+
     return user
 
 
