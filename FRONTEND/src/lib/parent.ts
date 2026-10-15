@@ -180,3 +180,71 @@ export function localIsoDate(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
+
+/** Pickup history page size (FastAPI allows up to 200). */
+export const HISTORY_PAGE_SIZE = 25;
+
+/** The ?pupil= filter when it is one of the parent's pupils, else null (all pupils). */
+export function parsePupilFilter(value: unknown, pupils: readonly Pupil[]): number | null {
+  if (typeof value !== "string" || !/^\d{1,9}$/.test(value)) return null;
+  const id = Number(value);
+  return pupils.some((pupil) => pupil.id === id) ? id : null;
+}
+
+/**
+ * FastAPI path for one history page. Asks for one extra row: if it comes
+ * back there is a next page (FastAPI sends no total count).
+ */
+export function historyApiPath(pupilId: number | null, page: number): string {
+  const params = new URLSearchParams({
+    limit: String(HISTORY_PAGE_SIZE + 1),
+    offset: String((page - 1) * HISTORY_PAGE_SIZE),
+  });
+  if (pupilId !== null) params.set("pupil_id", String(pupilId));
+  return `releases?${params}`;
+}
+
+/** Link to /parent/pickup-history with this filter and page, leaving out defaults. */
+export function historyHref(pupilId: number | null, page: number): string {
+  const params = new URLSearchParams();
+  if (pupilId !== null) params.set("pupil", String(pupilId));
+  if (page > 1) params.set("page", String(page));
+  const query = params.toString();
+  return query ? `/parent/pickup-history?${query}` : "/parent/pickup-history";
+}
+
+export type ReleaseDay = { key: string; label: string; releases: Release[] };
+
+/**
+ * Group releases (newest first) by calendar day in the viewer's time zone:
+ * "Today", "Yesterday", then dates such as "Monday 13 October". Browser only.
+ */
+export function groupReleasesByDay(releases: readonly Release[], now: Date): ReleaseDay[] {
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  const days: ReleaseDay[] = [];
+
+  for (const release of releases) {
+    const date = new Date(release.released_at);
+    const key = localIsoDate(date);
+    let day = days[days.length - 1];
+
+    if (!day || day.key !== key) {
+      const label =
+        key === localIsoDate(now)
+          ? "Today"
+          : key === localIsoDate(yesterday)
+            ? "Yesterday"
+            : date.toLocaleDateString(undefined, {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                ...(date.getFullYear() === now.getFullYear() ? {} : { year: "numeric" }),
+              });
+      day = { key, label, releases: [] };
+      days.push(day);
+    }
+    day.releases.push(release);
+  }
+
+  return days;
+}

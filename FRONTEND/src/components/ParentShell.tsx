@@ -134,7 +134,7 @@ export function ParentShell({ user, title, subtitle, tabTitle, children }: Paren
                     }`}
                   >
                     <Icon name={item.icon} />
-                    {item.label}
+                    {item.short ?? item.label}
                   </Link>
                 </li>
               );

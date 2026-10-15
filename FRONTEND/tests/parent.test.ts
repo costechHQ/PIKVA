@@ -7,6 +7,10 @@ import {
   type Release,
   activePeopleByPupil,
   formatDate,
+  groupReleasesByDay,
+  historyApiPath,
+  historyHref,
+  parsePupilFilter,
   isWebPhoto,
   localIsoDate,
   pupilChanges,
@@ -157,4 +161,53 @@ describe("pupilChanges", () => {
 
 test("localIsoDate pads month and day", () => {
   expect(localIsoDate(new Date(2026, 0, 5))).toBe("2026-01-05");
+});
+
+describe("pickup history paging", () => {
+  const pupils = [{ id: 4 }, { id: 9 }] as Pupil[];
+
+  test("accepts only the parent's own pupil ids", () => {
+    expect(parsePupilFilter("4", pupils)).toBe(4);
+    expect(parsePupilFilter("5", pupils)).toBeNull();
+    expect(parsePupilFilter("4&limit=500", pupils)).toBeNull();
+    expect(parsePupilFilter(["4", "9"], pupils)).toBeNull();
+    expect(parsePupilFilter(undefined, pupils)).toBeNull();
+  });
+
+  test("asks FastAPI for one extra row at the right offset", () => {
+    expect(historyApiPath(null, 1)).toBe("releases?limit=26&offset=0");
+    expect(historyApiPath(4, 3)).toBe("releases?limit=26&offset=50&pupil_id=4");
+  });
+
+  test("links leave out defaults", () => {
+    expect(historyHref(null, 1)).toBe("/parent/pickup-history");
+    expect(historyHref(4, 2)).toBe("/parent/pickup-history?pupil=4&page=2");
+  });
+});
+
+describe("groupReleasesByDay", () => {
+  test("labels today and yesterday and keeps the API order", () => {
+    const days = groupReleasesByDay(
+      [
+        release(5, 1, localIso(15, 15)),
+        release(4, 2, localIso(15, 9)),
+        release(3, 1, localIso(14, 15)),
+        release(2, 1, localIso(10, 15)),
+        release(1, 1, localIso(10, 9)),
+      ],
+      NOW,
+    );
+
+    expect(days.map((day) => [day.key, day.releases.map((r) => r.id)])).toEqual([
+      ["2026-10-15", [5, 4]],
+      ["2026-10-14", [3]],
+      ["2026-10-10", [2, 1]],
+    ]);
+    expect(days[0].label).toBe("Today");
+    expect(days[1].label).toBe("Yesterday");
+  });
+
+  test("an empty list has no days", () => {
+    expect(groupReleasesByDay([], NOW)).toEqual([]);
+  });
 });

@@ -99,9 +99,14 @@ function Overview({ data }: { data: Data }) {
         </section>
 
         <section aria-labelledby="today-heading">
-          <h2 id="today-heading" className="text-lg font-semibold">
-            Today&apos;s pickups
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 id="today-heading" className="text-lg font-semibold">
+              Today&apos;s pickups
+            </h2>
+            <Link href="/parent/pickup-history" className="text-sm font-medium text-brand-600 hover:text-brand-700">
+              View history
+            </Link>
+          </div>
           <div className="mt-4 rounded-2xl border border-line bg-card">
             {today === null ? (
               <div className="space-y-3 p-5">
