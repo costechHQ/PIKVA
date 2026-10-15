@@ -1,8 +1,13 @@
 from datetime import date, datetime, timezone
-from sqlalchemy.orm import Mapped, mapped_column
+from typing import TYPE_CHECKING
+
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import Date, DateTime, ForeignKey, String
 
 from app.db.base import Base
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 
 class Pupil(Base):
@@ -20,6 +25,10 @@ class Pupil(Base):
         ForeignKey("users.id"),
         nullable=False,
     )
+
+    # Never loaded implicitly (async sessions cannot lazy load): queries that
+    # need it load it explicitly, and any other access raises.
+    parent: Mapped["User"] = relationship(lazy="raise")
 
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
 

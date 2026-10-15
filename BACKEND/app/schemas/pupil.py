@@ -14,6 +14,17 @@ class PupilCreate(BaseModel):
     # Required for school admins (the pupil's parent); parents must omit it.
     parent_id: int | None = None
 
+class PupilParent(BaseModel):
+    """The pupil's parent, so school staff can contact the family (SRS 8)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    email: str
+    phone: str
+
+
 class PupilResponse(BaseModel):
     """Define the safe pupil data returned by the API."""
 
@@ -22,6 +33,7 @@ class PupilResponse(BaseModel):
     id: int
     school_id: int
     parent_id: int
+    parent: PupilParent
     first_name: str
     last_name: str
     photo_url: str | None

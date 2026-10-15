@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import Select, select
+from sqlalchemy.orm import selectinload
 
 from app.models.pupil import Pupil
 from app.models.user import User, UserRole
@@ -63,10 +64,11 @@ async def create_pupil(
         metadata={"parent_id": owner_id},
     )
 
+    pupil_id = pupil.id
     await session.commit()
-    await session.refresh(pupil)
 
-    return pupil
+    # Re-read so the response includes the parent summary.
+    return await get_pupil(session, school_id, None, pupil_id)
 
 
 def _scoped_pupils(school_id: int, parent_id: int | None) -> Select[tuple[Pupil]]:
@@ -74,10 +76,10 @@ def _scoped_pupils(school_id: int, parent_id: int | None) -> Select[tuple[Pupil]
 
     Every query is limited to the caller's school; when parent_id is given it
     is also limited to that parent's pupils. Pass parent_id=None only for
-    school-wide staff roles.
+    school-wide staff roles. Loads each pupil's parent for the response.
     """
 
-    query = select(Pupil).where(Pupil.school_id == school_id)
+    query = select(Pupil).options(selectinload(Pupil.parent)).where(Pupil.school_id == school_id)
 
     if parent_id is not None:
         query = query.where(Pupil.parent_id == parent_id)
@@ -165,5 +167,6 @@ async def update_pupil(
     )
 
     await session.commit()
-    await session.refresh(pupil)
-    return pupil
+
+    # Re-read so the response includes the parent summary.
+    return await get_pupil(session, school_id, parent_id, pupil_id)
