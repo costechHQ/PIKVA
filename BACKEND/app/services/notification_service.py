@@ -1,4 +1,5 @@
 import logging
+import re
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -10,6 +11,9 @@ logger = logging.getLogger(__name__)
 
 RESEND_API_URL = "https://api.resend.com/emails"
 RESEND_TIMEOUT_SECONDS = 10
+
+# Resend's error codes are short snake_case words; anything else is not logged.
+_ERROR_NAME = re.compile(r"[a-z_]{1,50}")
 
 
 @dataclass(frozen=True)
@@ -93,6 +97,24 @@ def get_email_sender() -> EmailSender:
     )
 
 
+def resend_error_name(response: httpx.Response) -> str:
+    """Return Resend's error code (such as validation_error), or "unknown".
+
+    Only the short code is used, never Resend's message: it can contain
+    email addresses (SRS 28).
+    """
+
+    try:
+        name = response.json().get("name")
+    except (ValueError, AttributeError):
+        return "unknown"
+
+    if isinstance(name, str) and _ERROR_NAME.fullmatch(name):
+        return name
+
+    return "unknown"
+
+
 async def send_email_safely(
         message: EmailMessage,
         sender: EmailSender | None = None,
@@ -110,7 +132,9 @@ async def send_email_safely(
         await (sender or get_email_sender()).send(message)
 
     except httpx.HTTPStatusError as exc:
-        logger.error("Email delivery failed: HTTP %d", exc.response.status_code)
+        status = exc.response.status_code
+        hint = " (is EMAIL_FROM on a domain verified in Resend?)" if status == 403 else ""
+        logger.error("Email delivery failed: HTTP %d (%s)%s", status, resend_error_name(exc.response), hint)
         return False
 
     except Exception as exc:

@@ -4,6 +4,7 @@ import json
 import logging
 
 import httpx
+import pytest
 from pydantic import SecretStr
 
 from app.core.config import settings
@@ -67,6 +68,41 @@ async def test_rejected_email_is_logged_without_secrets(caplog):
     assert "HTTP 422" in caplog.text
     for secret in ("re_test_key", "admin@example.com", "used twice"):
         assert secret not in caplog.text
+
+
+async def test_rejection_logs_resend_error_code_but_never_its_message(caplog):
+    """The sandbox refusal names Resend's code and a hint; its message (with an address) is dropped."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(403, json={
+            "statusCode": 403,
+            "name": "validation_error",
+            "message": "You can only send testing emails to your own email address (owner@example.com).",
+        })
+
+    with caplog.at_level(logging.ERROR):
+        assert await send_email_safely(MESSAGE, resend_with(handler)) is False
+
+    assert "HTTP 403 (validation_error)" in caplog.text
+    assert "verified in Resend" in caplog.text
+    assert "owner@example.com" not in caplog.text
+    assert "testing emails" not in caplog.text
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        httpx.Response(500, text="<html>Internal error</html>"),
+        httpx.Response(400, json=["not", "an", "object"]),
+        httpx.Response(400, json={"name": "Contact owner@example.com"}),
+        httpx.Response(400, json={"name": 42}),
+    ],
+    ids=["not-json", "list", "name-with-text", "name-not-text"],
+)
+def test_odd_error_bodies_log_unknown(response):
+    """Anything but a short code is reported as unknown."""
+
+    assert notification_service.resend_error_name(response) == "unknown"
 
 
 async def test_network_failure_never_raises(caplog):
