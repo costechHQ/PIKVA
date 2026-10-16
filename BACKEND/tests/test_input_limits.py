@@ -47,7 +47,6 @@ TOO_LONG = [
     ("picker", "picker_phone", "1" * 31),
     ("picker", "relationship", "x" * 51),
     ("picker", "type", "x" * 51),
-    ("picker", "photo_url", "https://e.com/" + "x" * 490),
     ("pupil_patch", "first_name", "x" * 101),
     ("picker_patch", "relationship", "x" * 51),
 ]
@@ -136,6 +135,17 @@ async def test_pupil_update_rejects_null_required_field(client, school, field):
     response = await send(client, school, "pupil_patch", field, None)
 
     assert response.status_code == 422
+
+
+@pytest.mark.parametrize("target", ["picker", "picker_patch"])
+async def test_picker_photo_link_is_not_stored(client, school, target):
+    """Pickup person photos are uploads only (SRS 9.3); a link is ignored."""
+
+    response = await send(client, school, target, "photo_url", "https://e.com/me.jpg")
+
+    assert response.status_code in (200, 201)
+    assert "photo_url" not in response.json()
+    assert response.json()["photo_updated_at"] is None
 
 
 async def test_pupil_update_allows_clearing_photo(client, school):

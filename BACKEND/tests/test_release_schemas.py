@@ -24,7 +24,7 @@ def records():
     )
     authorisation = PickupAuthorisation(
         id=3, pupil_id=7, picker_name="Aunt Ada", picker_phone="0722222222",
-        relationship="aunt", photo_url=None, type="regular",
+        relationship="aunt", photo_updated_at=None, type="regular",
     )
     staff = User(
         id=9, school_id=1, name="Gate Ike", email="ike@example.com",

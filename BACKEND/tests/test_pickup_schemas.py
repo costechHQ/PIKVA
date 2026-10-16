@@ -58,7 +58,7 @@ def test_verify_response_exposes_only_minimal_details():
     )
     authorisation = PickupAuthorisation(
         id=3, pupil_id=7, picker_name="Aunt Ada", picker_phone="0722222222",
-        relationship="aunt", photo_url=None, type="regular",
+        relationship="aunt", photo_updated_at=None, type="regular",
     )
 
     body = PickupVerifyResponse(
@@ -71,7 +71,7 @@ def test_verify_response_exposes_only_minimal_details():
 
     assert body["verified"] is True
     assert set(body["pupil"]) == {"id", "first_name", "last_name", "photo_url"}
-    assert set(body["authorisation"]) == {"id", "picker_name", "relationship", "photo_url"}
+    assert set(body["authorisation"]) == {"id", "picker_name", "relationship", "photo_updated_at"}
 
 
 def test_verify_response_failure_is_not_verified():

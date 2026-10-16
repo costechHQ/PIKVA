@@ -338,7 +338,7 @@ async def test_gate_verifies_valid_code(client, school, method):
         "id": school["authorisation_id"],
         "picker_name": "Aunt Ada",
         "relationship": "aunt",
-        "photo_url": None,
+        "photo_updated_at": None,
     }
     assert await alerts(school["school_id"]) == []
     assert await check(school["school_id"], issued["code"]) == PickupCodeCheckResult.VALID

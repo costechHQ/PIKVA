@@ -86,7 +86,8 @@ class GatePicker(BaseModel):
     id: int
     picker_name: str
     relationship: str
-    photo_url: str | None
+    # None = no photo; the image is GET /pickers/{id}/photo (SRS 9.3).
+    photo_updated_at: datetime | None
 
 
 class PickupRefuseResponse(BaseModel):

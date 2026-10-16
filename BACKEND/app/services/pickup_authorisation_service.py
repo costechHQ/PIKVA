@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 
 from sqlalchemy import Select, select, update
@@ -14,10 +15,15 @@ from app.services.audit_service import (
     AUTHORISATION_APPROVED,
     AUTHORISATION_CREATED,
     AUTHORISATION_DEACTIVATED,
+    AUTHORISATION_PHOTO_REMOVED,
+    AUTHORISATION_PHOTO_UPDATED,
     AUTHORISATION_UPDATED,
     record_audit,
 )
+from app.services.photo_service import PhotoStorage
 from app.services.pupil_service import get_parent_pupil_by_id
+
+logger = logging.getLogger(__name__)
 
 async def create_pickup_authorisation(
         session: AsyncSession,
@@ -49,7 +55,6 @@ async def create_pickup_authorisation(
         picker_name = data.picker_name,
         picker_phone = data.picker_phone,
         relationship = data.relationship,
-        photo_url = data.photo_url,
         type = data.type,
         starts_at = data.starts_at,
         expires_at = data.expires_at,
@@ -232,6 +237,107 @@ async def set_pickup_authorisation_active(
     await session.refresh(authorisation)
 
     return authorisation
+
+
+async def set_pickup_authorisation_photo(
+        session: AsyncSession,
+        school_id: int,
+        parent_id: int,
+        authorisation_id: int,
+        photo: bytes | None,
+        storage: PhotoStorage,
+) -> PickupAuthorisation | None:
+    """Replace (photo given) or remove (None) a parent's pickup person photo (SRS 9.3).
+
+    photo must already be cleaned by process_photo. A new photo or a removal
+    is a parent change, so an approved person needs approval again (SRS 9.2).
+    The old file is deleted only after the change is saved.
+    """
+
+    authorisation = await get_pickup_authorisation(
+        session=session,
+        school_id=school_id,
+        parent_id=parent_id,
+        authorisation_id=authorisation_id,
+    )
+
+    if authorisation is None:
+        return None
+
+    old_key = authorisation.photo_key
+
+    # Removing a photo that is not there changes nothing.
+    if photo is None and old_key is None:
+        return authorisation
+
+    new_key = await storage.save(photo) if photo is not None else None
+
+    authorisation.photo_key = new_key
+    authorisation.photo_updated_at = datetime.now(timezone.utc) if new_key else None
+    approval_reset = _reset_approval_if_parent(authorisation, parent_id, changed=True)
+
+    await record_audit(
+        session=session,
+        school_id=school_id,
+        user_id=parent_id,
+        action=AUTHORISATION_PHOTO_UPDATED if new_key else AUTHORISATION_PHOTO_REMOVED,
+        entity_type="pickup_authorisation",
+        entity_id=authorisation.id,
+        metadata={"pupil_id": authorisation.pupil_id, "approval_reset": approval_reset},
+    )
+
+    try:
+        await session.commit()
+    except Exception:
+        # Not saved: the new file belongs to nothing.
+        if new_key is not None:
+            await storage.delete(new_key)
+        raise
+
+    if old_key is not None:
+        await _delete_photo_quietly(storage, old_key)
+
+    await session.refresh(authorisation)
+
+    return authorisation
+
+
+async def _delete_photo_quietly(storage: PhotoStorage, key: str) -> None:
+    """Delete a replaced photo; a failure is logged, never raised.
+
+    The change is already saved, so a leftover file only wastes space.
+    """
+
+    try:
+        await storage.delete(key)
+    except Exception as exc:
+        logger.error("Old pickup person photo not deleted: %s", type(exc).__name__)
+
+
+async def get_pickup_authorisation_photo(
+        session: AsyncSession,
+        school_id: int,
+        parent_id: int | None,
+        authorisation_id: int,
+        storage: PhotoStorage,
+) -> bytes | None:
+    """Return an accessible pickup person's photo, or None (SRS 9.3).
+
+    parent_id limits parents to their own pupils; staff pass None for their
+    whole school.
+    """
+
+    authorisation = await get_pickup_authorisation(
+        session=session,
+        school_id=school_id,
+        parent_id=parent_id,
+        authorisation_id=authorisation_id,
+    )
+
+    if authorisation is None or authorisation.photo_key is None:
+        return None
+
+    return await storage.read(authorisation.photo_key)
 
 
 def _reset_approval_if_parent(

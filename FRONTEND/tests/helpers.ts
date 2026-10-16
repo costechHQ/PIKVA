@@ -4,7 +4,7 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 
-export type Recorded = { method: string; path: string; headers: Headers; body: string };
+export type Recorded = { method: string; path: string; headers: Headers; body: string; bytes: Uint8Array };
 
 export type FakeBackend = {
   url: string;
@@ -20,11 +20,13 @@ export function startBackend(reply: (request: Recorded) => Response): FakeBacken
     port: 0,
     async fetch(request) {
       const url = new URL(request.url);
+      const bytes = new Uint8Array(await request.arrayBuffer());
       const recorded = {
         method: request.method,
         path: url.pathname + url.search,
         headers: request.headers,
-        body: await request.text(),
+        body: new TextDecoder().decode(bytes),
+        bytes,
       };
       requests.push(recorded);
       return reply(recorded);
@@ -51,8 +53,15 @@ export function fakeRequest(init: {
   query?: Record<string, string | string[]>;
   url?: string;
   ip?: string;
+  /** A raw body read as a stream, for routes with bodyParser off. */
+  stream?: Uint8Array[];
 }): NextApiRequest {
+  const chunks = init.stream ?? [];
+
   return {
+    async *[Symbol.asyncIterator]() {
+      for (const chunk of chunks) yield Buffer.from(chunk);
+    },
     method: init.method,
     url: init.url ?? "/",
     body: init.body,
@@ -67,6 +76,8 @@ export type FakeResponse = NextApiResponse & {
   statusCode: number;
   headers: Record<string, string>;
   body: string;
+  /** What send() was given, for byte responses. */
+  sent: unknown;
 };
 
 /** Build a NextApiResponse that records status, headers and body. */
@@ -75,6 +86,7 @@ export function fakeResponse(): FakeResponse {
     statusCode: 200,
     headers: {} as Record<string, string>,
     body: "",
+    sent: undefined as unknown,
     status(code: number) {
       res.statusCode = code;
       return res;
@@ -88,8 +100,9 @@ export function fakeResponse(): FakeResponse {
       res.body = JSON.stringify(value);
       return res;
     },
-    send(value: string) {
-      res.body = value;
+    send(value: string | Buffer) {
+      res.sent = value;
+      res.body = typeof value === "string" ? value : "";
       return res;
     },
     end() {

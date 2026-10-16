@@ -4,7 +4,7 @@ from typing import Annotated
 from pydantic import AfterValidator, AwareDatetime, BaseModel, ConfigDict, model_validator
 
 from app.models.pickup_authorisation import AuthorisationStatus
-from app.schemas.fields import Label, Name, Phone, PhotoUrl
+from app.schemas.fields import Label, Name, Phone
 
 
 def normalise_to_utc(value: datetime) -> datetime:
@@ -23,7 +23,6 @@ class PickupAuthorisationCreate(BaseModel):
     picker_name: Name
     picker_phone: Phone
     relationship: Label
-    photo_url: PhotoUrl | None = None
     type: Label
     starts_at: UtcDatetime
     expires_at: UtcDatetime
@@ -35,7 +34,6 @@ class PickupAuthorisationUpdate(BaseModel):
     picker_name: Name | None = None
     picker_phone: Phone | None = None
     relationship: Label | None = None
-    photo_url: PhotoUrl | None = None
     type: Label | None = None
     starts_at: UtcDatetime | None = None
     expires_at: UtcDatetime | None = None
@@ -46,7 +44,7 @@ class PickupAuthorisationUpdate(BaseModel):
 
         null_fields = sorted(
             field for field in self.model_fields_set
-            if field != "photo_url" and getattr(self, field) is None
+            if getattr(self, field) is None
         )
 
         if null_fields:
@@ -73,7 +71,8 @@ class PickupAuthorisationResponse(BaseModel):
     picker_name: str
     picker_phone: str
     relationship: str
-    photo_url: str | None
+    # None = no photo; the image itself is GET /pickers/{id}/photo (SRS 9.3).
+    photo_updated_at: datetime | None
     type: str
     starts_at: datetime
     expires_at: datetime

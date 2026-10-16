@@ -9,6 +9,9 @@ web app has its own checklist: `../FRONTEND/DEPLOYMENT.md`.
 - [ ] PostgreSQL 16 with its own database and a dedicated user (not a superuser).
 - [ ] PostgreSQL reachable only from the API host (SRS 27 "restrict unauthorized access").
 - [ ] Automated PostgreSQL backups, and one restore actually tested.
+- [ ] `PHOTO_STORAGE_DIR` on a persistent disk, backed up together with the database
+      (pickup person photos, SRS 9.3). A restore needs both, from the same time.
+      Readable only by the service user; never served by the proxy or a web server.
 - [ ] Redis 7 reachable only from the API host, never from the internet.
       Redis holds only short-lived counters, so persistence is not needed.
 - [ ] Python 3.14 and uv installed on the API host.
@@ -45,6 +48,9 @@ secret store) and set:
       `FORWARDED_ALLOW_IPS` to its address. Never use `*` unless the API is
       reachable only through the proxy, or clients can fake their IP and dodge
       the per-IP limits on login and registration.
+- [ ] The proxy allows request bodies of at least 6 MB (photo uploads are up to
+      5 MB plus form overhead; nginx `client_max_body_size 6m;`). The API itself
+      refuses larger uploads from their `Content-Length` before reading them.
 - [ ] The web app calls this API for every browser, so `FORWARDED_ALLOW_IPS` must
       also include the web host's address. Otherwise every sign-in looks like it
       comes from the web host, and one school's logins share a single IP limit.
@@ -78,6 +84,7 @@ secret store) and set:
 | `POST /auth/register` | 5 per IP per hour |
 | `POST /pickup/verify` and `/pickup/release` | 30 per gate staff member per minute, shared |
 | `POST /pickup/codes` | 10 per parent per hour |
+| `PUT` and `DELETE /pickers/{id}/photo` | 20 per user per hour, shared |
 | Security alert emails | 1 per school per 10 minutes; repeated-attempts alerts always sent |
 
 ## Known limitations (accepted for now)

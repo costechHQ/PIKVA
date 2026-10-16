@@ -94,6 +94,16 @@ describe("/api/proxy/[...path]", () => {
     expect(fake.requests).toHaveLength(0);
   });
 
+  test("refuses photo paths, which carry bytes and have their own route", async () => {
+    const fake = useBackend(() => Response.json({}));
+
+    for (const method of ["GET", "PUT", "DELETE"]) {
+      const res = await callProxy(method, ["pickers", "5", "photo"]);
+      expect(res.statusCode).toBe(404);
+    }
+    expect(fake.requests).toHaveLength(0);
+  });
+
   test("refuses unsafe path segments", async () => {
     const fake = useBackend(() => Response.json({}));
 

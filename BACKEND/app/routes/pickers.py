@@ -1,7 +1,14 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
+import asyncio
 
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
+from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.datastructures import UploadFile
+
+from app.core import rate_limit
+from app.core.constants import PHOTO_CHANGE_LIMIT, PHOTO_CHANGE_WINDOW_SECONDS
 from app.core.dependencies import get_current_user, require_role
+from app.db.redis import get_redis
 from app.db.session import get_session
 from app.models.pickup_authorisation import AuthorisationStatus, PickupAuthorisation
 from app.models.user import User, UserRole
@@ -12,18 +19,56 @@ from app.schemas.pickup_authorisation import (
     PickupAuthorisationUpdate,
 )
 from app.services.approval_notification_service import notify_approval_requested
+from app.services.photo_service import (
+    PHOTO_CONTENT_TYPE,
+    PHOTO_MAX_BYTES,
+    InvalidPhoto,
+    PhotoStorage,
+    PhotoTooLarge,
+    get_photo_storage,
+    process_photo,
+)
 from app.services.pickup_authorisation_service import (
     approve_pickup_authorisation,
     create_pickup_authorisation,
     get_pickup_authorisation,
+    get_pickup_authorisation_photo,
     list_pickup_authorisations,
     set_pickup_authorisation_active,
+    set_pickup_authorisation_photo,
     update_pickup_authorisation,
 )
 
 router = APIRouter(prefix="/pickers", tags=["Pickup authorisations"])
 
 MANAGER_ROLES = (UserRole.PARENT, UserRole.SCHOOL_ADMIN)
+PHOTO_VIEWER_ROLES = (UserRole.PARENT, UserRole.SCHOOL_ADMIN, UserRole.GATE_STAFF)
+
+# Room for the multipart boundary and headers around the photo itself.
+MULTIPART_OVERHEAD_BYTES = 64 * 1024
+
+PHOTO_TOO_LARGE = "The photo must be 5 MB or smaller"
+PHOTO_NOT_ACCEPTED = "The photo must be a JPEG, PNG or WebP image"
+
+PHOTO_UPLOAD_BODY = {
+    "requestBody": {
+        "required": True,
+        "content": {
+            "multipart/form-data": {
+                "schema": {
+                    "type": "object",
+                    "required": ["photo"],
+                    "properties": {"photo": {"type": "string", "format": "binary"}},
+                },
+            },
+        },
+    },
+}
+
+PHOTO_CHANGE_RESPONSES = {
+    **rate_limit.RATE_LIMITED_RESPONSE,
+    413: {"description": PHOTO_TOO_LARGE},
+}
 
 
 def _parent_scope(current_user: User) -> int | None:
@@ -42,6 +87,51 @@ def _found(authorisation: PickupAuthorisation | None) -> PickupAuthorisation:
         )
 
     return authorisation
+
+
+async def limit_photo_changes(
+    current_user: User = Depends(get_current_user),
+    redis: Redis = Depends(get_redis),
+) -> None:
+    """Cap photo uploads and removals per user (SRS 9.3)."""
+
+    await rate_limit.hit(
+        redis,
+        f"pikva:rl:photos:user:{current_user.id}",
+        PHOTO_CHANGE_LIMIT,
+        PHOTO_CHANGE_WINDOW_SECONDS,
+    )
+
+
+async def _read_photo_upload(request: Request) -> bytes:
+    """Return the uploaded photo's bytes, refusing oversized bodies unread.
+
+    The declared size is checked before anything is read, so a huge upload
+    is never stored, even temporarily.
+    """
+
+    declared = request.headers.get("content-length", "")
+
+    if not declared.isdigit():
+        raise HTTPException(
+            status_code=status.HTTP_411_LENGTH_REQUIRED,
+            detail="Content-Length is required",
+        )
+
+    if int(declared) > PHOTO_MAX_BYTES + MULTIPART_OVERHEAD_BYTES:
+        raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail=PHOTO_TOO_LARGE)
+
+    async with request.form(max_files=1, max_fields=0) as form:
+        upload = form.get("photo")
+
+        if not isinstance(upload, UploadFile):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Choose a photo to upload",
+            )
+
+        # One byte over the limit is enough to know it is too large.
+        return await upload.read(PHOTO_MAX_BYTES + 1)
 
 
 def _tell_admins_if_pending(
@@ -273,3 +363,124 @@ async def approve_pickup_authorisation_endpoint(
         ) from exc
 
     return _found(authorisation)
+
+
+@router.put(
+    "/{authorisation_id}/photo",
+    response_model=PickupAuthorisationResponse,
+    responses=PHOTO_CHANGE_RESPONSES,
+    openapi_extra=PHOTO_UPLOAD_BODY,
+    dependencies=[Depends(require_role(UserRole.PARENT)), Depends(limit_photo_changes)],
+)
+
+async def upload_pickup_authorisation_photo_endpoint(
+    authorisation_id: int,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    storage: PhotoStorage = Depends(get_photo_storage),
+):
+
+    """Upload or replace a pickup person's photo (SRS 9.3).
+
+    Send multipart form data with one file field, photo: JPEG, PNG or WebP,
+    at most 5 MB. It is stored as a cleaned JPEG without metadata, and an
+    approved person needs the school's approval again.
+    """
+
+    data = await _read_photo_upload(request)
+
+    try:
+        photo = await asyncio.to_thread(process_photo, data)
+
+    except PhotoTooLarge as exc:
+        raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail=PHOTO_TOO_LARGE) from exc
+
+    except InvalidPhoto as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=PHOTO_NOT_ACCEPTED,
+        ) from exc
+
+    authorisation = await set_pickup_authorisation_photo(
+        session=session,
+        school_id=current_user.school_id,
+        parent_id=current_user.id,
+        authorisation_id=authorisation_id,
+        photo=photo,
+        storage=storage,
+    )
+
+    _tell_admins_if_pending(background_tasks, current_user, authorisation)
+
+    return _found(authorisation)
+
+
+@router.delete(
+    "/{authorisation_id}/photo",
+    response_model=PickupAuthorisationResponse,
+    responses=rate_limit.RATE_LIMITED_RESPONSE,
+    dependencies=[Depends(require_role(UserRole.PARENT)), Depends(limit_photo_changes)],
+)
+
+async def remove_pickup_authorisation_photo_endpoint(
+    authorisation_id: int,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    storage: PhotoStorage = Depends(get_photo_storage),
+):
+
+    """Remove a pickup person's photo (SRS 9.3); an approved person needs approval again."""
+
+    authorisation = await set_pickup_authorisation_photo(
+        session=session,
+        school_id=current_user.school_id,
+        parent_id=current_user.id,
+        authorisation_id=authorisation_id,
+        photo=None,
+        storage=storage,
+    )
+
+    _tell_admins_if_pending(background_tasks, current_user, authorisation)
+
+    return _found(authorisation)
+
+
+@router.get(
+    "/{authorisation_id}/photo",
+    response_class=Response,
+    responses={
+        200: {"content": {PHOTO_CONTENT_TYPE: {}}, "description": "The photo as JPEG"},
+        404: {"description": "No such pickup person, or no photo"},
+    },
+    dependencies=[Depends(require_role(*PHOTO_VIEWER_ROLES))],
+)
+
+async def get_pickup_authorisation_photo_endpoint(
+    authorisation_id: int,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    storage: PhotoStorage = Depends(get_photo_storage),
+):
+
+    """Return a pickup person's photo to their parent and their school's staff (SRS 9.3)."""
+
+    photo = await get_pickup_authorisation_photo(
+        session=session,
+        school_id=current_user.school_id,
+        parent_id=_parent_scope(current_user),
+        authorisation_id=authorisation_id,
+        storage=storage,
+    )
+
+    if photo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Photo not found")
+
+    # Photos of real people: never kept by shared caches or proxies.
+    return Response(
+        content=photo,
+        media_type=PHOTO_CONTENT_TYPE,
+        headers={"Cache-Control": "private, no-store"},
+    )

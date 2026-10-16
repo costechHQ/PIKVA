@@ -33,7 +33,14 @@ class PickupAuthorisation(Base):
 
     relationship: Mapped[str] = mapped_column(String(50), nullable=False)
 
-    photo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # The uploaded photo's storage key (SRS 9.3); never sent to clients.
+    photo_key: Mapped[str | None] = mapped_column(String(32), nullable=True)
+
+    # When the current photo was uploaded; None = no photo (SRS 9.3).
+    photo_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
 
     type: Mapped[str] = mapped_column(String(50), nullable=False)
 

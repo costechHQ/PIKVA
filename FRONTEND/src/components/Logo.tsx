@@ -37,23 +37,16 @@ export function Logo({ tone = "dark", size = 32, withName = true }: LogoProps) {
   );
 }
 
+/** Cut from public/images/LOGO-PIKVA.jpg.jpeg, transparent outside the shield. */
 function ShieldMark({ size }: { size: number }) {
   return (
-    <svg width={size * 0.86} height={size} viewBox="0 0 30 35" aria-hidden="true">
-      <path
-        d="M15 1.5 27.5 6v10.2c0 8.1-5.2 14.6-12.5 17.3C7.7 30.8 2.5 24.3 2.5 16.2V6L15 1.5Z"
-        fill="#1556e0"
-        stroke="#ffffff"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M15 7.5 22.5 10.3v6.2c0 4.9-3.1 8.8-7.5 10.5-4.4-1.7-7.5-5.6-7.5-10.5v-6.2L15 7.5Z"
-        fill="none"
-        stroke="#ffffff"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <img
+      src="/images/pikva-mark.png"
+      alt=""
+      aria-hidden="true"
+      width={Math.round(size * 0.868)}
+      height={size}
+      className="shrink-0"
+    />
   );
 }

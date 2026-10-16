@@ -23,7 +23,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const segments = req.query.path;
   const parts = Array.isArray(segments) ? segments : [segments ?? ""];
 
-  if (!parts.every((part) => SAFE_SEGMENT.test(part)) || BLOCKED_FIRST_SEGMENTS.has(parts[0])) {
+  // Photos are bytes, not JSON: they go through /api/pickers/<id>/photo.
+  const isPhoto = parts.at(-1) === "photo";
+
+  if (!parts.every((part) => SAFE_SEGMENT.test(part)) || BLOCKED_FIRST_SEGMENTS.has(parts[0]) || isPhoto) {
     return res.status(404).json({ detail: "Not found" });
   }
 

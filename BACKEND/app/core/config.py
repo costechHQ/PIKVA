@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Literal
 
 from pydantic import SecretStr
@@ -23,6 +24,9 @@ class Settings(BaseSettings):
 
     # The web app's address, for links in emails (password reset, SRS 6.6).
     web_app_url: str = "http://localhost:3000"
+
+    # Uploaded pickup person photos (SRS 9.3). Must be backed up in production.
+    photo_storage_dir: Path = Path("storage/photos")
 
     model_config = SettingsConfigDict(env_file=".env")
 
