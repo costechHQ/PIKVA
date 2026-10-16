@@ -71,6 +71,58 @@ export function PupilAvatar({ pupil, size = "md" }: { pupil: Pick<Pupil, "first_
   );
 }
 
+/**
+ * A photo from this web app (or a preview of a chosen file), or the
+ * person's initials when there is none or it cannot be loaded. alt is empty
+ * when the name is shown next to it.
+ */
+export function PhotoOrInitials({
+  src,
+  name,
+  alt = "",
+  className,
+  initialsClassName,
+}: {
+  src: string | null;
+  name: string;
+  alt?: string;
+  className: string;
+  initialsClassName: string;
+}) {
+  // Keyed by src, so a new photo is tried again after an earlier one failed.
+  return <PhotoOrInitialsInner key={src ?? "none"} src={src} name={name} alt={alt} className={className} initialsClassName={initialsClassName} />;
+}
+
+function PhotoOrInitialsInner({
+  src,
+  name,
+  alt,
+  className,
+  initialsClassName,
+}: {
+  src: string | null;
+  name: string;
+  alt: string;
+  className: string;
+  initialsClassName: string;
+}) {
+  const [failed, setFailed] = useState(false);
+
+  if (src && !failed) {
+    return (
+      // Private photos through the session (or blob: previews): next/image would fetch them without the cookie context.
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={src} alt={alt} onError={() => setFailed(true)} className={`${className} object-cover`} />
+    );
+  }
+
+  return (
+    <span aria-hidden="true" className={`${className} ${initialsClassName} flex items-center justify-center font-semibold`}>
+      {initials(name)}
+    </span>
+  );
+}
+
 const STATUS_STYLE: Record<AuthorisationStatus, { label: string; className: string }> = {
   active: { label: "Active", className: "bg-success-50 text-success-600" },
   pending_approval: { label: "Awaiting approval", className: "bg-warning-50 text-warning-600" },

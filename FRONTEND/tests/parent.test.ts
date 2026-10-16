@@ -30,7 +30,7 @@ function release(id: number, pupilId: number, releasedAt: string): Release {
   return {
     id,
     pupil: { id: pupilId, first_name: "Ada", last_name: "Okafor", photo_url: null },
-    authorisation: { id: 1, picker_name: "Emeka Okafor", relationship: "Uncle", photo_url: null },
+    authorisation: { id: 1, picker_name: "Emeka Okafor", relationship: "Uncle", photo_updated_at: null },
     verified_by: { id: 9, name: "Gate Staff" },
     verification_method: "manual",
     result: "released",
@@ -47,7 +47,7 @@ function person(pupilId: number, status: PickupPerson["status"]): PickupPerson {
     picker_name: "Emeka Okafor",
     picker_phone: "+2348000000000",
     relationship: "Uncle",
-    photo_url: null,
+    photo_updated_at: null,
     type: "regular",
     starts_at: localIso(1, 8),
     expires_at: localIso(30, 8),

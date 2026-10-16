@@ -21,7 +21,7 @@ export type CheckResult =
 
 export type GatePupil = { id: number; first_name: string; last_name: string; photo_url: string | null };
 
-export type GatePicker = { id: number; picker_name: string; relationship: string; photo_url: string | null };
+export type GatePicker = { id: number; picker_name: string; relationship: string; photo_updated_at: string | null };
 
 /** POST /api/v1/pickup/verify. Pupil and pickup person only come with a valid code. */
 export type VerifyResponse = {

@@ -3,8 +3,8 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { FormError } from "@/components/AuthCard";
+import { PhotoOrInitials } from "@/components/ParentUi";
 import { type CurrentUser, requireUser } from "@/lib/auth-guard";
-import { initials } from "@/lib/format";
 import {
   CODE_LENGTH,
   type CheckResult,
@@ -19,6 +19,7 @@ import {
   parseQrData,
 } from "@/lib/gate";
 import { formatTime, isWebPhoto } from "@/lib/parent";
+import { personPhotoSrc } from "@/lib/photos";
 import { sendAsUser } from "@/lib/parent-api";
 
 type Props = { user: CurrentUser };
@@ -318,8 +319,12 @@ function ConfirmRelease({
         <p className="text-sm text-white/90">Check the person in front of you matches before releasing.</p>
       </div>
       <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-8">
-        <Person label="Pupil" name={`${pupil.first_name} ${pupil.last_name}`} photo={pupil.photo_url} />
-        <Person label="Pickup person" name={picker.picker_name} detail={picker.relationship} photo={picker.photo_url} />
+        <Person
+          label="Pupil"
+          name={`${pupil.first_name} ${pupil.last_name}`}
+          photo={isWebPhoto(pupil.photo_url) ? pupil.photo_url : null}
+        />
+        <Person label="Pickup person" name={picker.picker_name} detail={picker.relationship} photo={personPhotoSrc(picker)} />
       </div>
       <div className="space-y-3 border-t border-line p-5 sm:px-8">
         <FormError message={error} />
@@ -446,22 +451,21 @@ function NextButton({ onNext }: { onNext: () => void }) {
   );
 }
 
+/** photo is an image address (pupil photo link or the web app's picker photo route), or null. */
 function Person({ label, name, detail, photo }: { label: string; name: string; detail?: string; photo: string | null }) {
   return (
     <div className="flex flex-col items-center text-center">
       <p className="text-xs font-medium uppercase tracking-wide text-ink-muted">{label}</p>
-      {isWebPhoto(photo) ? (
-        // Photo URLs point at any host the school uses, so next/image is not used.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={photo} alt={`Photo of ${name}`} referrerPolicy="no-referrer" className="mt-3 h-28 w-28 rounded-2xl object-cover" />
-      ) : (
-        <span aria-hidden="true" className="mt-3 flex h-28 w-28 items-center justify-center rounded-2xl bg-surface text-3xl font-semibold text-ink-muted">
-          {initials(name)}
-        </span>
-      )}
+      <PhotoOrInitials
+        src={photo}
+        name={name}
+        alt={`Photo of ${name}`}
+        className="mt-3 h-28 w-28 rounded-2xl"
+        initialsClassName="bg-surface text-3xl text-ink-muted"
+      />
       <p className="mt-3 text-lg font-semibold">{name}</p>
       {detail && <p className="text-sm text-ink-muted">{detail}</p>}
-      {!isWebPhoto(photo) && <p className="mt-1 text-xs text-warning-600">No photo — check their identity another way.</p>}
+      {!photo && <p className="mt-1 text-xs text-warning-600">No photo — check their identity another way.</p>}
     </div>
   );
 }

@@ -1,12 +1,22 @@
 import type { GetServerSideProps } from "next";
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type ChangeEvent, type FormEvent, useEffect, useRef, useState } from "react";
 
 import { FormError, inputClass } from "@/components/AuthCard";
 import { ParentShell } from "@/components/ParentShell";
-import { EmptyState, Field, LoadError, PupilAvatar, Skeleton, StatusBadge, SuccessNote } from "@/components/ParentUi";
+import {
+  EmptyState,
+  Field,
+  LoadError,
+  PhotoOrInitials,
+  PupilAvatar,
+  Skeleton,
+  StatusBadge,
+  SuccessNote,
+} from "@/components/ParentUi";
 import { type CurrentUser, getAsUser, requireUser } from "@/lib/auth-guard";
 import { type PickupPerson, type Pupil, formatDateTime, pupilName } from "@/lib/parent";
-import { sendAsUser } from "@/lib/parent-api";
+import { sendAsUser, sendPhoto } from "@/lib/parent-api";
+import { PHOTO_ACCEPT, personPhotoSrc, photoFileError } from "@/lib/photos";
 import {
   type PersonForm,
   type PickupCode,
@@ -69,10 +79,14 @@ function PickupPeopleManager({ data }: { data: Data }) {
     );
   }
 
-  function saved(person: PickupPerson, message: string) {
+  function stored(person: PickupPerson) {
     setPeople((current) =>
       current.some((p) => p.id === person.id) ? current.map((p) => (p.id === person.id ? person : p)) : [...current, person],
     );
+  }
+
+  function saved(person: PickupPerson, message: string) {
+    stored(person);
     setEditor(null);
     setNotice(message);
   }
@@ -108,6 +122,7 @@ function PickupPeopleManager({ data }: { data: Data }) {
           editor={editor}
           pupils={data.pupils}
           onCancel={() => setEditor(null)}
+          onStored={stored}
           onSaved={saved}
         />
       )}
@@ -198,6 +213,12 @@ function PersonCard({
   return (
     <article className="h-full rounded-2xl border border-line bg-card p-5 shadow-sm">
       <div className="flex items-start gap-3">
+        <PhotoOrInitials
+          src={personPhotoSrc(person)}
+          name={person.picker_name}
+          className="h-12 w-12 shrink-0 rounded-full"
+          initialsClassName="bg-brand-50 text-sm text-brand-700"
+        />
         <div className="min-w-0 flex-1">
           <h3 className="truncate font-semibold">{person.picker_name}</h3>
           <p className="truncate text-sm text-ink-muted">
@@ -296,21 +317,31 @@ function PersonCard({
   );
 }
 
+/** What happens to the photo on save: nothing, a new file, or removal (SRS 9.3). */
+type PhotoChoice = { kind: "keep" } | { kind: "new"; file: File; preview: string } | { kind: "remove" };
+
 function PersonEditor({
   editor,
   pupils,
   onCancel,
+  onStored,
   onSaved,
 }: {
   editor: NonNullable<Editor>;
   pupils: Pupil[];
   onCancel: () => void;
+  /** The person was saved but the form stays open (the photo step failed). */
+  onStored: (person: PickupPerson) => void;
   onSaved: (person: PickupPerson, message: string) => void;
 }) {
-  const original = editor.kind === "edit" ? editor.person : undefined;
+  // After a new person's details are saved, the form edits that person, so
+  // trying the photo again never adds them twice.
+  const [original, setOriginal] = useState(editor.kind === "edit" ? editor.person : undefined);
+  const isNew = editor.kind === "add";
   const [form, setForm] = useState<PersonForm>(() =>
     original ? personForm(original) : emptyPersonForm(editor.kind === "add" ? editor.pupilId : null, new Date()),
   );
+  const [photo, setPhoto] = useState<PhotoChoice>({ kind: "keep" });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const panel = useRef<HTMLFormElement>(null);
@@ -318,6 +349,24 @@ function PersonEditor({
   useEffect(() => {
     panel.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
+
+  // A preview holds the chosen file in memory until it is released.
+  const preview = photo.kind === "new" ? photo.preview : null;
+  useEffect(() => (preview ? () => URL.revokeObjectURL(preview) : undefined), [preview]);
+
+  function choosePhoto(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = ""; // Choosing the same file again still counts.
+    if (!file) return;
+
+    const problem = photoFileError(file);
+    if (problem) {
+      setError(problem);
+      return;
+    }
+    setError(null);
+    setPhoto({ kind: "new", file, preview: URL.createObjectURL(file) });
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -327,28 +376,53 @@ function PersonEditor({
       setError(checked.error);
       return;
     }
-    if (original && Object.keys(checked.body).length === 0) {
+    const detailsChanged = !original || Object.keys(checked.body).length > 0;
+    if (!detailsChanged && photo.kind === "keep") {
       onCancel();
       return;
     }
 
     setError(null);
     setSaving(true);
-    const result = original
-      ? await sendAsUser<PickupPerson>(
-          `pickers/${original.id}`,
-          "PATCH",
-          checked.body,
-          "This pickup person is no longer linked to your account.",
-        )
-      : await sendAsUser<PickupPerson>("pickers", "POST", checked.body, "That pupil is not linked to your account.");
-    setSaving(false);
 
-    if (result.ok) {
-      onSaved(result.data, changeMessage(result.data, original ? "updated" : "added"));
-    } else {
-      setError(result.message);
+    let person = original;
+    if (detailsChanged) {
+      const result = original
+        ? await sendAsUser<PickupPerson>(
+            `pickers/${original.id}`,
+            "PATCH",
+            checked.body,
+            "This pickup person is no longer linked to your account.",
+          )
+        : await sendAsUser<PickupPerson>("pickers", "POST", checked.body, "That pupil is not linked to your account.");
+
+      if (!result.ok) {
+        setSaving(false);
+        setError(result.message);
+        return;
+      }
+      person = result.data;
     }
+
+    if (person && photo.kind !== "keep") {
+      const result = await sendPhoto(person.id, photo.kind === "new" ? photo.file : null);
+
+      if (!result.ok) {
+        // The details are saved; keep the form open on that person to retry the photo.
+        setSaving(false);
+        setOriginal(person);
+        setForm(personForm(person));
+        onStored(person);
+        setError(
+          `${person.picker_name}'s details were saved, but the photo ${photo.kind === "new" ? "was not uploaded" : "was not removed"}: ${result.message}`,
+        );
+        return;
+      }
+      person = result.data;
+    }
+
+    setSaving(false);
+    if (person) onSaved(person, changeMessage(person, isNew ? "added" : "updated"));
   }
 
   const update = (field: keyof PersonForm) => (event: { target: { value: string } }) =>
@@ -417,10 +491,14 @@ function PersonEditor({
           <input id="expires_at" type="datetime-local" className={inputClass} value={form.expires_at} onChange={update("expires_at")} required />
         </Field>
         <div className="sm:col-span-2">
-          <Field label="Photo link (optional)" id="photo_url">
-            <input id="photo_url" type="url" inputMode="url" placeholder="https://" className={inputClass} value={form.photo_url} onChange={update("photo_url")} maxLength={500} />
-          </Field>
-          <p className="mt-1.5 text-xs text-ink-muted">A photo helps gate staff recognise this person.</p>
+          <PhotoField
+            name={form.picker_name.trim() || "?"}
+            current={original ? personPhotoSrc(original) : null}
+            choice={photo}
+            disabled={saving}
+            onChoose={choosePhoto}
+            onChange={setPhoto}
+          />
         </div>
       </div>
 
@@ -442,6 +520,92 @@ function PersonEditor({
         </button>
       </div>
     </form>
+  );
+}
+
+/**
+ * The pickup person's photo (SRS 9.3): choose one from the device (phones
+ * offer the camera or the gallery), see it before saving, or remove it.
+ */
+function PhotoField({
+  name,
+  current,
+  choice,
+  disabled,
+  onChoose,
+  onChange,
+}: {
+  name: string;
+  /** The saved photo's address, or null. */
+  current: string | null;
+  choice: PhotoChoice;
+  disabled: boolean;
+  onChoose: (event: ChangeEvent<HTMLInputElement>) => void;
+  onChange: (choice: PhotoChoice) => void;
+}) {
+  const shown = choice.kind === "new" ? choice.preview : choice.kind === "remove" ? null : current;
+  const note =
+    choice.kind === "new"
+      ? "This photo will be saved with the details."
+      : choice.kind === "remove"
+        ? "The photo will be removed when you save."
+        : "A clear photo of their face helps gate staff recognise this person. JPEG, PNG or WebP, up to 5 MB.";
+
+  return (
+    <fieldset>
+      <legend className="text-sm font-medium">Photo (optional)</legend>
+      <div className="mt-2 flex items-center gap-4">
+        <PhotoOrInitials
+          src={shown}
+          name={name}
+          alt={choice.kind === "new" ? "Preview of the chosen photo" : ""}
+          className="h-20 w-20 shrink-0 rounded-2xl"
+          initialsClassName="bg-surface text-xl text-ink-muted"
+        />
+        <div className="min-w-0 space-y-2">
+          <div className="flex flex-wrap gap-2">
+            {/* A label, so the file input itself stays the keyboard and screen reader target. */}
+            <label
+              className={`cursor-pointer rounded-lg border border-line px-3 py-2 text-sm font-medium text-brand-600 hover:border-brand-500 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-500 ${disabled ? "pointer-events-none opacity-60" : ""}`}
+            >
+              {shown ? "Choose another photo" : "Choose photo"}
+              <input type="file" accept={PHOTO_ACCEPT} className="sr-only" onChange={onChoose} disabled={disabled} />
+            </label>
+            {choice.kind === "new" && (
+              <button
+                type="button"
+                onClick={() => onChange({ kind: "keep" })}
+                disabled={disabled}
+                className="rounded-lg border border-line px-3 py-2 text-sm font-medium text-ink-muted hover:text-ink"
+              >
+                {current ? "Keep current photo" : "Don't use this photo"}
+              </button>
+            )}
+            {choice.kind === "keep" && current && (
+              <button
+                type="button"
+                onClick={() => onChange({ kind: "remove" })}
+                disabled={disabled}
+                className="rounded-lg border border-line px-3 py-2 text-sm font-medium text-danger-600 hover:border-danger-600"
+              >
+                Remove photo
+              </button>
+            )}
+            {choice.kind === "remove" && (
+              <button
+                type="button"
+                onClick={() => onChange({ kind: "keep" })}
+                disabled={disabled}
+                className="rounded-lg border border-line px-3 py-2 text-sm font-medium text-ink-muted hover:text-ink"
+              >
+                Keep photo
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-ink-muted">{note}</p>
+        </div>
+      </div>
+    </fieldset>
   );
 }
 

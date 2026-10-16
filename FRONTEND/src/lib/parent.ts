@@ -31,7 +31,8 @@ export type PickupPerson = {
   picker_name: string;
   picker_phone: string;
   relationship: string;
-  photo_url: string | null;
+  /** When the current photo was uploaded; null = no photo (SRS 9.3). The image is photoPath(id). */
+  photo_updated_at: string | null;
   type: string;
   starts_at: string;
   expires_at: string;
@@ -47,7 +48,7 @@ export type PickupPerson = {
 export type Release = {
   id: number;
   pupil: { id: number; first_name: string; last_name: string; photo_url: string | null };
-  authorisation: { id: number; picker_name: string; relationship: string; photo_url: string | null };
+  authorisation: { id: number; picker_name: string; relationship: string; photo_updated_at: string | null };
   /** The releasing staff member; null for parents, who are never told (SRS 18.9). */
   verified_by: { id: number; name: string } | null;
   verification_method: "qr" | "manual";

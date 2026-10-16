@@ -27,8 +27,14 @@ from app.db.session import async_session, engine  # noqa: E402
 from app.models.pupil import Pupil  # noqa: E402
 from app.models.school import School  # noqa: E402
 from app.models.user import User, UserRole  # noqa: E402
+from app.services.photo_service import get_photo_storage  # noqa: E402
 
 TAG_PREFIX = "e2e-"
+
+PHOTO_KEYS = (
+    "SELECT photo_key FROM pickup_authorisations WHERE photo_key IS NOT NULL"
+    " AND pupil_id IN (SELECT id FROM pupils WHERE school_id = :id)"
+)
 
 # Children first, so no row is left pointing at a deleted one.
 CLEANUP = (
@@ -107,10 +113,18 @@ async def cleanup(state_path: Path) -> None:
         if not tag.startswith(TAG_PREFIX) or name != f"{tag} School":
             raise SystemExit(f"refusing to clean up: school {school_id} is not the test school")
 
+        # Uploaded photo files live outside the database (SRS 9.3).
+        photo_keys = list(await session.scalars(text(PHOTO_KEYS), {"id": school_id}))
+
         counts = {}
         for statement in CLEANUP:
             counts[statement.split()[2]] = (await session.execute(text(statement), {"id": school_id})).rowcount
         await session.commit()
+
+    storage = get_photo_storage()
+    for key in photo_keys:
+        await storage.delete(key)
+    counts["photo_files"] = len(photo_keys)
 
     print(f"removed school {school_id} ({tag}): {json.dumps(counts)}")
 

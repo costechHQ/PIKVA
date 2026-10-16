@@ -29,7 +29,7 @@ function person(id: number, name: string, pupilId: number, status: Authorisation
     picker_name: name,
     picker_phone: phone,
     relationship: "Uncle",
-    photo_url: null,
+    photo_updated_at: null,
     type: "regular",
     starts_at: "2026-10-01T07:00:00Z",
     expires_at: "2026-10-31T17:00:00Z",

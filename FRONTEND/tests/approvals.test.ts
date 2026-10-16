@@ -21,7 +21,7 @@ function person(id: number, status: AuthorisationStatus, updatedAt: string, pupi
     picker_name: `Person ${id}`,
     picker_phone: "+2348000000000",
     relationship: "Uncle",
-    photo_url: null,
+    photo_updated_at: null,
     type: "regular",
     starts_at: "2026-10-01T07:00:00Z",
     expires_at: "2026-10-31T17:00:00Z",

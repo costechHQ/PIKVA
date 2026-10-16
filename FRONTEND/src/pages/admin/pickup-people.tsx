@@ -446,11 +446,6 @@ function AdminPersonEditor({
         <Field label="Until" id="expires_at">
           <input id="expires_at" type="datetime-local" className={inputClass} value={form.expires_at} onChange={update("expires_at")} required />
         </Field>
-        <div className="sm:col-span-2">
-          <Field label="Photo link (optional)" id="photo_url">
-            <input id="photo_url" type="url" inputMode="url" placeholder="https://" className={inputClass} value={form.photo_url} onChange={update("photo_url")} maxLength={500} />
-          </Field>
-        </div>
       </div>
 
       <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

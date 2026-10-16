@@ -3,16 +3,16 @@
  * POST /pickers or PATCH /pickers/{id} body. Safe to import from pages.
  * The backend validates again; this only gives faster, clearer messages.
  */
-import { type PickupPerson, isWebPhoto } from "@/lib/parent";
+import type { PickupPerson } from "@/lib/parent";
 
 /** Suggestions only: the backend accepts any type label (SRS 9 does not list types). */
 export const TYPE_SUGGESTIONS = ["Regular", "Temporary", "One-off"] as const;
 
-// Limits from the backend's Name, Phone, Label and PhotoUrl fields.
+// Limits from the backend's Name, Phone and Label fields. Photos are
+// uploaded separately (SRS 9.3), see photos.ts.
 const NAME_MAX = 150;
 const PHONE_MAX = 30;
 const LABEL_MAX = 50;
-const PHOTO_MAX = 500;
 
 /** Form values as typed. Times are datetime-local strings in the viewer's time zone. */
 export type PersonForm = {
@@ -21,7 +21,6 @@ export type PersonForm = {
   picker_phone: string;
   relationship: string;
   type: string;
-  photo_url: string;
   starts_at: string;
   expires_at: string;
 };
@@ -32,7 +31,6 @@ export type PersonBody = {
   picker_phone?: string;
   relationship?: string;
   type?: string;
-  photo_url?: string | null;
   starts_at?: string;
   expires_at?: string;
 };
@@ -61,7 +59,6 @@ export function emptyPersonForm(pupilId: number | null, now: Date): PersonForm {
     picker_phone: "",
     relationship: "",
     type: "Regular",
-    photo_url: "",
     starts_at: toLocalInput(now),
     expires_at: "",
   };
@@ -75,7 +72,6 @@ export function personForm(person: PickupPerson): PersonForm {
     picker_phone: person.picker_phone,
     relationship: person.relationship,
     type: person.type,
-    photo_url: person.photo_url ?? "",
     starts_at: toLocalInput(new Date(person.starts_at)),
     expires_at: toLocalInput(new Date(person.expires_at)),
   };
@@ -94,7 +90,6 @@ export function personBody(
   const phone = form.picker_phone.trim();
   const relationship = form.relationship.trim();
   const type = form.type.trim();
-  const photo = form.photo_url.trim();
   const startsAt = fromLocalInput(form.starts_at);
   const expiresAt = fromLocalInput(form.expires_at);
 
@@ -107,9 +102,6 @@ export function personBody(
   if (!type) return { error: "Enter the type of authorisation." };
   if (relationship.length > LABEL_MAX || type.length > LABEL_MAX) {
     return { error: `Relationship and type can be at most ${LABEL_MAX} characters.` };
-  }
-  if (photo && (photo.length > PHOTO_MAX || !isWebPhoto(photo))) {
-    return { error: "The photo link must be a web address starting with https://." };
   }
   if (!startsAt) return { error: "Choose when this person may start collecting." };
   if (!expiresAt) return { error: "Choose when this authorisation ends." };
@@ -124,7 +116,6 @@ export function personBody(
         picker_phone: phone,
         relationship,
         type,
-        ...(photo ? { photo_url: photo } : {}),
         starts_at: startsAt,
         expires_at: expiresAt,
       },
@@ -138,7 +129,6 @@ export function personBody(
   if (phone !== original.picker_phone) body.picker_phone = phone;
   if (relationship !== original.relationship) body.relationship = relationship;
   if (type !== original.type) body.type = type;
-  if ((photo || null) !== original.photo_url) body.photo_url = photo || null;
   if (startsAt !== fromLocalInput(before.starts_at)) body.starts_at = startsAt;
   if (expiresAt !== fromLocalInput(before.expires_at)) body.expires_at = expiresAt;
 

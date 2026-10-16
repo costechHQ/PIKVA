@@ -3,11 +3,11 @@ import { useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { FormError } from "@/components/AuthCard";
-import { EmptyState, LoadError, PupilAvatar, Skeleton, SuccessNote } from "@/components/ParentUi";
+import { EmptyState, LoadError, PhotoOrInitials, PupilAvatar, Skeleton, SuccessNote } from "@/components/ParentUi";
 import { type ApprovalRequest, approveBody, pendingApprovals } from "@/lib/approvals";
 import { type CurrentUser, getAsUser, requireUser } from "@/lib/auth-guard";
-import { initials } from "@/lib/format";
-import { type PickupPerson, type Pupil, formatDateTime, isWebPhoto, pupilName } from "@/lib/parent";
+import { type PickupPerson, type Pupil, formatDateTime, pupilName } from "@/lib/parent";
+import { personPhotoSrc } from "@/lib/photos";
 import { sendAsUser } from "@/lib/parent-api";
 import { useNow } from "@/lib/use-now";
 
@@ -236,19 +236,14 @@ function RequestCard({
 
 /** The pickup person's photo, which helps the admin judge the request, or their initials. */
 function PickerPhoto({ person }: { person: PickupPerson }) {
-  if (isWebPhoto(person.photo_url)) {
-    return (
-      // Photo URLs point at any host the school uses, so next/image is not used.
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={person.photo_url} alt="" referrerPolicy="no-referrer" className="h-12 w-12 shrink-0 rounded-full object-cover" />
-    );
-  }
+  // Larger than other avatars: the admin is judging who this person is.
   return (
-    <span
-      aria-hidden="true"
-      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand-50 text-sm font-semibold text-brand-700"
-    >
-      {initials(person.picker_name)}
-    </span>
+    <PhotoOrInitials
+      src={personPhotoSrc(person)}
+      name={person.picker_name}
+      alt={`Photo of ${person.picker_name}`}
+      className="h-16 w-16 shrink-0 rounded-full"
+      initialsClassName="bg-brand-50 text-sm text-brand-700"
+    />
   );
 }

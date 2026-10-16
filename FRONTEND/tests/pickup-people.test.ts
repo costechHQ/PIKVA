@@ -35,7 +35,7 @@ const existing: PickupPerson = {
   picker_name: "Emeka Okafor",
   picker_phone: "+2348000000000",
   relationship: "Uncle",
-  photo_url: null,
+  photo_updated_at: null,
   type: "Regular",
   // Seconds the form cannot show; they must not count as a change.
   starts_at: new Date(2026, 9, 1, 8, 0, 42).toISOString(),
@@ -76,9 +76,9 @@ describe("personBody for a new person", () => {
     });
   });
 
-  test("includes a photo only when given", () => {
-    const result = personBody(filledForm({ photo_url: "https://photos.example/e.jpg" }), NOW);
-    expect(result).toHaveProperty("body.photo_url", "https://photos.example/e.jpg");
+  test("never sends a photo: photos are uploaded on their own (SRS 9.3)", () => {
+    const result = personBody(filledForm(), NOW);
+    expect(result).not.toHaveProperty("body.photo_url");
   });
 
   test("rejects missing or invalid fields", () => {
@@ -88,7 +88,6 @@ describe("personBody for a new person", () => {
     expect(personBody(filledForm({ picker_phone: "1".repeat(31) }), NOW)).toHaveProperty("error");
     expect(personBody(filledForm({ relationship: "" }), NOW)).toHaveProperty("error");
     expect(personBody(filledForm({ type: " " }), NOW)).toHaveProperty("error");
-    expect(personBody(filledForm({ photo_url: "javascript:alert(1)" }), NOW)).toHaveProperty("error");
     expect(personBody(filledForm({ expires_at: "" }), NOW)).toHaveProperty("error");
   });
 

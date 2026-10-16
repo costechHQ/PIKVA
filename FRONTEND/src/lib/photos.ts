@@ -15,7 +15,33 @@ export const PHOTO_UPLOAD_MAX_BYTES = PHOTO_MAX_BYTES + MULTIPART_OVERHEAD_BYTES
 /** Types the file picker offers; FastAPI checks the real content. */
 export const PHOTO_ACCEPT = "image/jpeg,image/png,image/webp";
 
+const ACCEPTED_TYPES = new Set(PHOTO_ACCEPT.split(","));
+
+export const PHOTO_TOO_LARGE = "The photo must be 5 MB or smaller.";
+export const PHOTO_WRONG_TYPE = "Choose a JPEG, PNG or WebP photo.";
+
 /** The web app's photo route for one pickup person (GET, PUT, DELETE). */
 export function photoPath(personId: number): string {
   return `/api/pickers/${personId}/photo`;
+}
+
+/**
+ * The image address for a pickup person's photo, or null when they have
+ * none. photo_updated_at is added so a new photo is fetched straight away.
+ */
+export function personPhotoSrc(person: { id: number; photo_updated_at: string | null }): string | null {
+  if (!person.photo_updated_at) return null;
+  return `${photoPath(person.id)}?v=${encodeURIComponent(person.photo_updated_at)}`;
+}
+
+/**
+ * Why a chosen file cannot be uploaded, or null when it may be sent. Only a
+ * quick check before uploading: FastAPI decides from the file's content.
+ * An unknown type (some phones give none) is left for FastAPI to judge.
+ */
+export function photoFileError(file: { size: number; type: string }): string | null {
+  if (file.type && !ACCEPTED_TYPES.has(file.type)) return PHOTO_WRONG_TYPE;
+  if (file.size === 0) return PHOTO_WRONG_TYPE;
+  if (file.size > PHOTO_MAX_BYTES) return PHOTO_TOO_LARGE;
+  return null;
 }
