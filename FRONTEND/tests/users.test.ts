@@ -7,6 +7,8 @@ import {
   parseCreatableRole,
   parsePage,
   parseRoleFilter,
+  setupEmailPath,
+  setupLinkMessage,
   usersApiPath,
   userChanges,
   usersPageHref,
@@ -128,4 +130,18 @@ test("isManageable excludes administrators", () => {
   expect(isManageable({ role: "parent" })).toBe(true);
   expect(isManageable({ role: "gate_staff" })).toBe(true);
   expect(isManageable({ role: "school_admin" })).toBe(false);
+});
+
+describe("set-password links", () => {
+  test("setupEmailPath names the FastAPI action", () => {
+    expect(setupEmailPath(12)).toBe("schools/users/12/setup-email");
+  });
+
+  test("the message says sent only when the email service accepted it", () => {
+    const user = { name: "Gina Gate", email: "gina@example.com" };
+
+    expect(setupLinkMessage(user, true)).toBe("A set-password link was sent to gina@example.com. It works once, for 30 minutes.");
+    expect(setupLinkMessage(user, false)).toContain("could not be emailed to Gina Gate");
+    expect(setupLinkMessage(user, false)).toContain("Forgot password?");
+  });
 });

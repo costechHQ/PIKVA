@@ -121,6 +121,8 @@ async def send_email_safely(
 ) -> bool:
     """Send an email without ever raising; return whether it was delivered.
 
+    Delivered means the email service accepted it. Without Resend configured
+    the email is only logged, which is not delivery, so False is returned.
     Failures are logged by error type and HTTP status only, so the API key,
     addresses and message content never reach the logs (SRS 28).
     """
@@ -128,8 +130,10 @@ async def send_email_safely(
     if not message.to:
         return False
 
+    chosen = sender or get_email_sender()
+
     try:
-        await (sender or get_email_sender()).send(message)
+        await chosen.send(message)
 
     except httpx.HTTPStatusError as exc:
         status = exc.response.status_code
@@ -141,4 +145,4 @@ async def send_email_safely(
         logger.error("Email delivery failed: %s", type(exc).__name__)
         return False
 
-    return True
+    return not isinstance(chosen, LogEmailSender)

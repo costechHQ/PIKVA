@@ -16,6 +16,7 @@ RATE_LIMITED = [
     ("post", "/api/v1/auth/change-password"),
     ("put", "/api/v1/pickers/{authorisation_id}/photo"),
     ("delete", "/api/v1/pickers/{authorisation_id}/photo"),
+    ("post", "/api/v1/schools/users/{user_id}/setup-email"),
 ]
 
 

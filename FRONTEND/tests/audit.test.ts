@@ -25,6 +25,7 @@ test("actions have plain labels and unknown ones stay readable", () => {
   expect(actionLabel("pickup_authorisation.approved")).toBe("Approved a pickup person");
   expect(actionLabel("pickup_authorisation.photo_updated")).toBe("Uploaded a pickup person's photo");
   expect(actionLabel("pickup_authorisation.photo_removed")).toBe("Removed a pickup person's photo");
+  expect(actionLabel("user.setup_email_sent")).toBe("Sent a set-password link");
   expect(actionLabel("something.new")).toBe("something.new");
 });
 
@@ -48,6 +49,8 @@ describe("auditNotes", () => {
       "Needs school approval again",
     ]);
     expect(auditNotes({ role: "gate_staff", via: "admin" })).toEqual(["Role: gate staff"]);
+    expect(auditNotes({ sent: true })).toEqual(["Email sent"]);
+    expect(auditNotes({ sent: false })).toEqual(["Email could not be sent"]);
     expect(auditNotes({ role: "school_admin", via: "registration" })).toEqual([
       "Role: administrator (registered the school)",
     ]);

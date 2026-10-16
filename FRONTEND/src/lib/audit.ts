@@ -24,6 +24,7 @@ export const ACTION_LABELS: Record<string, string> = {
   "user.updated": "Changed a user",
   "user.deactivated": "Deactivated a user",
   "user.activated": "Activated a user",
+  "user.setup_email_sent": "Sent a set-password link",
   "user.password_reset_requested": "Asked to reset a password",
   "user.password_reset": "Reset a password",
   "user.password_changed": "Changed their password",
@@ -102,6 +103,7 @@ export function auditNotes(metadata: Record<string, unknown> | null): string[] {
     notes.push(`Changed: ${metadata.fields.map((field) => FIELD_LABELS[String(field)] ?? String(field)).join(", ")}`);
   }
   if (metadata.approval_reset === true) notes.push("Needs school approval again");
+  if (typeof metadata.sent === "boolean") notes.push(metadata.sent ? "Email sent" : "Email could not be sent");
   const role = text("role");
   if (role) notes.push(`Role: ${ROLE_LABELS[role] ?? role}${text("via") === "registration" ? " (registered the school)" : ""}`);
   const result = text("result");

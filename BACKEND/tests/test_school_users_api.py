@@ -50,6 +50,7 @@ async def test_new_user_is_emailed_a_set_password_link(client, school, outbox):
     body = response.json()
     assert body["email"] == NEW_GATE["email"]
     assert body["role"] == "gate_staff"
+    assert body["setup_email_sent"] is True
     assert "password" not in str(body).lower()
 
     [message] = outbox.sent
@@ -116,7 +117,17 @@ async def test_email_failure_does_not_undo_the_account(client, school, outbox):
     response = await create(client, school)
 
     assert response.status_code == 201
+    assert response.json()["setup_email_sent"] is False
     assert await user_count(NEW_GATE["email"]) == 1
+
+
+async def test_without_email_configured_the_admin_is_told_it_was_not_sent(client, school):
+    """No Resend settings: the email is only logged, which is not sending it."""
+
+    response = await create(client, school)
+
+    assert response.status_code == 201
+    assert response.json()["setup_email_sent"] is False
 
 
 async def test_creation_is_audited_without_the_token(client, school, outbox):

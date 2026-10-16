@@ -16,6 +16,27 @@ export type SchoolUser = {
   is_active: boolean;
 };
 
+/** POST /api/v1/schools/users answer: the user, and whether their set-password email went out (SRS 6.7). */
+export type CreatedSchoolUser = SchoolUser & { setup_email_sent: boolean };
+
+/** POST /api/v1/schools/users/{id}/setup-email answer. */
+export type SetupEmailResult = { email_sent: boolean };
+
+/** FastAPI path that emails a user a new set-password link. */
+export function setupEmailPath(userId: number): string {
+  return `schools/users/${userId}/setup-email`;
+}
+
+/**
+ * What to tell the admin after a set-password email. "Sent" means the email
+ * service accepted it, so the message never promises it reached the inbox.
+ */
+export function setupLinkMessage(user: { name: string; email: string }, sent: boolean): string {
+  return sent
+    ? `A set-password link was sent to ${user.email}. It works once, for 30 minutes.`
+    : `The set-password link could not be emailed to ${user.name}. Check their email address and try again, or ask them to use "Forgot password?" on the sign-in page.`;
+}
+
 export const USERS_PAGE_SIZE = 50;
 
 export const ROLE_FILTERS: readonly { label: string; role: Role | null }[] = [

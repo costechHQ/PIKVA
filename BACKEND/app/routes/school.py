@@ -1,20 +1,32 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import rate_limit
+from app.core.constants import SETUP_EMAIL_ADMIN_LIMIT, SETUP_EMAIL_USER_LIMIT, SETUP_EMAIL_WINDOW_SECONDS
 from app.core.dependencies import get_current_user, require_role
+from app.db.redis import get_redis
 from app.db.session import get_session
 from app.models.user import User, UserRole
 from app.schemas.school import SchoolResponse
 from app.services.school_service import (
     create_school_user,
     get_school_by_id,
+    issue_setup_email,
     list_school_users,
+    record_setup_email,
     set_school_user_active,
     update_school_user,
 )
 from app.services.notification_service import send_email_safely
 
-from app.schemas.auth import SchoolUserCreate, SchoolUserResponse, SchoolUserUpdate
+from app.schemas.auth import (
+    CreatedSchoolUserResponse,
+    SchoolUserCreate,
+    SchoolUserResponse,
+    SchoolUserUpdate,
+    SetupEmailResponse,
+)
 
 router = APIRouter(prefix="/schools", tags=["Schools"])
 
@@ -43,22 +55,22 @@ async def get_my_school(
 
 @router.post(
     "/users",
-    response_model=SchoolUserResponse,
+    response_model=CreatedSchoolUserResponse,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(require_role(UserRole.SCHOOL_ADMIN))],
 )
 
 async def create_user(
     data: SchoolUserCreate,
-    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
 
     """Create a parent or gate staff user in the admin's school (SRS 6.7).
 
-    The new user is emailed a link to set their own password; the email is
-    sent after the response.
+    The new user is emailed a link to set their own password. The email is
+    sent before responding, so setup_email_sent tells the admin whether it
+    went out; the account is created either way.
     """
 
     try:
@@ -74,9 +86,12 @@ async def create_user(
             detail=str(exc),
         )
 
-    background_tasks.add_task(send_email_safely, created.setup_email)
+    sent = await send_email_safely(created.setup_email)
 
-    return created.user
+    return CreatedSchoolUserResponse(
+        **SchoolUserResponse.model_validate(created.user, from_attributes=True).model_dump(),
+        setup_email_sent=sent,
+    )
 
 
 @router.get(
@@ -187,3 +202,66 @@ async def activate_user(
             session, current_user.school_id, user_id, is_active=True, actor_id=current_user.id
         )
     )
+
+
+async def limit_setup_emails(
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    redis: Redis = Depends(get_redis),
+) -> None:
+    """Cap set-password links per admin and per target user (SRS 6.7)."""
+
+    await rate_limit.hit(
+        redis,
+        f"pikva:rl:setup-email:admin:{current_user.id}",
+        SETUP_EMAIL_ADMIN_LIMIT,
+        SETUP_EMAIL_WINDOW_SECONDS,
+    )
+    await rate_limit.hit(
+        redis,
+        f"pikva:rl:setup-email:user:{user_id}",
+        SETUP_EMAIL_USER_LIMIT,
+        SETUP_EMAIL_WINDOW_SECONDS,
+    )
+
+
+@router.post(
+    "/users/{user_id}/setup-email",
+    response_model=SetupEmailResponse,
+    responses=rate_limit.RATE_LIMITED_RESPONSE,
+    dependencies=[Depends(require_role(UserRole.SCHOOL_ADMIN)), Depends(limit_setup_emails)],
+)
+
+async def send_setup_email(
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+
+    """Email a parent or gate staff member a new set-password link (SRS 6.7).
+
+    The new link cancels their earlier unused ones. email_sent says whether
+    the email service accepted it. A deactivated account gets 409.
+    """
+
+    try:
+        setup_email = await issue_setup_email(session, current_user.school_id, user_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
+
+    if setup_email is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    sent = await send_email_safely(setup_email)
+
+    await record_setup_email(
+        session, current_user.school_id, user_id, sent=sent, actor_id=current_user.id
+    )
+
+    return SetupEmailResponse(email_sent=sent)

@@ -36,6 +36,7 @@ ACCESS = {
     ("PATCH", "/api/v1/schools/users/{user_id}"): STAFF,
     ("POST", "/api/v1/schools/users/{user_id}/deactivate"): STAFF,
     ("POST", "/api/v1/schools/users/{user_id}/activate"): STAFF,
+    ("POST", "/api/v1/schools/users/{user_id}/setup-email"): STAFF,
     ("GET", "/api/v1/pupils"): MANAGERS,
     ("POST", "/api/v1/pupils"): MANAGERS,
     ("GET", "/api/v1/pupils/{pupil_id}"): MANAGERS,

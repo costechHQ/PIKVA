@@ -35,3 +35,9 @@ PASSWORD_RESET_CONFIRM_IP_LIMIT = 10
 # Pickup person photo rate limit (SRS 9.3): uploads and removals, per user.
 PHOTO_CHANGE_WINDOW_SECONDS = 60 * 60
 PHOTO_CHANGE_LIMIT = 20
+
+# "Send set-password link" rate limits (SRS 6.7): per admin, and per target
+# user so nobody's inbox can be flooded.
+SETUP_EMAIL_WINDOW_SECONDS = 60 * 60
+SETUP_EMAIL_ADMIN_LIMIT = 10
+SETUP_EMAIL_USER_LIMIT = 3

@@ -8,7 +8,16 @@ import { Icon } from "@/components/Icon";
 import { Field } from "@/components/ParentUi";
 import { type CurrentUser, requireUser } from "@/lib/auth-guard";
 import { sendAsUser } from "@/lib/parent-api";
-import { CREATABLE_ROLES, type NewUserForm, type SchoolUser, newUserBody, parseCreatableRole } from "@/lib/users";
+import {
+  CREATABLE_ROLES,
+  type CreatedSchoolUser,
+  type NewUserForm,
+  type SetupEmailResult,
+  newUserBody,
+  parseCreatableRole,
+  setupEmailPath,
+  setupLinkMessage,
+} from "@/lib/users";
 
 type Props = { user: CurrentUser; role: "parent" | "gate_staff" | "" };
 
@@ -23,7 +32,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (context) => 
  * password: the backend emails the new user a link to choose one.
  */
 export default function NewUserPage({ user, role }: Props) {
-  const [added, setAdded] = useState<SchoolUser | null>(null);
+  const [added, setAdded] = useState<CreatedSchoolUser | null>(null);
   // Remounting the form clears it for "Add another".
   const [formKey, setFormKey] = useState(0);
 
@@ -48,7 +57,7 @@ export default function NewUserPage({ user, role }: Props) {
   );
 }
 
-function NewUserFormCard({ initialRole, onAdded }: { initialRole: string; onAdded: (user: SchoolUser) => void }) {
+function NewUserFormCard({ initialRole, onAdded }: { initialRole: string; onAdded: (user: CreatedSchoolUser) => void }) {
   const [form, setForm] = useState<NewUserForm>({ name: "", email: "", phone: "", role: initialRole });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -64,7 +73,7 @@ function NewUserFormCard({ initialRole, onAdded }: { initialRole: string; onAdde
 
     setError(null);
     setSaving(true);
-    const result = await sendAsUser<SchoolUser>("schools/users", "POST", checked.body, "Users cannot be added right now.");
+    const result = await sendAsUser<CreatedSchoolUser>("schools/users", "POST", checked.body, "Users cannot be added right now.");
     setSaving(false);
 
     if (result.ok) onAdded(result.data);
@@ -139,7 +148,7 @@ function NewUserFormCard({ initialRole, onAdded }: { initialRole: string; onAdde
   );
 }
 
-function Added({ added, onAnother }: { added: SchoolUser; onAnother: () => void }) {
+function Added({ added, onAnother }: { added: CreatedSchoolUser; onAnother: () => void }) {
   const heading = useRef<HTMLHeadingElement>(null);
 
   // Move focus to the confirmation so screen readers announce it.
@@ -152,11 +161,15 @@ function Added({ added, onAnother }: { added: SchoolUser; onAnother: () => void 
       <h2 ref={heading} tabIndex={-1} className="text-lg font-semibold text-success-600 outline-none">
         {added.name} added as {added.role === "parent" ? "a parent" : "gate staff"}
       </h2>
-      <p className="mt-2 text-sm">
-        A link to set their password has been emailed to <span className="font-medium">{added.email}</span>. It works
-        once, for 30 minutes. If it doesn&apos;t arrive or expires, they can use &quot;Forgot password?&quot; on the
-        sign-in page.
-      </p>
+      {added.setup_email_sent ? (
+        <p className="mt-2 text-sm">
+          A link to set their password has been sent to <span className="font-medium">{added.email}</span>. It works
+          once, for 30 minutes. If it doesn&apos;t arrive or expires, use &quot;Send link&quot; on Users, or they can use
+          &quot;Forgot password?&quot; on the sign-in page.
+        </p>
+      ) : (
+        <ResendSetupLink user={added} />
+      )}
       <div className="mt-5 flex flex-col gap-3 sm:flex-row">
         <button
           type="button"
@@ -175,5 +188,57 @@ function Added({ added, onAnother }: { added: SchoolUser; onAnother: () => void 
         </Link>
       </div>
     </section>
+  );
+}
+
+/**
+ * The account exists but its set-password email did not go out (SRS 6.7):
+ * say so plainly and offer to try again.
+ */
+function ResendSetupLink({ user }: { user: CreatedSchoolUser }) {
+  const [sending, setSending] = useState(false);
+  const [outcome, setOutcome] = useState<{ ok: boolean; message: string } | null>(null);
+
+  async function retry() {
+    setSending(true);
+    setOutcome(null);
+    const result = await sendAsUser<SetupEmailResult>(
+      setupEmailPath(user.id),
+      "POST",
+      undefined,
+      "This user is no longer in your school.",
+      "set-password links",
+    );
+    setSending(false);
+
+    if (!result.ok) setOutcome({ ok: false, message: result.message });
+    else setOutcome({ ok: result.data.email_sent, message: setupLinkMessage(user, result.data.email_sent) });
+  }
+
+  if (outcome?.ok) {
+    return <p className="mt-2 text-sm">{outcome.message}</p>;
+  }
+
+  return (
+    <div className="mt-3 rounded-xl border border-warning-600/30 bg-warning-50 p-4 text-sm text-ink">
+      <p className="font-medium">The account was created, but the set-password email could not be sent.</p>
+      <p className="mt-1">
+        {user.name} can&apos;t sign in until they set a password. Check that <span className="font-medium">{user.email}</span>{" "}
+        is right and try again, or ask them to use &quot;Forgot password?&quot; on the sign-in page.
+      </p>
+      {outcome && (
+        <p role="alert" className="mt-2 text-danger-600">
+          {outcome.message}
+        </p>
+      )}
+      <button
+        type="button"
+        onClick={() => void retry()}
+        disabled={sending}
+        className="mt-3 rounded-lg border border-line bg-card px-3 py-2 text-sm font-medium text-brand-600 hover:border-brand-500 disabled:opacity-60"
+      >
+        {sending ? "Sending…" : "Try sending again"}
+      </button>
+    </div>
   );
 }

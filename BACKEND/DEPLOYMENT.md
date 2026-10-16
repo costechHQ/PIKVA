@@ -85,6 +85,7 @@ secret store) and set:
 | `POST /pickup/verify` and `/pickup/release` | 30 per gate staff member per minute, shared |
 | `POST /pickup/codes` | 10 per parent per hour |
 | `PUT` and `DELETE /pickers/{id}/photo` | 20 per user per hour, shared |
+| `POST /schools/users/{id}/setup-email` | 10 per admin and 3 per target user, per hour |
 | Security alert emails | 1 per school per 10 minutes; repeated-attempts alerts always sent |
 
 ## Known limitations (accepted for now)

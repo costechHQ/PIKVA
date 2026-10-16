@@ -33,12 +33,19 @@ test("admin adds a parent, then a pupil for them", async ({ browser }) => {
 
   await page.goto("/admin/users");
   await page.getByRole("link", { name: "Add user" }).click();
-  await page.getByLabel("Parent").check();
+  // A radio, not getByLabel: the Users page's "Send … a set-password link" buttons name people too.
+  await page.getByRole("radio", { name: "Parent" }).check();
   await page.getByLabel("Full name").fill(parentName);
   await page.getByLabel("Email").fill(`second-${state.tag}@example.com`);
   await page.getByLabel("Phone number").fill("0744444444");
   await page.getByRole("button", { name: "Add user" }).click();
   await expect(page.getByRole("heading", { name: `${parentName} added as a parent` })).toBeVisible();
+
+  // example.com is never delivered (Resend refuses it; unconfigured email only logs),
+  // so the panel must say the email did not go out rather than claim it was sent.
+  await expect(page.getByText("The account was created, but the set-password email could not be sent.")).toBeVisible();
+  await page.getByRole("button", { name: "Try sending again" }).click();
+  await expect(page.getByText(`could not be emailed to ${parentName}`)).toBeVisible();
 
   await page.getByRole("link", { name: "Add their pupil" }).click();
   await page.getByLabel("Find a parent").fill("emeka second");
@@ -97,10 +104,15 @@ test("admin edits and deactivates gate staff, who are signed out until reactivat
   await expect(admin.getByRole("status")).toContainText(`${state.gate.name} updated.`);
   await expect(row).toContainText("0755555555");
 
+  // A new set-password link: example.com is never delivered, and the row says so.
+  await row.getByRole("button", { name: `Send ${state.gate.name} a set-password link` }).click();
+  await expect(row.getByRole("alert")).toContainText(`could not be emailed to ${state.gate.name}`);
+
   await row.getByRole("button", { name: "Deactivate" }).click();
   await expect(row).toContainText("They are signed out now");
   await row.getByRole("button", { name: "Deactivate" }).click();
   await expect(row.getByText("Inactive")).toBeVisible();
+  await expect(row.getByRole("button", { name: /set-password link/ })).toHaveCount(0);
 
   // Their open session no longer works, and signing in says why.
   const gate = await as(browser, "gate");

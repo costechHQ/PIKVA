@@ -33,6 +33,21 @@ class SchoolUserResponse(UserResponse):
     is_active: bool
 
 
+class CreatedSchoolUserResponse(SchoolUserResponse):
+    """Define a newly created school user and whether their set-password email went out (SRS 6.7)."""
+
+    # True when the email service accepted the email; not proof of delivery
+    # to the inbox. False when email is not configured or the send failed.
+    setup_email_sent: bool
+
+
+class SetupEmailResponse(BaseModel):
+    """Define the result of sending a set-password link (SRS 6.7)."""
+
+    # True when the email service accepted it; not proof of delivery.
+    email_sent: bool
+
+
 class CurrentUserResponse(UserResponse):
     """Define the signed-in user and their school, for client role routing."""
 

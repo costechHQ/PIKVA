@@ -118,10 +118,13 @@ async def test_network_failure_never_raises(caplog):
 
 
 async def test_log_sender_records_subject_and_count_only(caplog):
-    """Without Resend, the email is logged but its body and addresses are not."""
+    """Without Resend, the email is logged but its body and addresses are not.
+
+    Logging is not delivery, so it reports not sent.
+    """
 
     with caplog.at_level(logging.INFO):
-        assert await send_email_safely(MESSAGE, LogEmailSender()) is True
+        assert await send_email_safely(MESSAGE, LogEmailSender()) is False
 
     assert "Pikva security alert: used_code" in caplog.text
     assert "2 recipient(s)" in caplog.text

@@ -13,11 +13,14 @@ import type { Role } from "@/lib/roles";
 import {
   ROLE_FILTERS,
   type SchoolUser,
+  type SetupEmailResult,
   USERS_PAGE_SIZE,
   type UserContact,
   isManageable,
   parsePage,
   parseRoleFilter,
+  setupEmailPath,
+  setupLinkMessage,
   userChanges,
   usersApiPath,
   usersPageHref,
@@ -186,6 +189,7 @@ function UserTable({ initialUsers, page }: { initialUsers: SchoolUser[]; page: n
                         setEditing(row);
                       }}
                       onChanged={changed}
+                      onNotice={setNotice}
                     />
                   )}
                 </td>
@@ -203,21 +207,39 @@ function UserTable({ initialUsers, page }: { initialUsers: SchoolUser[]; page: n
   );
 }
 
-/** Edit, and Deactivate (after confirming) or Activate, for one parent or gate staff member. */
+/**
+ * Edit, Send link (a new set-password link, SRS 6.7), and Deactivate (after
+ * confirming) or Activate, for one parent or gate staff member.
+ */
 function UserActions({
   user,
   editingAnother,
   onEdit,
   onChanged,
+  onNotice,
 }: {
   user: SchoolUser;
   editingAnother: boolean;
   onEdit: () => void;
   onChanged: (user: SchoolUser, message: string) => void;
+  onNotice: (message: string | null) => void;
 }) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function sendLink() {
+    setSending(true);
+    setError(null);
+    onNotice(null);
+    const result = await sendAsUser<SetupEmailResult>(setupEmailPath(user.id), "POST", undefined, NOT_FOUND, "set-password links");
+    setSending(false);
+
+    if (!result.ok) setError(result.message);
+    else if (result.data.email_sent) onNotice(setupLinkMessage(user, true));
+    else setError(setupLinkMessage(user, false));
+  }
 
   async function setActive(active: boolean) {
     setBusy(true);
@@ -277,6 +299,18 @@ function UserActions({
             Edit
           </button>
         )}
+        {user.is_active && (
+          <button
+            type="button"
+            onClick={() => void sendLink()}
+            disabled={sending}
+            aria-label={`Send ${user.name} a set-password link`}
+            title="Email a new link to set their password"
+            className="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-brand-600 hover:border-brand-500 disabled:opacity-60"
+          >
+            {sending ? "Sending…" : "Send link"}
+          </button>
+        )}
         {user.is_active ? (
           <button
             type="button"
@@ -296,7 +330,7 @@ function UserActions({
           </button>
         )}
       </div>
-      {error && <p role="alert" className="max-w-56 text-right text-xs text-danger-600">{error}</p>}
+      {error && <p role="alert" className="max-w-64 text-right text-xs text-danger-600">{error}</p>}
     </div>
   );
 }

@@ -204,7 +204,7 @@ async def test_logged_email_never_contains_the_link(session, user, caplog):
     request = await request_password_reset(session, EMAIL)
 
     with caplog.at_level(logging.DEBUG):
-        assert await send_email_safely(password_reset_email(request), LogEmailSender())
+        await send_email_safely(password_reset_email(request), LogEmailSender())
 
     assert request.token not in caplog.text
     assert EMAIL not in caplog.text

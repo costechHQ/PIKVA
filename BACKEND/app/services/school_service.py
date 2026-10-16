@@ -13,6 +13,7 @@ from app.services.audit_service import (
     USER_ACTIVATED,
     USER_CREATED,
     USER_DEACTIVATED,
+    USER_SETUP_EMAIL_SENT,
     USER_UPDATED,
     record_audit,
 )
@@ -141,6 +142,63 @@ async def get_managed_user(
             User.role.in_(MANAGED_ROLES),
         )
     )
+
+
+DEACTIVATED_NO_EMAIL = "This account is deactivated; activate it before sending a set-password link"
+
+
+async def issue_setup_email(
+        session: AsyncSession,
+        school_id: int,
+        user_id: int,
+) -> EmailMessage | None:
+    """Issue a fresh set-password link for a managed user (SRS 6.7).
+
+    The new token cancels the user's earlier unused ones and is committed;
+    the caller sends the returned email, then calls record_setup_email.
+    Returns None if the user is not one the admin may manage. Raises
+    ValueError for a deactivated account, so nothing is issued or sent.
+    """
+
+    user = await get_managed_user(session, school_id, user_id)
+
+    if user is None:
+        return None
+
+    if not user.is_active:
+        raise ValueError(DEACTIVATED_NO_EMAIL)
+
+    setup = await issue_password_reset_token(session, user)
+    school = await session.get(School, school_id)
+
+    # Built before the commit, while user and school are still loaded.
+    setup_email = account_setup_email(setup, school.name)
+
+    await session.commit()
+
+    return setup_email
+
+
+async def record_setup_email(
+        session: AsyncSession,
+        school_id: int,
+        user_id: int,
+        sent: bool,
+        actor_id: int,
+) -> None:
+    """Audit that an admin sent a set-password link, and whether it was accepted."""
+
+    await record_audit(
+        session=session,
+        school_id=school_id,
+        user_id=actor_id,
+        action=USER_SETUP_EMAIL_SENT,
+        entity_type="user",
+        entity_id=user_id,
+        metadata={"sent": sent},
+    )
+
+    await session.commit()
 
 
 async def update_school_user(
