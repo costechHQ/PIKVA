@@ -23,6 +23,8 @@ const record = (fields: Partial<AuditRecord>): AuditRecord => ({
 
 test("actions have plain labels and unknown ones stay readable", () => {
   expect(actionLabel("pickup_authorisation.approved")).toBe("Approved a pickup person");
+  expect(actionLabel("pickup_authorisation.photo_updated")).toBe("Uploaded a pickup person's photo");
+  expect(actionLabel("pickup_authorisation.photo_removed")).toBe("Removed a pickup person's photo");
   expect(actionLabel("something.new")).toBe("something.new");
 });
 

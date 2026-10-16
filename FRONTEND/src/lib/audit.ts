@@ -34,6 +34,8 @@ export const ACTION_LABELS: Record<string, string> = {
   "pickup_authorisation.activated": "Activated a pickup person",
   "pickup_authorisation.deactivated": "Deactivated a pickup person",
   "pickup_authorisation.approved": "Approved a pickup person",
+  "pickup_authorisation.photo_updated": "Uploaded a pickup person's photo",
+  "pickup_authorisation.photo_removed": "Removed a pickup person's photo",
   "pickup_code.generated": "Got a pickup code",
   "pupil.released": "Released a pupil",
   "pickup.verification_failed": "Failed pickup check",
