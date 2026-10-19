@@ -36,6 +36,15 @@ class Pupil(Base):
 
     photo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
+    # The uploaded photo's storage key; never sent to clients.
+    photo_key: Mapped[str | None] = mapped_column(String(32), nullable=True)
+
+    # When the current photo was uploaded; None = no photo.
+    photo_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
     date_of_birth: Mapped[date] = mapped_column(Date, nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
