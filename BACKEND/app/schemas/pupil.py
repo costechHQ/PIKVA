@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.schemas.fields import PhotoUrl, PupilName
@@ -37,6 +37,8 @@ class PupilResponse(BaseModel):
     first_name: str
     last_name: str
     photo_url: str | None
+    # None = no photo; the image itself is GET /pupils/{id}/photo.
+    photo_updated_at: datetime | None
     date_of_birth: date
 
 

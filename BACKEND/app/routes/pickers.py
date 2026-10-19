@@ -1,14 +1,8 @@
-import asyncio
-
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
-from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.datastructures import UploadFile
 
 from app.core import rate_limit
-from app.core.constants import PHOTO_CHANGE_LIMIT, PHOTO_CHANGE_WINDOW_SECONDS
 from app.core.dependencies import get_current_user, require_role
-from app.db.redis import get_redis
 from app.db.session import get_session
 from app.models.pickup_authorisation import AuthorisationStatus, PickupAuthorisation
 from app.models.user import User, UserRole
@@ -18,16 +12,17 @@ from app.schemas.pickup_authorisation import (
     PickupAuthorisationResponse,
     PickupAuthorisationUpdate,
 )
-from app.services.approval_notification_service import notify_approval_requested
-from app.services.photo_service import (
-    PHOTO_CONTENT_TYPE,
-    PHOTO_MAX_BYTES,
-    InvalidPhoto,
-    PhotoStorage,
-    PhotoTooLarge,
-    get_photo_storage,
-    process_photo,
+from app.routes.photo_upload import (
+    PHOTO_CHANGE_RESPONSES,
+    PHOTO_NOT_ACCEPTED,  # noqa: F401  (tests read it from here)
+    PHOTO_TOO_LARGE,  # noqa: F401
+    PHOTO_UPLOAD_BODY,
+    limit_photo_changes,
+    photo_response,
+    read_clean_photo,
 )
+from app.services.approval_notification_service import notify_approval_requested
+from app.services.photo_service import PHOTO_CONTENT_TYPE, PhotoStorage, get_photo_storage
 from app.services.pickup_authorisation_service import (
     approve_pickup_authorisation,
     create_pickup_authorisation,
@@ -43,32 +38,6 @@ router = APIRouter(prefix="/pickers", tags=["Pickup authorisations"])
 
 MANAGER_ROLES = (UserRole.PARENT, UserRole.SCHOOL_ADMIN)
 PHOTO_VIEWER_ROLES = (UserRole.PARENT, UserRole.SCHOOL_ADMIN, UserRole.GATE_STAFF)
-
-# Room for the multipart boundary and headers around the photo itself.
-MULTIPART_OVERHEAD_BYTES = 64 * 1024
-
-PHOTO_TOO_LARGE = "The photo must be 5 MB or smaller"
-PHOTO_NOT_ACCEPTED = "The photo must be a JPEG, PNG or WebP image"
-
-PHOTO_UPLOAD_BODY = {
-    "requestBody": {
-        "required": True,
-        "content": {
-            "multipart/form-data": {
-                "schema": {
-                    "type": "object",
-                    "required": ["photo"],
-                    "properties": {"photo": {"type": "string", "format": "binary"}},
-                },
-            },
-        },
-    },
-}
-
-PHOTO_CHANGE_RESPONSES = {
-    **rate_limit.RATE_LIMITED_RESPONSE,
-    413: {"description": PHOTO_TOO_LARGE},
-}
 
 
 def _parent_scope(current_user: User) -> int | None:
@@ -87,51 +56,6 @@ def _found(authorisation: PickupAuthorisation | None) -> PickupAuthorisation:
         )
 
     return authorisation
-
-
-async def limit_photo_changes(
-    current_user: User = Depends(get_current_user),
-    redis: Redis = Depends(get_redis),
-) -> None:
-    """Cap photo uploads and removals per user (SRS 9.3)."""
-
-    await rate_limit.hit(
-        redis,
-        f"pikva:rl:photos:user:{current_user.id}",
-        PHOTO_CHANGE_LIMIT,
-        PHOTO_CHANGE_WINDOW_SECONDS,
-    )
-
-
-async def _read_photo_upload(request: Request) -> bytes:
-    """Return the uploaded photo's bytes, refusing oversized bodies unread.
-
-    The declared size is checked before anything is read, so a huge upload
-    is never stored, even temporarily.
-    """
-
-    declared = request.headers.get("content-length", "")
-
-    if not declared.isdigit():
-        raise HTTPException(
-            status_code=status.HTTP_411_LENGTH_REQUIRED,
-            detail="Content-Length is required",
-        )
-
-    if int(declared) > PHOTO_MAX_BYTES + MULTIPART_OVERHEAD_BYTES:
-        raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail=PHOTO_TOO_LARGE)
-
-    async with request.form(max_files=1, max_fields=0) as form:
-        upload = form.get("photo")
-
-        if not isinstance(upload, UploadFile):
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail="Choose a photo to upload",
-            )
-
-        # One byte over the limit is enough to know it is too large.
-        return await upload.read(PHOTO_MAX_BYTES + 1)
 
 
 def _tell_admins_if_pending(
@@ -389,19 +313,7 @@ async def upload_pickup_authorisation_photo_endpoint(
     approved person needs the school's approval again.
     """
 
-    data = await _read_photo_upload(request)
-
-    try:
-        photo = await asyncio.to_thread(process_photo, data)
-
-    except PhotoTooLarge as exc:
-        raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail=PHOTO_TOO_LARGE) from exc
-
-    except InvalidPhoto as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=PHOTO_NOT_ACCEPTED,
-        ) from exc
+    photo = await read_clean_photo(request)
 
     authorisation = await set_pickup_authorisation_photo(
         session=session,
@@ -478,9 +390,4 @@ async def get_pickup_authorisation_photo_endpoint(
     if photo is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Photo not found")
 
-    # Photos of real people: never kept by shared caches or proxies.
-    return Response(
-        content=photo,
-        media_type=PHOTO_CONTENT_TYPE,
-        headers={"Cache-Control": "private, no-store"},
-    )
+    return photo_response(photo)
