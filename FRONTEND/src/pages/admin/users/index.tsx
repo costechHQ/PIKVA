@@ -146,8 +146,57 @@ function UserTable({ initialUsers, page }: { initialUsers: SchoolUser[]; page: n
         )}
       </div>
 
-      {/* relative: keeps the visually hidden "Actions" header inside the scroll box on phones. */}
-      <div className="relative mt-4 overflow-x-auto rounded-2xl border border-brand-100 bg-card">
+      {/* Below xl the table would not fit beside the sidebar, so each user is a card. */}
+      <ul className="mt-4 space-y-3 xl:hidden">
+        {users.map((row) => (
+          <li
+            key={row.id}
+            className={`rounded-2xl border border-brand-100 p-4 shadow-sm ${row.is_active ? "bg-card" : "bg-surface/60"}`}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <p className="min-w-0 break-words font-semibold text-navy-900">{row.name}</p>
+              <StatusBadge active={row.is_active} />
+            </div>
+            <dl className="mt-3 space-y-1.5 text-sm">
+              <div className="flex gap-2">
+                <dt className="w-14 shrink-0 text-ink-muted">Email</dt>
+                <dd className="min-w-0 break-all">{row.email}</dd>
+              </div>
+              <div className="flex gap-2">
+                <dt className="w-14 shrink-0 text-ink-muted">Phone</dt>
+                <dd className="min-w-0 break-words">{row.phone}</dd>
+              </div>
+              <div className="flex items-center gap-2">
+                <dt className="w-14 shrink-0 text-ink-muted">Role</dt>
+                <dd>
+                  <span className={`rounded-md px-2 py-1 text-xs font-medium ${ROLE_BADGE[row.role] ?? ""}`}>
+                    {ROLE_LABEL[row.role] ?? row.role}
+                  </span>
+                </dd>
+              </div>
+            </dl>
+            {isManageable(row) && (
+              <div className="mt-4 border-t border-line pt-3">
+                <UserActions
+                  user={row}
+                  editingAnother={editing !== null}
+                  onEdit={() => {
+                    setNotice(null);
+                    setEditing(row);
+                  }}
+                  onChanged={changed}
+                  onNotice={setNotice}
+                  align="start"
+                />
+              </div>
+            )}
+          </li>
+        ))}
+        {users.length === 0 && <EmptyRows page={page} />}
+      </ul>
+
+      {/* relative: keeps the visually hidden "Actions" header inside the scroll box. */}
+      <div className="relative mt-4 hidden overflow-x-auto rounded-2xl border border-brand-100 bg-card xl:block">
         <table className="w-full min-w-[860px] text-left text-sm">
           <thead className="border-b border-brand-100 bg-brand-50 text-xs font-semibold text-navy-900">
             <tr>
@@ -173,11 +222,7 @@ function UserTable({ initialUsers, page }: { initialUsers: SchoolUser[]; page: n
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  {row.is_active ? (
-                    <span className="rounded-full bg-success-50 px-2.5 py-0.5 text-xs font-medium text-success-600">Active</span>
-                  ) : (
-                    <span className="rounded-full bg-danger-50 px-2.5 py-0.5 text-xs font-medium text-danger-600">Inactive</span>
-                  )}
+                  <StatusBadge active={row.is_active} />
                 </td>
                 <td className="px-4 py-3">
                   {isManageable(row) && (
@@ -197,13 +242,25 @@ function UserTable({ initialUsers, page }: { initialUsers: SchoolUser[]; page: n
             ))}
           </tbody>
         </table>
-        {users.length === 0 && (
-          <p className="px-4 py-10 text-center text-sm text-ink-muted">
-            {page > 1 ? "No more users." : "No users match this filter yet."}
-          </p>
-        )}
+        {users.length === 0 && <EmptyRows page={page} />}
       </div>
     </>
+  );
+}
+
+function StatusBadge({ active }: { active: boolean }) {
+  return active ? (
+    <span className="shrink-0 rounded-full bg-success-50 px-2.5 py-0.5 text-xs font-medium text-success-600">Active</span>
+  ) : (
+    <span className="shrink-0 rounded-full bg-danger-50 px-2.5 py-0.5 text-xs font-medium text-danger-600">Inactive</span>
+  );
+}
+
+function EmptyRows({ page }: { page: number }) {
+  return (
+    <p className="px-4 py-10 text-center text-sm text-ink-muted">
+      {page > 1 ? "No more users." : "No users match this filter yet."}
+    </p>
   );
 }
 
@@ -217,12 +274,15 @@ function UserActions({
   onEdit,
   onChanged,
   onNotice,
+  align = "end",
 }: {
   user: SchoolUser;
   editingAnother: boolean;
   onEdit: () => void;
   onChanged: (user: SchoolUser, message: string) => void;
   onNotice: (message: string | null) => void;
+  /** "start" in the phone cards, "end" in the table's last column. */
+  align?: "start" | "end";
 }) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -259,7 +319,7 @@ function UserActions({
 
   if (confirming) {
     return (
-      <div className="w-72 space-y-2">
+      <div className="w-full space-y-2 sm:w-72">
         <p className="text-xs">
           Deactivate {user.name}? They are signed out now and cannot sign in until you activate them again.
           {user.role === "parent" &&
@@ -288,8 +348,8 @@ function UserActions({
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
-      <div className="flex justify-end gap-2">
+    <div className={`flex flex-col gap-1 ${align === "end" ? "items-end" : "items-start"}`}>
+      <div className={`flex flex-wrap gap-2 ${align === "end" ? "justify-end" : "justify-start"}`}>
         {!editingAnother && (
           <button
             type="button"
@@ -330,7 +390,7 @@ function UserActions({
           </button>
         )}
       </div>
-      {error && <p role="alert" className="max-w-64 text-right text-xs text-danger-600">{error}</p>}
+      {error && <p role="alert" className={`max-w-64 text-xs text-danger-600 ${align === "end" ? "text-right" : "text-left"}`}>{error}</p>}
     </div>
   );
 }

@@ -15,6 +15,8 @@ type AppShellProps = {
   /** Page heading and browser tab title. */
   title: string;
   subtitle?: string;
+  /** Centre the heading and give the content a narrow, centred column (for form-style pages). */
+  centered?: boolean;
   children: ReactNode;
 };
 
@@ -23,7 +25,7 @@ type AppShellProps = {
  * the role's menu and school card, a top bar with the user and Sign out.
  * Below the lg breakpoint the sidebar becomes a slide-in menu.
  */
-export function AppShell({ user, title, subtitle, children }: AppShellProps) {
+export function AppShell({ user, title, subtitle, centered = false, children }: AppShellProps) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -137,9 +139,11 @@ export function AppShell({ user, title, subtitle, children }: AppShellProps) {
           </header>
 
           <main className="flex-1 px-4 py-6 sm:px-8 sm:py-8">
-            <h1 className="text-2xl font-extrabold text-navy-900">{title}</h1>
-            {subtitle && <p className="mt-1 text-sm text-ink-muted">{subtitle}</p>}
-            <div className="mt-6">{children}</div>
+            <div className={centered ? "mx-auto w-full max-w-4xl text-center" : undefined}>
+              <h1 className="text-2xl font-extrabold text-navy-900">{title}</h1>
+              {subtitle && <p className="mt-1 text-sm text-ink-muted">{subtitle}</p>}
+            </div>
+            <div className={centered ? "mx-auto mt-6 w-full max-w-4xl" : "mt-6"}>{children}</div>
           </main>
         </div>
       </div>

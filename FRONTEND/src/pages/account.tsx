@@ -14,8 +14,8 @@ export const getServerSideProps: GetServerSideProps<Props> = (context) =>
 /** Account for school staff: their details (name and phone editable, SRS 6.9) and password (SRS 6.8). */
 export default function AccountPage({ user }: Props) {
   return (
-    <AppShell user={user} title="Account" subtitle="Your details and password.">
-      <div className="grid max-w-4xl gap-6 lg:grid-cols-2">
+    <AppShell user={user} title="Account" subtitle="Your details and password." centered>
+      <div className="mx-auto grid w-full max-w-xl gap-6 lg:max-w-none lg:grid-cols-2">
         <OwnDetailsCard
           user={user}
           extraRows={[
