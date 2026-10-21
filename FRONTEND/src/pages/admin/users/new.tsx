@@ -84,7 +84,7 @@ function NewUserFormCard({ initialRole, onAdded }: { initialRole: string; onAdde
     setForm((current) => ({ ...current, [field]: event.target.value }));
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="max-w-2xl rounded-2xl border border-line bg-card p-5 shadow-sm sm:p-6">
+    <form onSubmit={handleSubmit} noValidate className="max-w-2xl rounded-3xl border border-brand-100 bg-card p-5 shadow-sm sm:p-6">
       <FormError message={error} />
 
       <fieldset>
@@ -133,13 +133,13 @@ function NewUserFormCard({ initialRole, onAdded }: { initialRole: string; onAdde
       </p>
 
       <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-        <Link href="/admin/users" className="rounded-lg border border-line px-4 py-2.5 text-center text-sm font-medium text-ink-muted hover:text-ink">
+        <Link href="/admin/users" className="rounded-full border border-brand-100 px-4 py-2.5 text-center text-sm font-medium text-ink-muted hover:text-ink">
           Cancel
         </Link>
         <button
           type="submit"
           disabled={saving}
-          className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+          className="rounded-full bg-brand-600 shadow-md shadow-brand-600/25 transition hover:-translate-y-0.5 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
         >
           {saving ? "Adding…" : "Add user"}
         </button>
@@ -174,16 +174,16 @@ function Added({ added, onAnother }: { added: CreatedSchoolUser; onAnother: () =
         <button
           type="button"
           onClick={onAnother}
-          className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700"
+          className="rounded-full bg-brand-600 shadow-md shadow-brand-600/25 transition hover:-translate-y-0.5 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700"
         >
           Add another
         </button>
         {added.role === "parent" && (
-          <Link href="/admin/pupils/new" className="rounded-lg border border-line bg-card px-4 py-2.5 text-center text-sm font-medium hover:text-brand-700">
+          <Link href="/admin/pupils/new" className="rounded-full border border-brand-100 bg-card px-4 py-2.5 text-center text-sm font-medium hover:text-brand-700">
             Add their pupil
           </Link>
         )}
-        <Link href="/admin/users" className="rounded-lg border border-line bg-card px-4 py-2.5 text-center text-sm font-medium hover:text-brand-700">
+        <Link href="/admin/users" className="rounded-full border border-brand-100 bg-card px-4 py-2.5 text-center text-sm font-medium hover:text-brand-700">
           Back to Users
         </Link>
       </div>
@@ -235,7 +235,7 @@ function ResendSetupLink({ user }: { user: CreatedSchoolUser }) {
         type="button"
         onClick={() => void retry()}
         disabled={sending}
-        className="mt-3 rounded-lg border border-line bg-card px-3 py-2 text-sm font-medium text-brand-600 hover:border-brand-500 disabled:opacity-60"
+        className="mt-3 rounded-full border border-brand-100 bg-card px-3 py-2 text-sm font-medium text-brand-600 hover:border-brand-500 disabled:opacity-60"
       >
         {sending ? "Sending…" : "Try sending again"}
       </button>

@@ -68,18 +68,18 @@ function PupilTable({ rows, search, total }: { rows: Row[]; search: string; tota
           className={`${inputClass} sm:max-w-sm`}
         />
         <div className="flex gap-2">
-          <button type="submit" className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700">
+          <button type="submit" className="rounded-full bg-brand-600 shadow-md shadow-brand-600/25 transition hover:-translate-y-0.5 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700">
             Search
           </button>
           {search && (
-            <Link href="/admin/pupils" className="rounded-lg border border-line bg-card px-4 py-2.5 text-sm font-medium text-ink-muted hover:text-ink">
+            <Link href="/admin/pupils" className="rounded-full border border-brand-100 bg-card px-4 py-2.5 text-sm font-medium text-ink-muted hover:text-ink">
               Clear
             </Link>
           )}
         </div>
         <Link
           href="/admin/pupils/new"
-          className="rounded-lg bg-brand-600 px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-brand-700 sm:ml-auto"
+          className="rounded-full bg-brand-600 shadow-md shadow-brand-600/25 transition hover:-translate-y-0.5 px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-brand-700 sm:ml-auto"
         >
           Add pupil
         </Link>
@@ -89,9 +89,9 @@ function PupilTable({ rows, search, total }: { rows: Row[]; search: string; tota
         {search ? `${rows.length} of ${total} pupils match "${search}".` : `${total} ${total === 1 ? "pupil" : "pupils"}`}
       </p>
 
-      <div className="mt-2 overflow-x-auto rounded-xl border border-line bg-card">
+      <div className="mt-2 overflow-x-auto rounded-2xl border border-brand-100 bg-card">
         <table className="w-full min-w-[720px] text-left text-sm">
-          <thead className="border-b border-line text-xs font-medium text-ink-muted">
+          <thead className="border-b border-brand-100 bg-brand-50 text-xs font-semibold text-navy-900">
             <tr>
               <th scope="col" className="px-4 py-3 font-medium">Pupil</th>
               <th scope="col" className="px-4 py-3 font-medium">Date of birth</th>

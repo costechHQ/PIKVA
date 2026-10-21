@@ -2,7 +2,7 @@ import type { GetServerSideProps } from "next";
 import Link from "next/link";
 import { type FormEvent, useState } from "react";
 
-import { AuthCard, FormError, inputClass, linkClass, primaryButtonClass } from "@/components/AuthCard";
+import { AuthCard, FormError, authInputClass, linkClass, primaryButtonClass } from "@/components/AuthCard";
 import { OFFLINE, detailText } from "@/lib/api-errors";
 import { forgotErrorMessage } from "@/lib/reset-error";
 import { LOGIN_PATH } from "@/lib/roles";
@@ -80,7 +80,7 @@ export default function ForgotPasswordPage() {
             required
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            className={`mt-1.5 ${inputClass}`}
+            className={`mt-1.5 ${authInputClass}`}
           />
         </div>
 

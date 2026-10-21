@@ -4,7 +4,6 @@ import { useRouter } from "next/router";
 import { type ReactNode, useState } from "react";
 
 import { Icon } from "@/components/Icon";
-import { Logo } from "@/components/Logo";
 import type { CurrentUser } from "@/lib/auth-guard";
 import { initials } from "@/lib/format";
 import { isActive, navItems } from "@/lib/navigation";
@@ -46,8 +45,8 @@ export function ParentShell({ user, title, subtitle, tabTitle, children }: Paren
       <div className="min-h-screen lg:flex">
         {/* Large screens: sidebar */}
         <aside className="hidden w-64 shrink-0 flex-col border-r border-line bg-card px-4 py-6 lg:sticky lg:top-0 lg:flex lg:h-screen">
-          <Link href={homePath} aria-label="Pikva home" className="px-2">
-            <Logo size={30} />
+          <Link href="/" aria-label="Pikva home page" className="px-2">
+            <img src="/images/pikva-logo.png" alt="Pikva" width={800} height={241} className="h-auto w-[79px]" />
           </Link>
 
           <nav aria-label="Main" className="mt-10 flex-1 space-y-1">
@@ -69,7 +68,7 @@ export function ParentShell({ user, title, subtitle, tabTitle, children }: Paren
             })}
           </nav>
 
-          <div className="rounded-2xl border border-line p-3">
+          <div className="rounded-3xl border border-brand-100 p-3">
             <div className="flex items-center gap-3">
               <Avatar name={user.name} />
               <span className="min-w-0">
@@ -81,7 +80,7 @@ export function ParentShell({ user, title, subtitle, tabTitle, children }: Paren
               type="button"
               onClick={handleSignOut}
               disabled={signingOut}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-line px-3 py-2 text-sm font-medium text-ink-muted hover:text-ink disabled:opacity-60"
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-brand-100 px-3 py-2 text-sm font-medium text-ink-muted hover:text-ink disabled:opacity-60"
             >
               <Icon name="logout" className="h-4 w-4" />
               {signingOut ? "Signing out…" : "Sign out"}
@@ -92,8 +91,8 @@ export function ParentShell({ user, title, subtitle, tabTitle, children }: Paren
         <div className="flex min-w-0 flex-1 flex-col">
           {/* Small screens: compact top bar */}
           <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-line bg-card/95 px-4 backdrop-blur lg:hidden">
-            <Link href={homePath} aria-label="Pikva home">
-              <Logo size={26} />
+            <Link href="/" aria-label="Pikva home page">
+              <img src="/images/pikva-logo.png" alt="Pikva" width={800} height={241} className="h-auto w-[62px]" />
             </Link>
             <div className="ml-auto flex items-center gap-2">
               <Avatar name={user.name} small />
@@ -110,7 +109,7 @@ export function ParentShell({ user, title, subtitle, tabTitle, children }: Paren
           </header>
 
           <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 pb-28 sm:px-8 sm:pt-8 lg:pb-10">
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
+            <h1 className="text-2xl font-extrabold tracking-tight text-navy-900 sm:text-3xl">{title}</h1>
             {subtitle && <p className="mt-1 text-sm text-ink-muted sm:text-base">{subtitle}</p>}
             <div className="mt-6 sm:mt-8">{children}</div>
           </main>
@@ -150,7 +149,7 @@ function Avatar({ name, small = false }: { name: string; small?: boolean }) {
   return (
     <span
       aria-hidden="true"
-      className={`flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-600 to-accent-400 font-semibold text-white ${
+      className={`flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-600 to-sun-400 font-semibold text-white ${
         small ? "h-8 w-8 text-xs" : "h-10 w-10 text-sm"
       }`}
     >

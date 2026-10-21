@@ -2,7 +2,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { type FormEvent, useState } from "react";
 
-import { AuthCard, FormError, inputClass, linkClass, primaryButtonClass } from "@/components/AuthCard";
+import { AuthCard, FormError, authInputClass, linkClass, primaryButtonClass } from "@/components/AuthCard";
 import { OFFLINE } from "@/lib/api-errors";
 import { redirectIfSignedIn } from "@/lib/auth-guard";
 import { loginErrorMessage } from "@/lib/login-error";
@@ -73,7 +73,7 @@ export default function LoginPage() {
             required
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            className={`mt-1.5 ${inputClass}`}
+            className={`mt-1.5 ${authInputClass}`}
           />
         </div>
 
@@ -94,7 +94,7 @@ export default function LoginPage() {
               required
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className={`${inputClass} pr-16`}
+              className={`${authInputClass} pr-16`}
             />
             <button
               type="button"

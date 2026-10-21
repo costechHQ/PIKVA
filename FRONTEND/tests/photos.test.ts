@@ -9,6 +9,8 @@ import {
   PHOTO_WRONG_TYPE,
   personPhotoSrc,
   photoFileError,
+  pupilPhotoPath,
+  pupilPhotoSrc,
 } from "@/lib/photos";
 
 describe("personPhotoSrc", () => {
@@ -108,5 +110,20 @@ describe("sendPhoto", () => {
     }) as unknown as typeof fetch;
 
     expect(await sendPhoto(7, null)).toEqual({ ok: false, message: OFFLINE });
+  });
+});
+
+describe("pupilPhotoSrc", () => {
+  test("is null when the pupil has no uploaded photo", () => {
+    expect(pupilPhotoSrc({ id: 3, photo_updated_at: null })).toBeNull();
+  });
+
+  test("names the pupil photo route and changes with a new upload", () => {
+    const first = pupilPhotoSrc({ id: 3, photo_updated_at: "2026-10-16T10:00:00+00:00" });
+    const second = pupilPhotoSrc({ id: 3, photo_updated_at: "2026-10-16T11:00:00+00:00" });
+
+    expect(pupilPhotoPath(3)).toBe("/api/pupils/3/photo");
+    expect(first?.startsWith("/api/pupils/3/photo?v=")).toBe(true);
+    expect(first).not.toBe(second);
   });
 });

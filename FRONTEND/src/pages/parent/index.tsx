@@ -1,10 +1,12 @@
 import type { GetServerSideProps } from "next";
 import Link from "next/link";
 
+import { Icon } from "@/components/Icon";
 import { ParentShell } from "@/components/ParentShell";
 import { EmptyState, LoadError, PupilAvatar, Skeleton } from "@/components/ParentUi";
 import { type CurrentUser, getAsUser, requireUser } from "@/lib/auth-guard";
 import { firstName } from "@/lib/format";
+import type { IconName } from "@/lib/navigation";
 import {
   NO_PEOPLE,
   OVERVIEW_RELEASES_LIMIT,
@@ -78,14 +80,14 @@ function Overview({ data }: { data: Data }) {
   return (
     <div className="space-y-8">
       <section aria-label="Summary" className="grid grid-cols-3 gap-3 sm:gap-4">
-        <Stat label="Pupils" value={pupils.length} highlight />
-        <Stat label="Active pickup people" value={activeTotal} />
-        <Stat label="Picked up today" value={latestToday ? latestToday.size : null} />
+        <Stat label="Pupils" value={pupils.length} icon="pupils" bubble="bg-white/20 text-white" highlight />
+        <Stat label="Active pickup people" value={activeTotal} icon="approvals" bubble="bg-sun-100 text-sun-500" />
+        <Stat label="Picked up today" value={latestToday ? latestToday.size : null} icon="pickup" bubble="bg-mint-400/20 text-success-600" />
       </section>
 
       <div className="grid gap-8 lg:grid-cols-3">
         <section aria-labelledby="pupils-heading" className="lg:col-span-2">
-          <h2 id="pupils-heading" className="text-lg font-semibold">
+          <h2 id="pupils-heading" className="text-lg font-bold text-navy-900">
             My pupils
           </h2>
           <ul className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -103,14 +105,14 @@ function Overview({ data }: { data: Data }) {
 
         <section aria-labelledby="today-heading">
           <div className="flex items-center justify-between">
-            <h2 id="today-heading" className="text-lg font-semibold">
+            <h2 id="today-heading" className="text-lg font-bold text-navy-900">
               Today&apos;s pickups
             </h2>
             <Link href="/parent/pickup-history" className="text-sm font-medium text-brand-600 hover:text-brand-700">
               View history
             </Link>
           </div>
-          <div className="mt-4 rounded-2xl border border-line bg-card">
+          <div className="mt-4 rounded-3xl border border-brand-100 bg-card shadow-sm">
             {today === null ? (
               <div className="space-y-3 p-5">
                 <Skeleton className="h-4 w-40" />
@@ -143,19 +145,35 @@ function Overview({ data }: { data: Data }) {
   );
 }
 
-function Stat({ label, value, highlight = false }: { label: string; value: number | null; highlight?: boolean }) {
+function Stat({
+  label,
+  value,
+  icon,
+  bubble,
+  highlight = false,
+}: {
+  label: string;
+  value: number | null;
+  icon: IconName;
+  /** Colour classes for the round icon badge. */
+  bubble: string;
+  highlight?: boolean;
+}) {
   return (
     <div
-      className={`rounded-2xl p-4 sm:p-5 ${
+      className={`rounded-3xl p-4 transition duration-300 hover:-translate-y-1 hover:shadow-xl sm:p-5 ${
         highlight
-          ? "bg-gradient-to-br from-navy-900 via-navy-800 to-brand-600 text-white shadow-sm"
-          : "border border-line bg-card"
+          ? "bg-gradient-to-br from-brand-600 to-navy-900 text-white shadow-lg shadow-brand-600/30"
+          : "border border-brand-100 bg-card shadow-sm"
       }`}
     >
+      <span className={`flex h-9 w-9 items-center justify-center rounded-2xl sm:h-10 sm:w-10 ${bubble}`}>
+        <Icon name={icon} className="h-5 w-5" />
+      </span>
       {value === null ? (
-        <Skeleton className="h-8 w-10" />
+        <Skeleton className="mt-3 h-8 w-10" />
       ) : (
-        <p className="text-2xl font-semibold sm:text-3xl">{value}</p>
+        <p className="mt-3 text-2xl font-extrabold sm:text-3xl">{value}</p>
       )}
       <p className={`mt-1 text-xs sm:text-sm ${highlight ? "text-white/75" : "text-ink-muted"}`}>{label}</p>
     </div>
@@ -168,7 +186,7 @@ function Stat({ label, value, highlight = false }: { label: string; value: numbe
  */
 function PupilCard({ pupil, people, release }: { pupil: Pupil; people: PeopleCounts; release: Release | null | undefined }) {
   return (
-    <article className="flex h-full flex-col items-start rounded-2xl border border-line bg-card p-5 shadow-sm">
+    <article className="flex h-full flex-col items-start rounded-3xl border border-brand-100 bg-card p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-brand-600/10">
       <div className="flex items-center gap-3">
         <PupilAvatar pupil={pupil} />
         <h3 className="min-w-0 truncate font-semibold">{pupilName(pupil)}</h3>
@@ -200,7 +218,7 @@ function PupilCard({ pupil, people, release }: { pupil: Pupil; people: PeopleCou
 
       <Link
         href={`/parent/pupils/${pupil.id}`}
-        className="mt-4 inline-flex rounded-lg border border-line px-3 py-2 text-sm font-medium text-brand-600 hover:border-brand-500"
+        className="mt-4 inline-flex rounded-full bg-brand-50 px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-100"
       >
         View pupil
       </Link>

@@ -2,11 +2,13 @@ import { describe, expect, test } from "bun:test";
 
 import {
   USERS_PAGE_SIZE,
+  USER_SEARCH_MAX,
   isManageable,
   newUserBody,
   parseCreatableRole,
   parsePage,
   parseRoleFilter,
+  parseUserSearch,
   setupEmailPath,
   setupLinkMessage,
   usersApiPath,
@@ -45,6 +47,18 @@ describe("parsePage", () => {
   });
 });
 
+describe("parseUserSearch", () => {
+  test("trims the search and says nothing when it is missing", () => {
+    expect(parseUserSearch("  ada  ")).toBe("ada");
+    expect(parseUserSearch(undefined)).toBe("");
+    expect(parseUserSearch(["a", "b"])).toBe("");
+  });
+
+  test("cuts very long text", () => {
+    expect(parseUserSearch("x".repeat(USER_SEARCH_MAX + 50))).toHaveLength(USER_SEARCH_MAX);
+  });
+});
+
 describe("usersApiPath", () => {
   test("asks for one extra row to detect a next page", () => {
     expect(usersApiPath(null, 1)).toBe(`schools/users?limit=${USERS_PAGE_SIZE + 1}&offset=0`);
@@ -54,6 +68,19 @@ describe("usersApiPath", () => {
     expect(usersApiPath("gate_staff", 3)).toBe(
       `schools/users?limit=${USERS_PAGE_SIZE + 1}&offset=${2 * USERS_PAGE_SIZE}&role=gate_staff`,
     );
+  });
+});
+
+describe("search in the paths", () => {
+  test("is sent to FastAPI and encoded", () => {
+    expect(usersApiPath("parent", 1, "ada o&b")).toBe(
+      `schools/users?limit=${USERS_PAGE_SIZE + 1}&offset=0&role=parent&q=ada+o%26b`,
+    );
+  });
+
+  test("is kept in page links", () => {
+    expect(usersPageHref(null, 2, "ada")).toBe("/admin/users?q=ada&page=2");
+    expect(usersPageHref("gate_staff", 1, "ada")).toBe("/admin/users?role=gate_staff&q=ada");
   });
 });
 

@@ -131,6 +131,39 @@ export async function redirectIfSignedIn(
   return home ? redirect(home) : showPage;
 }
 
+/**
+ * For pages anyone may open, such as the landing page: the signed-in user, or
+ * null when signed out. Anything uncertain (no cookie, rejected token, FastAPI
+ * down) gives null, so the page always renders. A rejected token's cookie is
+ * deleted.
+ */
+export async function getOptionalUser(context: GuardContext): Promise<CurrentUser | null> {
+  const token = sessionToken(context.req);
+
+  if (!token) {
+    return null;
+  }
+
+  let response: Response;
+
+  try {
+    response = await fetch(`${apiBaseUrl()}/api/v1/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch {
+    return null;
+  }
+
+  if (response.status === 401) {
+    context.res.setHeader("Set-Cookie", clearedSessionCookie(secureCookies()));
+    return null;
+  }
+
+  const user: Partial<CurrentUser> | null = response.ok ? await response.json().catch(() => null) : null;
+
+  return user?.role && user.role in HOME_PATH && typeof user.name === "string" ? (user as CurrentUser) : null;
+}
+
 function redirect(destination: string): GetServerSidePropsResult<never> {
   return { redirect: { destination, permanent: false } };
 }

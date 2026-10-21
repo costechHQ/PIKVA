@@ -7,18 +7,18 @@
  * colours, so the look stays consistent and can change in one place.
  */
 @theme {
-  /* Sidebar and dark panels */
-  --color-navy-950: #081430;
-  --color-navy-900: #0b1b45;
-  --color-navy-800: #142a63;
-  --color-navy-700: #1d3a80;
+  /* Sidebar and dark panels (deep purple, same family as grape below) */
+  --color-navy-950: #150b38;
+  --color-navy-900: #231457;
+  --color-navy-800: #33207f;
+  --color-navy-700: #442c9c;
 
-  /* Primary actions (buttons, links, active states) */
-  --color-brand-50: #eef4ff;
-  --color-brand-100: #dbe7ff;
-  --color-brand-500: #2f6bf0;
-  --color-brand-600: #1556e0;
-  --color-brand-700: #1046bd;
+  /* Primary actions (buttons, links, active states): purple, matching the landing page */
+  --color-brand-50: #f3f0ff;
+  --color-brand-100: #e4dcff;
+  --color-brand-500: #6c4ae8;
+  --color-brand-600: #5b3bd6;
+  --color-brand-700: #4a2fb3;
 
   /* Cyan accent (parent portal highlights and gradients) */
   --color-accent-50: #e6fbff;
@@ -26,7 +26,7 @@
   --color-accent-600: #0891b2;
 
   /* Page and cards */
-  --color-surface: #f4f6fb;
+  --color-surface: #f7f5ff;
   --color-card: #ffffff;
   --color-line: #e4e8f1;
 
@@ -42,7 +42,45 @@
   --color-warning-50: #fff6e5;
   --color-warning-600: #d97706;
 
+  /* Playful public-page palette (landing page): purple + sunshine yellow */
+  --color-grape-50: #f3f0ff;
+  --color-grape-100: #e4dcff;
+  --color-grape-400: #8b6ff5;
+  --color-grape-500: #6c4ae8;
+  --color-grape-600: #5b3bd6;
+  --color-grape-700: #4a2fb3;
+  --color-grape-900: #231457;
+  --color-sun-100: #fff3c4;
+  --color-sun-400: #ffc933;
+  --color-sun-500: #f5b400;
+  --color-coral-400: #ff7a8a;
+  --color-mint-400: #34d399;
+
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-float-slow: float 9s ease-in-out infinite;
+  --animate-wiggle: wiggle 3s ease-in-out infinite;
+  --animate-rise: rise 0.7s ease-out both;
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-14px); }
+  }
+  @keyframes wiggle {
+    0%, 100% { transform: rotate(-4deg); }
+    50% { transform: rotate(4deg); }
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(18px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-safe-anim {
+    animation: none !important;
+  }
 }
 
 body {

@@ -17,7 +17,15 @@ export default class PikvaDocument extends Document<Props> {
     const { nonce } = this.props;
     return (
       <Html lang="en">
-        <Head nonce={nonce} />
+        <Head nonce={nonce}>
+          <link rel="icon" href="/favicon.ico" sizes="48x48" />
+          <link rel="icon" href="/icon.png" type="image/png" sizes="512x512" />
+          <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+          {/* Lets a phone add Pikva to the Home Screen; iPhones only allow push notifications from there. */}
+          <link rel="manifest" href="/manifest.webmanifest" />
+          <meta name="apple-mobile-web-app-title" content="Pikva" />
+          <meta name="theme-color" content="#5b3bd6" />
+        </Head>
         <body className="antialiased">
           <Main />
           <NextScript nonce={nonce} />

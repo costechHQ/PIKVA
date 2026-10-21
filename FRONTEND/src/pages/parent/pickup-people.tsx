@@ -107,7 +107,7 @@ function PickupPeopleManager({ data }: { data: Data }) {
           <button
             type="button"
             onClick={() => openEditor({ kind: "add", pupilId: data.pupils.length === 1 ? data.pupils[0].id : null })}
-            className="shrink-0 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700"
+            className="shrink-0 rounded-full bg-brand-600 shadow-md shadow-brand-600/25 transition hover:-translate-y-0.5 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700"
           >
             Add pickup person
           </button>
@@ -133,14 +133,14 @@ function PickupPeopleManager({ data }: { data: Data }) {
           <section key={pupil.id} id={`pupil-${pupil.id}`} aria-labelledby={`pupil-${pupil.id}-heading`} className="scroll-mt-20">
             <div className="flex items-center gap-3">
               <PupilAvatar pupil={pupil} size="sm" />
-              <h2 id={`pupil-${pupil.id}-heading`} className="min-w-0 flex-1 truncate text-lg font-semibold">
+              <h2 id={`pupil-${pupil.id}-heading`} className="min-w-0 flex-1 truncate text-lg font-bold text-navy-900">
                 {pupilName(pupil)}
               </h2>
               {!editor && (
                 <button
                   type="button"
                   onClick={() => openEditor({ kind: "add", pupilId: pupil.id })}
-                  className="shrink-0 rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-brand-600 hover:border-brand-500"
+                  className="shrink-0 rounded-full border border-brand-100 px-3 py-1.5 text-sm font-medium text-brand-600 hover:border-brand-500"
                 >
                   Add
                 </button>
@@ -211,7 +211,7 @@ function PersonCard({
   }
 
   return (
-    <article className="h-full rounded-2xl border border-line bg-card p-5 shadow-sm">
+    <article className="h-full rounded-3xl border border-brand-100 bg-card p-5 shadow-sm">
       <div className="flex items-start gap-3">
         <PhotoOrInitials
           src={personPhotoSrc(person)}
@@ -276,7 +276,7 @@ function PersonCard({
               type="button"
               onClick={() => setConfirming(false)}
               disabled={busy}
-              className="rounded-lg border border-line bg-card px-3 py-2 text-sm font-medium text-ink-muted hover:text-ink"
+              className="rounded-full border border-brand-100 bg-card px-3 py-2 text-sm font-medium text-ink-muted hover:text-ink"
             >
               Cancel
             </button>
@@ -288,7 +288,7 @@ function PersonCard({
             <button
               type="button"
               onClick={onEdit}
-              className="rounded-lg border border-line px-3 py-2 text-sm font-medium text-ink-muted hover:text-ink"
+              className="rounded-full border border-brand-100 px-3 py-2 text-sm font-medium text-ink-muted hover:text-ink"
             >
               Edit
             </button>
@@ -296,7 +296,7 @@ function PersonCard({
               <button
                 type="button"
                 onClick={() => setConfirming(true)}
-                className="rounded-lg border border-line px-3 py-2 text-sm font-medium text-danger-600 hover:border-danger-600"
+                className="rounded-full border border-brand-100 px-3 py-2 text-sm font-medium text-danger-600 hover:border-danger-600"
               >
                 Deactivate
               </button>
@@ -305,7 +305,7 @@ function PersonCard({
                 type="button"
                 onClick={() => void setActive(true)}
                 disabled={busy}
-                className="rounded-lg border border-line px-3 py-2 text-sm font-medium text-success-600 hover:border-success-600 disabled:opacity-60"
+                className="rounded-full border border-brand-100 px-3 py-2 text-sm font-medium text-success-600 hover:border-success-600 disabled:opacity-60"
               >
                 {busy ? "Activating…" : "Activate"}
               </button>
@@ -436,7 +436,7 @@ function PersonEditor({
       aria-labelledby="editor-heading"
       className="scroll-mt-20 rounded-2xl border border-brand-100 bg-card p-5 shadow-sm ring-4 ring-brand-50 sm:p-6"
     >
-      <h2 id="editor-heading" className="text-lg font-semibold">
+      <h2 id="editor-heading" className="text-lg font-bold text-navy-900">
         {original ? `Edit ${original.picker_name}` : "Add a pickup person"}
       </h2>
 
@@ -507,14 +507,14 @@ function PersonEditor({
           type="button"
           onClick={onCancel}
           disabled={saving}
-          className="rounded-lg border border-line px-4 py-2.5 text-sm font-medium text-ink-muted hover:text-ink"
+          className="rounded-full border border-brand-100 px-4 py-2.5 text-sm font-medium text-ink-muted hover:text-ink"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={saving}
-          className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+          className="rounded-full bg-brand-600 shadow-md shadow-brand-600/25 transition hover:-translate-y-0.5 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
         >
           {saving ? "Saving…" : original ? "Save changes" : "Add pickup person"}
         </button>
@@ -566,7 +566,7 @@ function PhotoField({
           <div className="flex flex-wrap gap-2">
             {/* A label, so the file input itself stays the keyboard and screen reader target. */}
             <label
-              className={`cursor-pointer rounded-lg border border-line px-3 py-2 text-sm font-medium text-brand-600 hover:border-brand-500 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-500 ${disabled ? "pointer-events-none opacity-60" : ""}`}
+              className={`cursor-pointer rounded-full border border-brand-100 px-3 py-2 text-sm font-medium text-brand-600 hover:border-brand-500 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-500 ${disabled ? "pointer-events-none opacity-60" : ""}`}
             >
               {shown ? "Choose another photo" : "Choose photo"}
               <input type="file" accept={PHOTO_ACCEPT} className="sr-only" onChange={onChoose} disabled={disabled} />
@@ -576,7 +576,7 @@ function PhotoField({
                 type="button"
                 onClick={() => onChange({ kind: "keep" })}
                 disabled={disabled}
-                className="rounded-lg border border-line px-3 py-2 text-sm font-medium text-ink-muted hover:text-ink"
+                className="rounded-full border border-brand-100 px-3 py-2 text-sm font-medium text-ink-muted hover:text-ink"
               >
                 {current ? "Keep current photo" : "Don't use this photo"}
               </button>
@@ -586,7 +586,7 @@ function PhotoField({
                 type="button"
                 onClick={() => onChange({ kind: "remove" })}
                 disabled={disabled}
-                className="rounded-lg border border-line px-3 py-2 text-sm font-medium text-danger-600 hover:border-danger-600"
+                className="rounded-full border border-brand-100 px-3 py-2 text-sm font-medium text-danger-600 hover:border-danger-600"
               >
                 Remove photo
               </button>
@@ -596,7 +596,7 @@ function PhotoField({
                 type="button"
                 onClick={() => onChange({ kind: "keep" })}
                 disabled={disabled}
-                className="rounded-lg border border-line px-3 py-2 text-sm font-medium text-ink-muted hover:text-ink"
+                className="rounded-full border border-brand-100 px-3 py-2 text-sm font-medium text-ink-muted hover:text-ink"
               >
                 Keep photo
               </button>
@@ -739,7 +739,7 @@ function TodaysCode({ person, pupil }: { person: PickupPerson; pupil: Pupil }) {
             type="button"
             onClick={() => void getCode()}
             disabled={busy}
-            className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+            className="rounded-full bg-brand-600 shadow-md shadow-brand-600/25 transition hover:-translate-y-0.5 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
           >
             {busy ? "Getting code…" : "Get new code"}
           </button>
@@ -747,7 +747,7 @@ function TodaysCode({ person, pupil }: { person: PickupPerson; pupil: Pupil }) {
             type="button"
             onClick={() => setStep("idle")}
             disabled={busy}
-            className="rounded-lg border border-line bg-card px-3 py-2 text-sm font-medium text-ink-muted hover:text-ink"
+            className="rounded-full border border-brand-100 bg-card px-3 py-2 text-sm font-medium text-ink-muted hover:text-ink"
           >
             Cancel
           </button>

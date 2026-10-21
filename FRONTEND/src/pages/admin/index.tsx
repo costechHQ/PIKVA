@@ -3,10 +3,12 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { AppShell } from "@/components/AppShell";
+import { Icon } from "@/components/Icon";
 import { LoadError, PupilAvatar, Skeleton } from "@/components/ParentUi";
 import { type SecurityAlert, alertTitle, isUrgent } from "@/lib/alerts";
 import { type CurrentUser, getAsUser, requireUser } from "@/lib/auth-guard";
 import { DASHBOARD_LIMIT, PANEL_SIZE, countText, mayHaveMore } from "@/lib/dashboard";
+import type { IconName } from "@/lib/navigation";
 import { type PickupPerson, type Pupil, type Release, formatDateTime, formatTime, pupilName, todaysReleases } from "@/lib/parent";
 import { useNow } from "@/lib/use-now";
 
@@ -71,17 +73,27 @@ function Dashboard({ data }: { data: Data }) {
   return (
     <div className="space-y-8">
       <section aria-label="Summary" className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <Stat label="Pupils" value={String(data.pupilCount)} href="/admin/pupils" highlight />
-        <Stat label="Active pickup people" value={String(data.activePeople)} href="/admin/pickup-people?status=active" />
+        <Stat label="Pupils" value={String(data.pupilCount)} href="/admin/pupils" icon="pupils" bubble="bg-white/20 text-white" highlight />
+        <Stat
+          label="Active pickup people"
+          value={String(data.activePeople)}
+          href="/admin/pickup-people?status=active"
+          icon="approvals"
+          bubble="bg-sun-100 text-sun-500"
+        />
         <Stat
           label="Pupils picked up today"
           value={today && pickedUp !== null ? (mayHaveMore(today.length, data.releases.length) ? `${pickedUp}+` : String(pickedUp)) : null}
           href="/admin/pickup-history"
+          icon="pickup"
+          bubble="bg-mint-400/20 text-success-600"
         />
         <Stat
           label="Open security alerts"
           value={countText(data.openAlerts.length)}
           href="/admin/alerts"
+          icon="alerts"
+          bubble="bg-coral-400/20 text-danger-600"
           tone={data.openAlerts.length === 0 ? undefined : urgent ? "danger" : "warning"}
         />
       </section>
@@ -159,25 +171,33 @@ function Stat({
   label,
   value,
   href,
+  icon,
+  bubble,
   highlight = false,
   tone,
 }: {
   label: string;
   value: string | null;
   href: string;
+  icon: IconName;
+  /** Colour classes for the round icon badge. */
+  bubble: string;
   highlight?: boolean;
   tone?: "warning" | "danger";
 }) {
   const style = highlight
-    ? "bg-gradient-to-br from-navy-900 via-navy-800 to-brand-600 text-white shadow-sm"
+    ? "bg-gradient-to-br from-brand-600 to-navy-900 text-white shadow-lg shadow-brand-600/30"
     : tone === "danger"
       ? "border border-danger-600/30 bg-danger-50"
       : tone === "warning"
         ? "border border-warning-600/30 bg-warning-50"
-        : "border border-line bg-card";
+        : "border border-brand-100 bg-card shadow-sm";
   return (
-    <Link href={href} className={`block rounded-2xl p-4 transition hover:-translate-y-0.5 hover:shadow-md sm:p-5 ${style}`}>
-      {value === null ? <Skeleton className="h-8 w-10" /> : <p className="text-2xl font-semibold sm:text-3xl">{value}</p>}
+    <Link href={href} className={`relative block overflow-hidden rounded-3xl p-4 transition duration-300 hover:-translate-y-1 hover:shadow-xl sm:p-5 ${style}`}>
+      <span className={`relative flex h-10 w-10 items-center justify-center rounded-2xl ${bubble}`}>
+        <Icon name={icon} />
+      </span>
+      {value === null ? <Skeleton className="mt-3 h-8 w-10" /> : <p className="relative mt-3 text-2xl font-extrabold sm:text-3xl">{value}</p>}
       <p className={`mt-1 text-xs sm:text-sm ${highlight ? "text-white/75" : "text-ink-muted"}`}>{label}</p>
     </Link>
   );
@@ -185,9 +205,9 @@ function Stat({
 
 function Panel({ title, href, linkText, children }: { title: string; href: string; linkText: string; children: ReactNode }) {
   return (
-    <section aria-label={title} className="rounded-2xl border border-line bg-card shadow-sm">
+    <section aria-label={title} className="rounded-3xl border border-brand-100 bg-card shadow-sm">
       <div className="flex items-center justify-between px-5 pt-5 pb-3">
-        <h2 className="font-semibold">{title}</h2>
+        <h2 className="font-bold text-navy-900">{title}</h2>
         <Link href={href} className="text-sm font-medium text-brand-600 hover:text-brand-700">
           {linkText}
         </Link>

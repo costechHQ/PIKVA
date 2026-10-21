@@ -41,6 +41,9 @@ ACCESS = {
     ("POST", "/api/v1/pupils"): MANAGERS,
     ("GET", "/api/v1/pupils/{pupil_id}"): MANAGERS,
     ("PATCH", "/api/v1/pupils/{pupil_id}"): MANAGERS,
+    ("PUT", "/api/v1/pupils/{pupil_id}/photo"): MANAGERS,
+    ("DELETE", "/api/v1/pupils/{pupil_id}/photo"): MANAGERS,
+    ("GET", "/api/v1/pupils/{pupil_id}/photo"): ROLES,
     ("POST", "/api/v1/pickers"): PARENT,
     ("GET", "/api/v1/pickers"): MANAGERS,
     ("GET", "/api/v1/pickers/{authorisation_id}"): MANAGERS,
@@ -60,6 +63,9 @@ ACCESS = {
     ("GET", "/api/v1/alerts/{alert_id}"): STAFF,
     ("POST", "/api/v1/alerts/{alert_id}/resolve"): STAFF,
     ("GET", "/api/v1/audit-logs"): STAFF,
+    ("GET", "/api/v1/push/config"): STAFF,
+    ("POST", "/api/v1/push/subscriptions"): STAFF,
+    ("POST", "/api/v1/push/subscriptions/remove"): STAFF,
 }
 
 

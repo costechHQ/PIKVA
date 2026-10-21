@@ -143,3 +143,22 @@ async def test_creation_is_audited_without_the_token(client, school, outbox):
 
     assert any('"gate_staff"' in (metadata or "") for _, metadata in rows)
     assert all(token not in (metadata or "") for _, metadata in rows)
+
+
+async def test_user_list_can_be_searched_by_name_or_email(client, school, outbox):
+    await create(client, school)
+    await create(client, school, {**NEW_GATE, "name": "Hamza Bello", "email": "hamza-b@example.com"})
+
+    async def found(q: str) -> set[str]:
+        response = await client.get(USERS_URL, headers=school["headers"]["admin"], params={"q": q})
+        assert response.status_code == 200
+        return {user["name"] for user in response.json()}
+
+    assert await found("gina") == {"Gina Gate"}
+    assert await found("GATE gina") == {"Gina Gate"}
+    assert await found("hamza-b@") == {"Hamza Bello"}
+    assert await found("zzz-nobody") == set()
+    # Wildcard characters are searched for literally, never as patterns.
+    assert await found("%") == set()
+    # The school's gate user is named after its role (gate_staff), so a literal "_" matches only that one.
+    assert await found("_") == {name for name in await found("") if "_" in name}

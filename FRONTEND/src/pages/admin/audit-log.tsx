@@ -2,7 +2,6 @@ import type { GetServerSideProps } from "next";
 import Link from "next/link";
 
 import { AppShell } from "@/components/AppShell";
-import { inputClass } from "@/components/AuthCard";
 import { LoadError, Skeleton } from "@/components/ParentUi";
 import {
   ACTION_LABELS,
@@ -69,34 +68,51 @@ function AuditList({ data }: { data: Data }) {
 
   return (
     <div className="space-y-6">
-      {/* A plain GET form, so the filter works before scripts load. */}
-      <form method="get" className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <label htmlFor="action" className="text-sm font-medium">
-          Action
-        </label>
-        <select id="action" name="action" defaultValue={action ?? ""} className={`${inputClass} sm:max-w-xs`}>
-          <option value="">All actions</option>
-          {Object.entries(ACTION_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-        <div className="flex gap-2">
-          <button type="submit" className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700">
-            Show
-          </button>
-          {action && (
-            <Link href="/admin/audit-log" className="rounded-lg border border-line bg-card px-4 py-2.5 text-sm font-medium text-ink-muted hover:text-ink">
-              All actions
-            </Link>
-          )}
-        </div>
-      </form>
+      {/* Links, not a form: the filter works before scripts load. */}
+      <details className="group rounded-2xl border border-brand-100 bg-card shadow-sm transition open:shadow-md">
+        <summary className="flex cursor-pointer list-none items-center gap-3 rounded-2xl py-3 pe-4 ps-4 outline-none marker:content-none focus-visible:ring-4 focus-visible:ring-brand-100 [&::-webkit-details-marker]:hidden">
+          <span
+            aria-hidden="true"
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600 transition-transform group-open:rotate-90"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+              <path d="m9 6 6 6-6 6" />
+            </svg>
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-xs font-semibold uppercase tracking-wide text-ink-muted">Action</span>
+            <span className="block truncate font-semibold text-navy-900">{action ? actionLabel(action) : "All actions"}</span>
+          </span>
+        </summary>
+        <ul aria-label="Filter by action" className="max-h-72 space-y-1 overflow-y-auto border-t border-line p-2">
+          {[{ value: "", label: "All actions" }, ...Object.entries(ACTION_LABELS).map(([value, label]) => ({ value, label }))].map((option) => {
+            const active = (action ?? "") === option.value;
+            return (
+              <li key={option.value || "all"}>
+                <Link
+                  href={auditHref(option.value || null, 1)}
+                  aria-current={active ? "true" : undefined}
+                  className={
+                    "flex items-center justify-between rounded-xl px-3 py-2 text-sm transition " +
+                    (active ? "bg-brand-600 font-semibold text-white" : "text-navy-900 hover:bg-brand-50 hover:text-brand-700")
+                  }
+                >
+                  {option.label}
+                  {active && (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+                      <path d="m5 12.5 4.5 4.5L19 7.5" />
+                    </svg>
+                  )}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </details>
 
-      <div className="overflow-x-auto rounded-xl border border-line bg-card">
+      <div className="overflow-x-auto rounded-2xl border border-brand-100 bg-card">
         <table className="w-full min-w-[820px] text-left text-sm">
-          <thead className="border-b border-line text-xs font-medium text-ink-muted">
+          <thead className="border-b border-brand-100 bg-brand-50 text-xs font-semibold text-navy-900">
             <tr>
               <th scope="col" className="w-40 px-4 py-3 font-medium">When</th>
               <th scope="col" className="px-4 py-3 font-medium">Who</th>
@@ -121,7 +137,7 @@ function AuditList({ data }: { data: Data }) {
       {(page > 1 || hasNext) && (
         <nav aria-label="Pages" className="flex items-center justify-between gap-2 text-sm sm:justify-end">
           {page > 1 ? (
-            <Link href={auditHref(action, page - 1)} className="rounded-lg border border-line bg-card px-4 py-2 font-medium hover:text-brand-700">
+            <Link href={auditHref(action, page - 1)} className="rounded-full border border-brand-100 bg-card px-4 py-2 font-medium hover:text-brand-700">
               Newer
             </Link>
           ) : (
@@ -129,7 +145,7 @@ function AuditList({ data }: { data: Data }) {
           )}
           <span className="px-2 text-ink-muted">Page {page}</span>
           {hasNext ? (
-            <Link href={auditHref(action, page + 1)} className="rounded-lg border border-line bg-card px-4 py-2 font-medium hover:text-brand-700">
+            <Link href={auditHref(action, page + 1)} className="rounded-full border border-brand-100 bg-card px-4 py-2 font-medium hover:text-brand-700">
               Older
             </Link>
           ) : (

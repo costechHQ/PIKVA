@@ -102,13 +102,14 @@ async def create_user(
 
 async def list_users(
     role: UserRole | None = None,
+    q: str | None = Query(default=None, max_length=100, description="Words to find in the name or email"),
     limit: int = Query(default=200, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
 
-    """List users in the admin's school, optionally filtered by role."""
+    """List users in the admin's school, optionally filtered by role or a name/email search."""
 
     return await list_school_users(
         session=session,
@@ -116,6 +117,7 @@ async def list_users(
         role=role,
         limit=limit,
         offset=offset,
+        search=q,
     )
 
 

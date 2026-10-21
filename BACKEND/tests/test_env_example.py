@@ -29,3 +29,4 @@ def test_env_example_holds_no_real_secret():
 
     assert values["SECRET_KEY"] == ""
     assert values["RESEND_API_KEY"] == ""
+    assert values["VAPID_PRIVATE_KEY"] == ""

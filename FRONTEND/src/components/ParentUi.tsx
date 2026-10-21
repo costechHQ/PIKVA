@@ -7,6 +7,7 @@ import { type ReactNode, useState } from "react";
 
 import { initials } from "@/lib/format";
 import { type AuthorisationStatus, type Pupil, isWebPhoto, pupilName } from "@/lib/parent";
+import { pupilPhotoSrc } from "@/lib/photos";
 
 /** Shown when a page's data could not be loaded; "Try again" reloads it. */
 export function LoadError({ message }: { message: string }) {
@@ -26,7 +27,7 @@ export function LoadError({ message }: { message: string }) {
         type="button"
         onClick={retry}
         disabled={retrying}
-        className="mt-4 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+        className="mt-4 rounded-full bg-brand-600 shadow-md shadow-brand-600/25 transition hover:-translate-y-0.5 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
       >
         {retrying ? "Trying again…" : "Try again"}
       </button>
@@ -49,9 +50,30 @@ export function Skeleton({ className = "h-4 w-24" }: { className?: string }) {
   return <span aria-hidden="true" className={`block animate-pulse rounded-md bg-line ${className}`} />;
 }
 
-/** The pupil's photo, or their initials when there is none. */
-export function PupilAvatar({ pupil, size = "md" }: { pupil: Pick<Pupil, "first_name" | "last_name" | "photo_url">; size?: "sm" | "md" }) {
+/**
+ * The pupil's photo, or their initials when there is none. An uploaded photo
+ * (known from id and photo_updated_at) comes before a photo link.
+ */
+export function PupilAvatar({
+  pupil,
+  size = "md",
+}: {
+  pupil: Pick<Pupil, "first_name" | "last_name" | "photo_url"> & { id?: number; photo_updated_at?: string | null };
+  size?: "sm" | "md";
+}) {
   const box = size === "sm" ? "h-9 w-9 text-xs" : "h-12 w-12 text-sm";
+  const uploaded = pupil.id !== undefined ? pupilPhotoSrc({ id: pupil.id, photo_updated_at: pupil.photo_updated_at ?? null }) : null;
+
+  if (uploaded) {
+    return (
+      <PhotoOrInitials
+        src={uploaded}
+        name={pupilName(pupil)}
+        className={`${box} shrink-0 rounded-full`}
+        initialsClassName="bg-brand-100 text-brand-700"
+      />
+    );
+  }
 
   if (isWebPhoto(pupil.photo_url)) {
     return (
@@ -64,7 +86,7 @@ export function PupilAvatar({ pupil, size = "md" }: { pupil: Pick<Pupil, "first_
   return (
     <span
       aria-hidden="true"
-      className={`${box} flex shrink-0 items-center justify-center rounded-full bg-accent-50 font-semibold text-accent-600`}
+      className={`${box} flex shrink-0 items-center justify-center rounded-full bg-brand-100 font-semibold text-brand-700`}
     >
       {initials(pupilName(pupil))}
     </span>

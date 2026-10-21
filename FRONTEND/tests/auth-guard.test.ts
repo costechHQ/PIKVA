@@ -1,7 +1,7 @@
 /** Tests for requireUser, the getServerSideProps page guard. */
 import { afterEach, describe, expect, test } from "bun:test";
 
-import { BackendError, type CurrentUser, type Role, getAsUser, redirectIfSignedIn, requireUser } from "@/lib/auth-guard";
+import { BackendError, type CurrentUser, type Role, getAsUser, getOptionalUser, redirectIfSignedIn, requireUser } from "@/lib/auth-guard";
 import { SESSION_COOKIE } from "@/lib/session";
 import { type FakeBackend, deadBackendUrl, startBackend, tokenExpiringIn } from "./helpers";
 
@@ -206,5 +206,41 @@ describe("getAsUser", () => {
 
   test("throws without a session", async () => {
     await expect(getAsUser(fakeContext({}).context, "schools/users")).rejects.toThrow();
+  });
+});
+
+describe("getOptionalUser", () => {
+  test("returns the signed-in user, whatever their role", async () => {
+    const user = userWithRole("parent");
+    useBackend(() => Response.json(user));
+
+    expect(await getOptionalUser(fakeContext().context)).toEqual(user);
+  });
+
+  test("returns null without a cookie and does not call FastAPI", async () => {
+    const fake = useBackend(() => Response.json(userWithRole("school_admin")));
+
+    expect(await getOptionalUser(fakeContext({}).context)).toBeNull();
+    expect(fake.requests).toHaveLength(0);
+  });
+
+  test("clears a rejected cookie and returns null", async () => {
+    useBackend(() => Response.json({ detail: "Could not validate credentials" }, { status: 401 }));
+    const { context, headers } = fakeContext();
+
+    expect(await getOptionalUser(context)).toBeNull();
+    expect(headers["set-cookie"]).toContain(`${SESSION_COOKIE}=; Path=/; Max-Age=0`);
+  });
+
+  test("returns null when FastAPI fails, is unreachable, or sends an unknown role", async () => {
+    useBackend(() => Response.json({ detail: "Internal Server Error" }, { status: 500 }));
+    expect(await getOptionalUser(fakeContext().context)).toBeNull();
+    backend?.stop();
+
+    process.env.PIKVA_API_URL = deadBackendUrl();
+    expect(await getOptionalUser(fakeContext().context)).toBeNull();
+
+    useBackend(() => Response.json({ ...userWithRole("parent"), role: "superuser" }));
+    expect(await getOptionalUser(fakeContext().context)).toBeNull();
   });
 });

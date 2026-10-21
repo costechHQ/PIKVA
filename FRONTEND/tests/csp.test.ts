@@ -13,6 +13,7 @@ describe("contentSecurityPolicy", () => {
     expect(p["style-src"]).toBe("'self' 'nonce-abc123'");
     expect(contentSecurityPolicy("abc123", false)).not.toContain("unsafe");
     expect(p["object-src"]).toBe("'none'");
+    expect(p["worker-src"]).toBe("'self'");
     expect(p["frame-ancestors"]).toBe("'none'");
     expect(p["base-uri"]).toBe("'self'");
     expect("upgrade-insecure-requests" in p).toBe(true);

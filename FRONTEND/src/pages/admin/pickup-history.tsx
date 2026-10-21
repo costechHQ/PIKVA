@@ -100,11 +100,11 @@ function History({ data }: { data: Data }) {
         </div>
         <DayField day={day?.day ?? ""} className="lg:w-48" />
         <div className="flex gap-2">
-          <button type="submit" className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700">
+          <button type="submit" className="rounded-full bg-brand-600 shadow-md shadow-brand-600/25 transition hover:-translate-y-0.5 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700">
             Show
           </button>
           {filtered && (
-            <Link href={BASE} className="rounded-lg border border-line bg-card px-4 py-2.5 text-sm font-medium text-ink-muted hover:text-ink">
+            <Link href={BASE} className="rounded-full border border-brand-100 bg-card px-4 py-2.5 text-sm font-medium text-ink-muted hover:text-ink">
               Clear
             </Link>
           )}
@@ -135,7 +135,7 @@ function History({ data }: { data: Data }) {
       {(page > 1 || hasNext) && (
         <nav aria-label="Pages" className="flex items-center justify-between gap-2 text-sm sm:justify-end">
           {page > 1 ? (
-            <Link href={historyHref(pupilId, page - 1, BASE, day)} className="rounded-lg border border-line bg-card px-4 py-2 font-medium hover:text-brand-700">
+            <Link href={historyHref(pupilId, page - 1, BASE, day)} className="rounded-full border border-brand-100 bg-card px-4 py-2 font-medium hover:text-brand-700">
               Newer
             </Link>
           ) : (
@@ -143,7 +143,7 @@ function History({ data }: { data: Data }) {
           )}
           <span className="px-2 text-ink-muted">Page {page}</span>
           {hasNext ? (
-            <Link href={historyHref(pupilId, page + 1, BASE, day)} className="rounded-lg border border-line bg-card px-4 py-2 font-medium hover:text-brand-700">
+            <Link href={historyHref(pupilId, page + 1, BASE, day)} className="rounded-full border border-brand-100 bg-card px-4 py-2 font-medium hover:text-brand-700">
               Older
             </Link>
           ) : (
@@ -175,9 +175,9 @@ function ReleaseDays({ releases }: { releases: Release[] }) {
           <h2 id={`day-${day.key}`} className="text-sm font-semibold uppercase tracking-wide text-ink-muted">
             {day.label}
           </h2>
-          <div className="mt-3 overflow-x-auto rounded-xl border border-line bg-card">
+          <div className="mt-3 overflow-x-auto rounded-2xl border border-brand-100 bg-card">
             <table className="w-full min-w-[760px] text-left text-sm">
-              <thead className="border-b border-line text-xs font-medium text-ink-muted">
+              <thead className="border-b border-brand-100 bg-brand-50 text-xs font-semibold text-navy-900">
                 <tr>
                   <th scope="col" className="w-24 px-4 py-3 font-medium">Time</th>
                   <th scope="col" className="px-4 py-3 font-medium">Pupil</th>

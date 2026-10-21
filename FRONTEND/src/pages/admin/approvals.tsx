@@ -119,7 +119,7 @@ function RequestCard({
   }
 
   return (
-    <article className="h-full rounded-2xl border border-line bg-card p-5 shadow-sm">
+    <article className="h-full rounded-3xl border border-brand-100 bg-card p-5 shadow-sm">
       <div className="flex items-start gap-3">
         <PickerPhoto person={person} />
         <div className="min-w-0 flex-1">
@@ -204,7 +204,7 @@ function RequestCard({
               type="button"
               onClick={() => setConfirmingDecline(false)}
               disabled={busy !== null}
-              className="rounded-lg border border-line bg-card px-3 py-2 text-sm font-medium text-ink-muted hover:text-ink"
+              className="rounded-full border border-brand-100 bg-card px-3 py-2 text-sm font-medium text-ink-muted hover:text-ink"
             >
               Cancel
             </button>
@@ -216,7 +216,7 @@ function RequestCard({
             type="button"
             onClick={() => void approve()}
             disabled={busy !== null}
-            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+            className="rounded-full bg-brand-600 shadow-md shadow-brand-600/25 transition hover:-translate-y-0.5 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
           >
             {busy === "approve" ? "Approving…" : "Approve"}
           </button>
@@ -224,7 +224,7 @@ function RequestCard({
             type="button"
             onClick={() => setConfirmingDecline(true)}
             disabled={busy !== null}
-            className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-danger-600 hover:border-danger-600"
+            className="rounded-full border border-brand-100 px-4 py-2 text-sm font-medium text-danger-600 hover:border-danger-600"
           >
             Decline
           </button>

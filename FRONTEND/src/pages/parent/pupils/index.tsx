@@ -55,7 +55,7 @@ function PupilList({ data }: { data: Data }) {
           <li key={pupil.id}>
             <Link
               href={`/parent/pupils/${pupil.id}`}
-              className="flex h-full items-center gap-4 rounded-2xl border border-line bg-card p-5 shadow-sm transition hover:border-brand-500 focus-visible:outline-2 focus-visible:outline-brand-600"
+              className="flex h-full items-center gap-4 rounded-3xl border border-brand-100 bg-card p-5 shadow-sm transition hover:border-brand-500 focus-visible:outline-2 focus-visible:outline-brand-600"
             >
               <PupilAvatar pupil={pupil} />
               <span className="min-w-0 flex-1">

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -109,13 +109,27 @@ async def list_school_users(
         role: UserRole | None = None,
         limit: int = 200,
         offset: int = 0,
+        search: str | None = None,
 ) -> list[User]:
-    """List users in the school, optionally of one role, ordered by name."""
+    """List users in the school, optionally of one role or matching a search, ordered by name.
+
+    Every word of the search must appear in the name or the email, ignoring case.
+    """
 
     query = select(User).where(User.school_id == school_id)
 
     if role is not None:
         query = query.where(User.role == role)
+
+    for word in (search or "").split():
+        escaped = word.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        pattern = f"%{escaped}%"
+        query = query.where(
+            or_(
+                User.name.ilike(pattern, escape="\\"),
+                User.email.ilike(pattern, escape="\\"),
+            )
+        )
 
     result = await session.scalars(
         query.order_by(User.name, User.id).limit(limit).offset(offset)

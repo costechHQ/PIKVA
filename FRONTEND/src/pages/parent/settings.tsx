@@ -63,7 +63,7 @@ function PasswordSection({ email }: { email: string }) {
   }
 
   return (
-    <section aria-labelledby="password-heading" className="rounded-2xl border border-line bg-card p-5 shadow-sm sm:p-6">
+    <section aria-labelledby="password-heading" className="rounded-3xl border border-brand-100 bg-card p-5 shadow-sm sm:p-6">
       <h2 id="password-heading" className="font-semibold">
         Password
       </h2>
@@ -82,7 +82,7 @@ function PasswordSection({ email }: { email: string }) {
             type="button"
             onClick={() => void sendLink()}
             disabled={sending}
-            className="rounded-lg border border-line px-4 py-2.5 text-sm font-medium text-ink-muted hover:text-ink disabled:opacity-60"
+            className="rounded-full border border-brand-100 px-4 py-2.5 text-sm font-medium text-ink-muted hover:text-ink disabled:opacity-60"
           >
             {sending ? "Sending…" : sent ? "Send another link" : "Email me a reset link"}
           </button>
