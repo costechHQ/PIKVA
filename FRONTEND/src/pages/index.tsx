@@ -132,7 +132,7 @@ export default function Home() {
 
             {/* Photo with an illustrative verification card on top */}
             <div className="relative mx-auto w-full max-w-md md:max-w-none">
-              <div className="absolute -bottom-4 -right-4 h-full w-full rounded-[2.5rem] bg-sun-400" />
+              <div className="absolute -bottom-4 -left-4 h-full w-full rounded-[2.5rem] bg-sun-400" />
               <img
                 src="/images/hero-children.jpg"
                 alt="Three smiling Nigerian schoolgirls in blue uniforms reading a book together in a library"
@@ -140,7 +140,7 @@ export default function Home() {
                 height={720}
                 className="relative aspect-[4/3] w-full rounded-[2.5rem] object-cover shadow-xl shadow-grape-600/20"
               />
-              <div className="motion-safe-anim absolute -bottom-8 -left-3 w-60 animate-float rounded-3xl border border-grape-100 bg-white p-4 shadow-2xl shadow-grape-600/25 sm:-left-8 sm:w-64">
+              <div className="motion-safe-anim absolute -bottom-8 -right-3 w-60 animate-float rounded-3xl border border-grape-100 bg-white p-4 shadow-2xl shadow-grape-600/25 sm:-right-8 sm:w-64">
                 <div className="flex items-center gap-3">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mint-400/20 text-success-600">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6" aria-hidden="true">
