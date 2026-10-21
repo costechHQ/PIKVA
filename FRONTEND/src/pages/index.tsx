@@ -130,32 +130,30 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Illustrative verification card */}
-            <div className="relative mx-auto w-full max-w-sm">
-              <div className="absolute -inset-4 rounded-[2.5rem] bg-grape-600/10" />
-              <div className="motion-safe-anim relative animate-float rounded-3xl border border-grape-100 bg-white p-6 shadow-2xl shadow-grape-600/20">
+            {/* Photo with an illustrative verification card on top */}
+            <div className="relative mx-auto w-full max-w-md md:max-w-none">
+              <div className="absolute -bottom-4 -right-4 h-full w-full rounded-[2.5rem] bg-sun-400" />
+              <img
+                src="/images/hero-children.jpg"
+                alt="Three smiling Nigerian schoolgirls in blue uniforms reading a book together in a library"
+                width={1080}
+                height={720}
+                className="relative aspect-[4/3] w-full rounded-[2.5rem] object-cover shadow-xl shadow-grape-600/20"
+              />
+              <div className="motion-safe-anim absolute -bottom-8 -left-3 w-60 animate-float rounded-3xl border border-grape-100 bg-white p-4 shadow-2xl shadow-grape-600/25 sm:-left-8 sm:w-64">
                 <div className="flex items-center gap-3">
-                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-mint-400/20 text-mint-400">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="h-7 w-7" aria-hidden="true">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mint-400/20 text-success-600">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6" aria-hidden="true">
                       <path d="m5 12.5 4.5 4.5L19 7.5" />
                     </svg>
                   </span>
                   <div>
-                    <p className="font-bold text-grape-900">Verification successful</p>
-                    <p className="text-sm text-ink-muted">Authorised for pickup</p>
+                    <p className="text-sm font-bold text-grape-900">Verification successful</p>
+                    <p className="text-xs text-ink-muted">Authorised for pickup</p>
                   </div>
                 </div>
-                <div className="mt-5 space-y-3 rounded-2xl bg-grape-50 p-4 text-sm">
-                  <div className="flex justify-between"><span className="text-ink-muted">Pupil</span><span className="font-semibold text-grape-900">Daniel O.</span></div>
-                  <div className="flex justify-between"><span className="text-ink-muted">Collected by</span><span className="font-semibold text-grape-900">Parent</span></div>
-                  <div className="flex justify-between"><span className="text-ink-muted">Method</span><span className="font-semibold text-grape-900">QR code</span></div>
-                </div>
-                <div className="mt-5 rounded-xl bg-grape-600 py-3 text-center font-semibold text-white">Complete release</div>
               </div>
-              <div className="motion-safe-anim absolute -right-3 -top-5 animate-float-slow rounded-2xl bg-sun-400 px-4 py-2 text-sm font-bold text-grape-900 shadow-lg sm:-right-8">
-                Instant check
-              </div>
-              <div className="motion-safe-anim absolute -bottom-5 -left-3 animate-float-slow rounded-2xl bg-white px-4 py-2 text-sm font-bold text-grape-600 shadow-lg ring-1 ring-grape-100 sm:-left-8">
+              <div className="motion-safe-anim absolute -top-5 left-6 animate-float-slow rounded-2xl bg-white px-4 py-2 text-sm font-bold text-grape-600 shadow-lg ring-1 ring-grape-100 sm:left-10">
                 Photo match
               </div>
             </div>
@@ -183,6 +181,46 @@ export default function Home() {
                 <p className="mt-2 text-ink-muted">{f.text}</p>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* Peace of mind */}
+        <section className="mx-auto grid max-w-6xl items-center gap-12 px-5 pb-24 md:grid-cols-2">
+          <div className="relative mx-auto w-full max-w-xs">
+            <div className="absolute -left-4 top-6 h-full w-full rounded-t-full bg-grape-100" />
+            <img
+              src="/images/school-girl.jpg"
+              alt="A smiling schoolgirl in a blue hijab holding a science textbook in her classroom"
+              width={720}
+              height={960}
+              className="relative aspect-[3/4] w-full rounded-t-full rounded-b-3xl object-cover shadow-xl shadow-grape-600/20"
+            />
+            <div className="motion-safe-anim absolute -right-4 bottom-10 animate-float-slow rounded-2xl bg-sun-400 px-4 py-2 text-sm font-bold text-grape-900 shadow-lg sm:-right-10">
+              Home safe
+            </div>
+          </div>
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wider text-grape-500">For parents</p>
+            <h2 className="mt-3 text-3xl font-extrabold text-grape-900 sm:text-4xl">Peace of mind, one pickup at a time</h2>
+            <p className="mt-4 text-lg text-ink-muted">
+              You decide who may collect your child. The school checks every handover, and you can see it all in one place.
+            </p>
+            <ul className="mt-6 space-y-4">
+              {[
+                "Add and manage the people allowed to collect",
+                "See every pickup in your child's history",
+                "The school is alerted when something looks wrong",
+              ].map((line) => (
+                <li key={line} className="flex items-start gap-3 font-medium text-grape-900">
+                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-grape-600 text-white">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+                      <path d="m5 12.5 4.5 4.5L19 7.5" />
+                    </svg>
+                  </span>
+                  {line}
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
 
