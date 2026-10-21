@@ -3,8 +3,6 @@ import Head from "next/head";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { Logo } from "@/components/Logo";
-
 // Built per request, so the page carries this view's CSP nonce (src/proxy.ts).
 export const getServerSideProps: GetServerSideProps = async () => ({ props: {} });
 
@@ -69,7 +67,15 @@ export default function Home() {
 
       <header className="sticky top-0 z-30 border-b border-grape-100 bg-white/85 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3">
-          <Logo size={32} />
+          <Link href="/" aria-label="Pikva home" className="shrink-0">
+            <img
+              src="/images/pikva-logo.png"
+              alt="Pikva"
+              width={750}
+              height={341}
+              className="h-8 w-auto sm:h-10"
+            />
+          </Link>
           <nav className="flex items-center gap-2 sm:gap-6 text-sm font-medium text-grape-900">
             <a href="#features" className="hidden hover:text-grape-600 sm:inline">Features</a>
             <a href="#how" className="hidden hover:text-grape-600 sm:inline">How it works</a>
@@ -224,8 +230,14 @@ export default function Home() {
 
       <footer className="border-t border-grape-100 bg-white py-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-5 text-sm text-ink-muted sm:flex-row">
-          <Logo size={26} />
-          <p>Only authorised people. Every pickup verified. Fully traceable.</p>
+          <img
+            src="/images/pikva-logo-full.png"
+            alt="Pikva, secure school pickup"
+            width={759}
+            height={342}
+            className="h-14 w-auto sm:h-16"
+          />
+          <p className="text-center sm:text-right">Only authorised people. Every pickup verified. Fully traceable.</p>
         </div>
       </footer>
     </>
