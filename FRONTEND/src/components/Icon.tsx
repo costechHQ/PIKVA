@@ -1,6 +1,6 @@
 import type { IconName } from "@/lib/navigation";
 
-type ShellIcon = IconName | "menu" | "close" | "logout" | "school" | "back";
+type ShellIcon = IconName | "menu" | "close" | "logout" | "school" | "back" | "volume" | "mute";
 
 // 24x24 outline paths in the style of the design's icons.
 const PATHS: Record<ShellIcon, string> = {
@@ -18,6 +18,8 @@ const PATHS: Record<ShellIcon, string> = {
   close: "M6 6l12 12M18 6 6 18",
   back: "M15 18l-6-6 6-6",
   logout: "M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 16l-4-4 4-4M6 12h10",
+  volume: "M11 5 6 9H3v6h3l5 4V5ZM15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13",
+  mute: "M11 5 6 9H3v6h3l5 4V5ZM16 9l5 6M21 9l-5 6",
   school: "M3 21h18M5 21V10l7-5 7 5v11M9 21v-5h6v5M12 9.5v.01",
 };
 

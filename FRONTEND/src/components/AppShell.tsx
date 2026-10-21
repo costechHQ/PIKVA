@@ -1,10 +1,23 @@
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState, useSyncExternalStore } from "react";
 
 import { Icon } from "@/components/Icon";
 import type { CurrentUser } from "@/lib/auth-guard";
+import {
+  ALERT_POLL_MS,
+  alertIds,
+  hasUnheardAlert,
+  newestAlertId,
+  playAlertSound,
+  readHeard,
+  readMuted,
+  setMuted,
+  subscribeMuted,
+  unlockAlertSound,
+  writeHeard,
+} from "@/lib/alert-sound";
 import { BELL_LIMIT, bellBadge } from "@/lib/alerts";
 import { ROLE_LABEL, isActive, navItems } from "@/lib/navigation";
 import { HOME_PATH } from "@/lib/roles";
@@ -121,7 +134,7 @@ export function AppShell({ user, title, subtitle, centered = false, children }: 
             </Link>
             <div className="ml-auto flex items-center gap-4">
               {/* SRS 18.2: the bell links to Security Alerts (admins only). */}
-              {user.role === "school_admin" && <AlertBell />}
+              {user.role === "school_admin" && <AlertBell userId={user.id} />}
               <Link href="/account" className="hidden rounded-lg px-2 py-1 text-right hover:bg-surface sm:block">
                 <span className="block text-sm font-medium">{user.name}</span>
                 <span className="block text-xs text-ink-muted">{ROLE_LABEL[user.role]}</span>
@@ -154,22 +167,90 @@ export function AppShell({ user, title, subtitle, centered = false, children }: 
 /**
  * The top bar bell with the number of open security alerts. The count is
  * read in the browser after the page has loaded, so it never slows a page
- * down; if it cannot be read the bell simply shows no number.
+ * down; if it cannot be read the bell simply shows no number. While any
+ * admin page is open it checks again every few seconds and sounds when a
+ * new alert has arrived, including one that came in while the admin was
+ * away. The speaker button beside it mutes that sound.
  */
-function AlertBell() {
+function AlertBell({ userId }: { userId: number }) {
   const [badge, setBadge] = useState<string | null>(null);
+  // Kept in the browser, so the server renders it as on until the page has loaded.
+  const muted = useSyncExternalStore(
+    subscribeMuted,
+    () => readMuted(userId),
+    () => false,
+  );
 
   useEffect(() => {
-    const controller = new AbortController();
-    fetch(`/api/proxy/alerts?status=open&limit=${BELL_LIMIT}`, { signal: controller.signal })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((alerts: unknown) => {
-        if (Array.isArray(alerts)) setBadge(bellBadge(alerts.length));
-      })
-      .catch(() => {});
-    return () => controller.abort();
-  }, []);
+    // Browsers allow sound only after the page has been used.
+    window.addEventListener("pointerdown", unlockAlertSound, { once: true });
+    window.addEventListener("keydown", unlockAlertSound, { once: true });
 
+    let controller: AbortController | null = null;
+
+    async function check() {
+      controller?.abort();
+      controller = new AbortController();
+
+      try {
+        const response = await fetch(`/api/proxy/alerts?status=open&limit=${BELL_LIMIT}`, { signal: controller.signal });
+        const ids = response.ok ? alertIds(await response.json()) : null;
+        if (!ids) return;
+
+        setBadge(bellBadge(ids.length));
+
+        const newest = newestAlertId(ids);
+        const heard = readHeard(userId);
+        if (newest !== null && (heard === null || newest > heard)) {
+          writeHeard(userId, newest);
+          if (hasUnheardAlert(ids, heard) && !readMuted(userId)) playAlertSound();
+        }
+      } catch {
+        // Offline or the page closed: the next check tries again.
+      }
+    }
+
+    void check();
+    const timer = window.setInterval(check, ALERT_POLL_MS);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void check();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      controller?.abort();
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pointerdown", unlockAlertSound);
+      window.removeEventListener("keydown", unlockAlertSound);
+    };
+  }, [userId]);
+
+  function toggleMuted() {
+    setMuted(userId, !muted);
+    if (muted) {
+      // So the admin hears what an alert sounds like.
+      void unlockAlertSound().then(playAlertSound);
+    }
+  }
+
+  return (
+    <div className="flex items-center">
+      <button
+        type="button"
+        onClick={toggleMuted}
+        aria-pressed={!muted}
+        aria-label={muted ? "Alert sound is off. Turn it on" : "Alert sound is on. Turn it off"}
+        className="rounded-lg p-2 text-ink-muted hover:bg-surface hover:text-ink"
+      >
+        <Icon name={muted ? "mute" : "volume"} />
+      </button>
+      <AlertBellLink badge={badge} />
+    </div>
+  );
+}
+
+function AlertBellLink({ badge }: { badge: string | null }) {
   return (
     <Link
       href="/admin/alerts"
