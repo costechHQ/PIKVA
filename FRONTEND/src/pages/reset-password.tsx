@@ -3,7 +3,7 @@ import Head from "next/head";
 import Link from "next/link";
 import { type FormEvent, useState } from "react";
 
-import { AuthCard, FormError, inputClass, linkClass, primaryButtonClass } from "@/components/AuthCard";
+import { AuthCard, FormError, authInputClass, linkClass, primaryButtonClass } from "@/components/AuthCard";
 import { OFFLINE } from "@/lib/api-errors";
 import {
   PASSWORD_MAX_LENGTH,
@@ -120,7 +120,7 @@ export default function ResetPasswordPage({ token }: Props) {
               maxLength={PASSWORD_MAX_LENGTH}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className={`${inputClass} pr-16`}
+              className={`${authInputClass} pr-16`}
             />
             <button
               type="button"
@@ -145,7 +145,7 @@ export default function ResetPasswordPage({ token }: Props) {
             maxLength={PASSWORD_MAX_LENGTH}
             value={confirmation}
             onChange={(event) => setConfirmation(event.target.value)}
-            className={`mt-1.5 ${inputClass}`}
+            className={`mt-1.5 ${authInputClass}`}
           />
         </div>
 
