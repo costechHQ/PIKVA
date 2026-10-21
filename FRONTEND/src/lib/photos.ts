@@ -25,6 +25,17 @@ export function photoPath(personId: number): string {
   return `/api/pickers/${personId}/photo`;
 }
 
+/** The web app's photo route for one pupil (GET, PUT, DELETE). */
+export function pupilPhotoPath(pupilId: number): string {
+  return `/api/pupils/${pupilId}/photo`;
+}
+
+/** The image address for a pupil's uploaded photo, or null when they have none. */
+export function pupilPhotoSrc(pupil: { id: number; photo_updated_at: string | null }): string | null {
+  if (!pupil.photo_updated_at) return null;
+  return `${pupilPhotoPath(pupil.id)}?v=${encodeURIComponent(pupil.photo_updated_at)}`;
+}
+
 /**
  * The image address for a pickup person's photo, or null when they have
  * none. photo_updated_at is added so a new photo is fetched straight away.

@@ -53,6 +53,14 @@ export function parseRoleFilter(value: unknown): Role | null {
   return typeof value === "string" && ROLES.has(value) ? (value as Role) : null;
 }
 
+/** Longest search kept from ?q=; longer text is cut (FastAPI accepts up to 100). */
+export const USER_SEARCH_MAX = 100;
+
+/** The ?q= search, trimmed and shortened; "" when absent. */
+export function parseUserSearch(value: unknown): string {
+  return typeof value === "string" ? value.trim().slice(0, USER_SEARCH_MAX) : "";
+}
+
 /** Return the ?page= number (1 or more); anything odd means page 1. */
 export function parsePage(value: unknown): number {
   const page = typeof value === "string" && /^\d{1,6}$/.test(value) ? Number(value) : 1;
@@ -63,19 +71,21 @@ export function parsePage(value: unknown): number {
  * FastAPI path for one page. Asks for one extra row: if it comes back there
  * is a next page (FastAPI sends no total count).
  */
-export function usersApiPath(role: Role | null, page: number): string {
+export function usersApiPath(role: Role | null, page: number, search = ""): string {
   const params = new URLSearchParams({
     limit: String(USERS_PAGE_SIZE + 1),
     offset: String((page - 1) * USERS_PAGE_SIZE),
   });
   if (role) params.set("role", role);
+  if (search) params.set("q", search);
   return `schools/users?${params}`;
 }
 
-/** Link to /admin/users with this filter and page, leaving out defaults. */
-export function usersPageHref(role: Role | null, page: number): string {
+/** Link to /admin/users with this filter, search and page, leaving out defaults. */
+export function usersPageHref(role: Role | null, page: number, search = ""): string {
   const params = new URLSearchParams();
   if (role) params.set("role", role);
+  if (search) params.set("q", search);
   if (page > 1) params.set("page", String(page));
   const query = params.toString();
   return query ? `/admin/users?${query}` : "/admin/users";

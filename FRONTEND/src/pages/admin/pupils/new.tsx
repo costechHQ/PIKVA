@@ -1,12 +1,12 @@
 import type { GetServerSideProps } from "next";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { type FormEvent, useState } from "react";
+import { type ChangeEvent, type FormEvent, useEffect, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { FormError, inputClass } from "@/components/AuthCard";
 import { Icon } from "@/components/Icon";
-import { EmptyState, Field, LoadError } from "@/components/ParentUi";
+import { EmptyState, Field, LoadError, PhotoOrInitials } from "@/components/ParentUi";
 import {
   EMPTY_NEW_PUPIL,
   type NewPupilForm,
@@ -17,10 +17,14 @@ import {
 } from "@/lib/admin-pupils";
 import { type CurrentUser, getAsUser, requireUser } from "@/lib/auth-guard";
 import { type Pupil, localIsoDate } from "@/lib/parent";
-import { sendAsUser } from "@/lib/parent-api";
+import { sendAsUser, sendPupilPhoto } from "@/lib/parent-api";
+import { PHOTO_ACCEPT, photoFileError } from "@/lib/photos";
 import type { SchoolUser } from "@/lib/users";
 
 type Props = { user: CurrentUser; parents: SchoolUser[] | null };
+
+/** A photo picked in the browser, with a preview address to show it. */
+type ChosenPhoto = { file: File; preview: string };
 
 export const getServerSideProps: GetServerSideProps<Props> = async (context) => {
   const guard = await requireUser(context, ["school_admin"]);
@@ -66,6 +70,25 @@ function NewPupilFormCard({ parents }: { parents: SchoolUser[] }) {
   const [parentFilter, setParentFilter] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [photo, setPhoto] = useState<ChosenPhoto | null>(null);
+
+  // A preview holds the chosen file in memory until it is released.
+  const preview = photo?.preview ?? null;
+  useEffect(() => (preview ? () => URL.revokeObjectURL(preview) : undefined), [preview]);
+
+  function choosePhoto(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = ""; // Choosing the same file again still counts.
+    if (!file) return;
+
+    const problem = photoFileError(file);
+    if (problem) {
+      setError(problem);
+      return;
+    }
+    setError(null);
+    setPhoto({ file, preview: URL.createObjectURL(file) });
+  }
 
   // Keep the chosen parent in the list even when the filter would hide them.
   const shown = filterParents(parents, parentFilter);
@@ -75,7 +98,8 @@ function NewPupilFormCard({ parents }: { parents: SchoolUser[] }) {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const checked = newPupilBody(form, localIsoDate(new Date()));
+    // An uploaded photo replaces the link, so the link is not sent with it.
+    const checked = newPupilBody(photo ? { ...form, photo_url: "" } : form, localIsoDate(new Date()));
     if ("error" in checked) {
       setError(checked.error);
       return;
@@ -86,7 +110,10 @@ function NewPupilFormCard({ parents }: { parents: SchoolUser[] }) {
     const result = await sendAsUser<Pupil>("pupils", "POST", checked.body, "That parent was not found.");
 
     if (result.ok) {
-      await router.push(`/admin/pupils/${result.data.id}?added=1`);
+      // The pupil exists now, so a failed upload still goes on to their page, with a warning.
+      const uploaded = photo ? await sendPupilPhoto(result.data.id, photo.file) : null;
+      const query = uploaded && !uploaded.ok ? "added=1&photo=failed" : "added=1";
+      await router.push(`/admin/pupils/${result.data.id}?${query}`);
     } else {
       setSaving(false);
       setError(result.message);
@@ -150,9 +177,56 @@ function NewPupilFormCard({ parents }: { parents: SchoolUser[] }) {
         <Field label="Date of birth" id="date_of_birth">
           <input id="date_of_birth" type="date" className={inputClass} value={form.date_of_birth} onChange={update("date_of_birth")} required />
         </Field>
-        <Field label="Photo link (optional)" id="photo_url">
-          <input id="photo_url" type="url" inputMode="url" placeholder="https://" className={inputClass} value={form.photo_url} onChange={update("photo_url")} maxLength={500} />
-        </Field>
+        <div className="sm:col-span-2">
+          <p className="text-sm font-medium">Photo (optional)</p>
+          <div className="mt-2 flex items-center gap-4">
+            <PhotoOrInitials
+              src={photo?.preview ?? null}
+              name={`${form.first_name} ${form.last_name}`.trim() || "Pupil"}
+              alt={photo ? "Preview of the chosen photo" : ""}
+              className="h-20 w-20 shrink-0 rounded-2xl"
+              initialsClassName="bg-surface text-xl text-ink-muted"
+            />
+            <div className="min-w-0 space-y-1.5">
+              <div className="flex flex-wrap gap-2">
+                {/* A label, so the file input itself stays the keyboard and screen reader target. */}
+                <label
+                  className={`cursor-pointer rounded-full border border-brand-100 px-3 py-2 text-sm font-medium text-brand-600 hover:border-brand-500 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-500 ${saving ? "pointer-events-none opacity-60" : ""}`}
+                >
+                  {photo ? "Choose another photo" : "Upload photo"}
+                  <input type="file" accept={PHOTO_ACCEPT} className="sr-only" onChange={choosePhoto} disabled={saving} />
+                </label>
+                {photo && (
+                  <button
+                    type="button"
+                    onClick={() => setPhoto(null)}
+                    disabled={saving}
+                    className="rounded-full border border-brand-100 px-3 py-2 text-sm font-medium text-ink-muted hover:text-ink"
+                  >
+                    Don&apos;t use this photo
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-ink-muted">A clear photo of their face. JPEG, PNG or WebP, up to 5 MB.</p>
+            </div>
+          </div>
+        </div>
+        <div className="sm:col-span-2">
+          <Field label="Or use a photo link instead" id="photo_url">
+            <input
+              id="photo_url"
+              type="url"
+              inputMode="url"
+              placeholder="https://"
+              className={`${inputClass} disabled:opacity-60`}
+              value={photo ? "" : form.photo_url}
+              onChange={update("photo_url")}
+              maxLength={500}
+              disabled={photo !== null}
+            />
+          </Field>
+          {photo && <p className="mt-1 text-xs text-ink-muted">The uploaded photo is used instead of a link.</p>}
+        </div>
       </fieldset>
 
       <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

@@ -11,8 +11,8 @@ import { type PickupPerson, PUPIL_RECENT_RELEASES, type Pupil, type PupilParent,
 
 type Data = { pupil: Pupil; people: PickupPerson[]; releases: Release[] };
 
-/** added: arrived from Add pupil (?added=1), so confirm it. */
-type Props = { user: CurrentUser; data: Data | null; added: boolean };
+/** added: arrived from Add pupil (?added=1), so confirm it. photoFailed: its photo upload did not go through. */
+type Props = { user: CurrentUser; data: Data | null; added: boolean; photoFailed: boolean };
 
 export const getServerSideProps: GetServerSideProps<Props> = async (context) => {
   const guard = await requireUser(context, ["school_admin"]);
@@ -22,6 +22,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (context) => 
   const id = typeof context.params?.id === "string" ? context.params.id : "";
   if (!/^\d{1,9}$/.test(id)) return { notFound: true };
   const added = context.query.added === "1";
+  const photoFailed = added && context.query.photo === "failed";
 
   // FastAPI answers 404 for a pupil in another school.
   try {
@@ -30,10 +31,10 @@ export const getServerSideProps: GetServerSideProps<Props> = async (context) => 
       getAsUser<PickupPerson[]>(context, `pickers?pupil_id=${id}`),
       getAsUser<Release[]>(context, `releases?pupil_id=${id}&limit=${PUPIL_RECENT_RELEASES}`),
     ]);
-    return { props: { user, data: { pupil, people, releases }, added } };
+    return { props: { user, data: { pupil, people, releases }, added, photoFailed } };
   } catch (error) {
     if (error instanceof BackendError && error.status === 404) return { notFound: true };
-    return { props: { user, data: null, added: false } };
+    return { props: { user, data: null, added: false, photoFailed: false } };
   }
 };
 
@@ -43,7 +44,7 @@ export default function AdminPupilPage(props: Props) {
   return <PupilPage key={props.data?.pupil.id ?? "error"} {...props} />;
 }
 
-function PupilPage({ user, data, added }: Props) {
+function PupilPage({ user, data, added, photoFailed }: Props) {
   const [pupil, setPupil] = useState(data?.pupil ?? null);
   const waiting = data?.people.some((person) => person.status === "pending_approval") ?? false;
 
@@ -56,6 +57,11 @@ function PupilPage({ user, data, added }: Props) {
       {added && pupil && (
         <div className="mb-6">
           <SuccessNote message={`${pupilName(pupil)} added and linked to ${pupil.parent.name}.`} />
+          {photoFailed && (
+            <p role="alert" className="mt-2 rounded-lg bg-warning-50 px-3 py-2 text-sm text-warning-600">
+              The pupil was saved, but the photo could not be uploaded.
+            </p>
+          )}
         </div>
       )}
       {data && pupil ? (

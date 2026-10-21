@@ -45,8 +45,8 @@ export function ParentShell({ user, title, subtitle, tabTitle, children }: Paren
       <div className="min-h-screen lg:flex">
         {/* Large screens: sidebar */}
         <aside className="hidden w-64 shrink-0 flex-col border-r border-line bg-card px-4 py-6 lg:sticky lg:top-0 lg:flex lg:h-screen">
-          <Link href={homePath} aria-label="Pikva home" className="px-2">
-            <img src="/images/pikva-logo.png" alt="Pikva" width={750} height={341} className="h-9 w-auto" />
+          <Link href="/" aria-label="Pikva home page" className="px-2">
+            <img src="/images/pikva-logo.png" alt="Pikva" width={800} height={241} className="h-auto w-[79px]" />
           </Link>
 
           <nav aria-label="Main" className="mt-10 flex-1 space-y-1">
@@ -91,8 +91,8 @@ export function ParentShell({ user, title, subtitle, tabTitle, children }: Paren
         <div className="flex min-w-0 flex-1 flex-col">
           {/* Small screens: compact top bar */}
           <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-line bg-card/95 px-4 backdrop-blur lg:hidden">
-            <Link href={homePath} aria-label="Pikva home">
-              <img src="/images/pikva-logo.png" alt="Pikva" width={750} height={341} className="h-7 w-auto" />
+            <Link href="/" aria-label="Pikva home page">
+              <img src="/images/pikva-logo.png" alt="Pikva" width={800} height={241} className="h-auto w-[62px]" />
             </Link>
             <div className="ml-auto flex items-center gap-2">
               <Avatar name={user.name} small />

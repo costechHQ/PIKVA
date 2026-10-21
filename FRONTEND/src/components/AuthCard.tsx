@@ -36,7 +36,7 @@ export function AuthCard({ pageTitle, title, subtitle, children }: AuthCardProps
 
         <div className="motion-safe-anim relative w-full max-w-sm animate-rise rounded-3xl border border-grape-100 bg-white px-6 py-10 shadow-2xl shadow-grape-600/15 sm:px-8">
           <Link href="/" aria-label="Pikva home" className="flex justify-center">
-            <img src="/images/pikva-logo.png" alt="Pikva" width={750} height={341} className="h-11 w-auto" />
+            <img src="/images/pikva-logo.png" alt="Pikva" width={800} height={241} className="h-auto w-[97px]" />
           </Link>
           <h1 className="mt-8 text-center text-2xl font-extrabold text-grape-900">{title}</h1>
           {subtitle && <p className="mt-1 text-center text-sm text-ink-muted">{subtitle}</p>}

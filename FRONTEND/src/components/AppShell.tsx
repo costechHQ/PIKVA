@@ -116,8 +116,8 @@ export function AppShell({ user, title, subtitle, centered = false, children }: 
             >
               <Icon name="menu" />
             </button>
-            <Link href={homePath} aria-label="Pikva home" className="shrink-0">
-              <img src="/images/pikva-logo.png" alt="Pikva" width={750} height={341} className="h-9 w-auto sm:h-10" />
+            <Link href="/" aria-label="Pikva home page" className="shrink-0">
+              <img src="/images/pikva-logo.png" alt="Pikva" width={800} height={241} className="h-auto w-[79px] sm:w-[88px]" />
             </Link>
             <div className="ml-auto flex items-center gap-4">
               {/* SRS 18.2: the bell links to Security Alerts (admins only). */}

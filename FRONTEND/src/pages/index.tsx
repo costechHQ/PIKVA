@@ -3,8 +3,17 @@ import Head from "next/head";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-// Built per request, so the page carries this view's CSP nonce (src/proxy.ts).
-export const getServerSideProps: GetServerSideProps = async () => ({ props: {} });
+import { type CurrentUser, getOptionalUser } from "@/lib/auth-guard";
+import { initials } from "@/lib/format";
+import { ROLE_LABEL } from "@/lib/navigation";
+import { HOME_PATH } from "@/lib/roles";
+
+type Props = { user: CurrentUser | null };
+
+// Built per request: it carries this view's CSP nonce (src/proxy.ts) and knows who is signed in.
+export const getServerSideProps: GetServerSideProps<Props> = async (context) => ({
+  props: { user: await getOptionalUser(context) },
+});
 
 const FEATURES: { title: string; text: string; tone: string; icon: ReactNode }[] = [
   {
@@ -54,7 +63,9 @@ function Wave({ className }: { className: string }) {
   );
 }
 
-export default function Home() {
+export default function Home({ user }: Props) {
+  const home = user ? HOME_PATH[user.role] : "/login";
+
   return (
     <>
       <Head>
@@ -71,19 +82,34 @@ export default function Home() {
             <img
               src="/images/pikva-logo.png"
               alt="Pikva"
-              width={750}
-              height={341}
-              className="h-8 w-auto sm:h-10"
+              width={800}
+              height={241}
+              className="h-auto w-[124px] sm:w-[142px]"
             />
           </Link>
           <nav className="flex items-center gap-2 sm:gap-6 text-sm font-medium text-grape-900">
             <a href="#features" className="hidden hover:text-grape-600 sm:inline">Features</a>
             <a href="#how" className="hidden hover:text-grape-600 sm:inline">How it works</a>
+            {user && (
+              <Link
+                href={home}
+                aria-label={"Signed in as " + user.name + ", " + ROLE_LABEL[user.role]}
+                className="flex items-center gap-2 rounded-full py-1 pe-1 ps-1 transition hover:bg-grape-50 sm:pe-3"
+              >
+                <span aria-hidden="true" className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-grape-600 to-grape-400 text-xs font-bold text-white">
+                  {initials(user.name)}
+                </span>
+                <span className="hidden min-w-0 text-left leading-tight sm:block">
+                  <span className="block max-w-36 truncate text-sm font-semibold text-grape-900">{user.name}</span>
+                  <span className="block text-xs font-normal text-ink-muted">{ROLE_LABEL[user.role]}</span>
+                </span>
+              </Link>
+            )}
             <Link
-              href="/login"
+              href={home}
               className="rounded-full bg-grape-600 px-5 py-2 text-white shadow-md shadow-grape-600/30 transition hover:-translate-y-0.5 hover:bg-grape-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-grape-600"
             >
-              Sign in
+              {user ? "Dashboard" : "Sign in"}
             </Link>
           </nav>
         </div>
@@ -98,10 +124,10 @@ export default function Home() {
 
           <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 pb-20 pt-14 md:grid-cols-2 md:pt-20">
             <div className="motion-safe-anim animate-rise">
-              <span className="inline-flex items-center gap-2 rounded-full bg-sun-100 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-grape-900">
+              {/* <span className="inline-flex items-center gap-2 rounded-full bg-sun-100 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-grape-900">
                 <span className="h-2 w-2 rounded-full bg-mint-400" />
-                Safe today. Secure tomorrow.
-              </span>
+                {user ? "Signed in as " + user.name : "Safe today. Secure tomorrow."}
+              </span> */}
               <h1 className="mt-5 text-4xl font-extrabold leading-tight tracking-tight text-grape-900 sm:text-5xl lg:text-6xl">
                 Send every child home with{" "}
                 <span className="relative whitespace-nowrap text-grape-600">
@@ -116,10 +142,10 @@ export default function Home() {
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link
-                  href="/login"
+                  href={home}
                   className="rounded-full bg-grape-600 px-7 py-3.5 font-semibold text-white shadow-lg shadow-grape-600/30 transition hover:-translate-y-0.5 hover:bg-grape-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-grape-600"
                 >
-                  Sign in
+                  {user ? "Open your dashboard" : "Sign in"}
                 </Link>
                 <a
                   href="#how"
@@ -153,9 +179,9 @@ export default function Home() {
                   </div>
                 </div>
               </div>
-              <div className="motion-safe-anim absolute -top-5 left-6 animate-float-slow rounded-2xl bg-white px-4 py-2 text-sm font-bold text-grape-600 shadow-lg ring-1 ring-grape-100 sm:left-10">
+              {/* <div className="motion-safe-anim absolute -top-5 left-6 animate-float-slow rounded-2xl bg-white px-4 py-2 text-sm font-bold text-grape-600 shadow-lg ring-1 ring-grape-100 sm:left-10">
                 Photo match
-              </div>
+              </div> */}
             </div>
           </div>
         </section>
@@ -254,13 +280,15 @@ export default function Home() {
             <div className="pointer-events-none absolute -bottom-12 -left-8 h-44 w-44 rounded-full bg-coral-400/30 blur-2xl" />
             <h2 className="relative text-3xl font-extrabold text-white sm:text-4xl">Ready for stress-free pickup?</h2>
             <p className="relative mx-auto mt-4 max-w-md text-grape-100">
-              Sign in to your school account to manage pupils, authorisations and the gate.
+              {user
+                ? "You are signed in. Head back to your dashboard to carry on."
+                : "Sign in to your school account to manage pupils, authorisations and the gate."}
             </p>
             <Link
-              href="/login"
+              href={home}
               className="relative mt-8 inline-block rounded-full bg-sun-400 px-8 py-3.5 font-semibold text-grape-900 shadow-lg transition hover:-translate-y-0.5 hover:bg-sun-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
-              Sign in to Pikva
+              {user ? "Go to your dashboard" : "Sign in to Pikva"}
             </Link>
           </div>
         </section>
@@ -270,10 +298,10 @@ export default function Home() {
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-5 text-sm text-ink-muted sm:flex-row">
           <img
             src="/images/pikva-logo-full.png"
-            alt="Pikva, secure school pickup"
-            width={759}
-            height={342}
-            className="h-14 w-auto sm:h-16"
+            alt="Pikva, safe pickups, happy schools"
+            width={800}
+            height={302}
+            className="h-auto w-[124px] sm:w-[142px]"
           />
           <p className="text-center sm:text-right">Only authorised people. Every pickup verified. Fully traceable.</p>
         </div>

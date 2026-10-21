@@ -7,6 +7,7 @@ import { AppShell } from "@/components/AppShell";
 import { FormError, inputClass } from "@/components/AuthCard";
 import { Field, SuccessNote } from "@/components/ParentUi";
 import { type CurrentUser, getAsUser, requireUser } from "@/lib/auth-guard";
+import { initials } from "@/lib/format";
 import { ROLE_LABEL } from "@/lib/navigation";
 import { sendAsUser } from "@/lib/parent-api";
 import type { Role } from "@/lib/roles";
@@ -15,10 +16,12 @@ import {
   type SchoolUser,
   type SetupEmailResult,
   USERS_PAGE_SIZE,
+  USER_SEARCH_MAX,
   type UserContact,
   isManageable,
   parsePage,
   parseRoleFilter,
+  parseUserSearch,
   setupEmailPath,
   setupLinkMessage,
   userChanges,
@@ -30,6 +33,7 @@ type Props = {
   user: CurrentUser;
   users: SchoolUser[];
   role: Role | null;
+  search: string;
   page: number;
   hasNext: boolean;
 };
@@ -40,50 +44,112 @@ export const getServerSideProps: GetServerSideProps<Props> = async (context) => 
 
   const role = parseRoleFilter(context.query.role);
   const page = parsePage(context.query.page);
-  const rows = await getAsUser<SchoolUser[]>(context, usersApiPath(role, page));
+  const search = parseUserSearch(context.query.q);
+  const rows = await getAsUser<SchoolUser[]>(context, usersApiPath(role, page, search));
 
   return {
     props: {
       user: (await guard.props).user,
       users: rows.slice(0, USERS_PAGE_SIZE),
       role,
+      search,
       page,
       hasNext: rows.length > USERS_PAGE_SIZE,
     },
   };
 };
 
+/** Role pill colours and the avatar behind each person's initials. */
 const ROLE_BADGE: Record<Role, string> = {
   school_admin: "bg-navy-900/10 text-navy-900",
   gate_staff: "bg-warning-50 text-warning-600",
   parent: "bg-brand-50 text-brand-700",
 };
 
+const ROLE_AVATAR: Record<Role, string> = {
+  school_admin: "bg-gradient-to-br from-navy-700 to-navy-900 text-white",
+  gate_staff: "bg-sun-100 text-sun-500",
+  parent: "bg-brand-100 text-brand-700",
+};
+
 const NOT_FOUND = "This user is no longer in your school.";
 
-/** School users for admins (SRS 6.7): filter by role, page by 50, edit and deactivate. */
-export default function UsersPage({ user, users, role, page, hasNext }: Props) {
+const PAGER_LINK =
+  "inline-flex h-10 items-center rounded-full border border-brand-100 bg-card px-4 text-sm font-medium text-navy-900 shadow-sm transition hover:-translate-y-0.5 hover:text-brand-700";
+
+/** School users for admins (SRS 6.7): search by name or email, filter by role, page by 50, edit and deactivate. */
+export default function UsersPage({ user, users, role, search, page, hasNext }: Props) {
   return (
-    <AppShell user={user} title="Users" subtitle={`Parents, gate staff and administrators at ${user.school_name}`}>
-      <div className="mb-4 flex justify-end">
+    <AppShell user={user} title="Users" subtitle={"Parents, gate staff and administrators at " + user.school_name}>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        {/* A plain GET form: the server searches, so it works before scripts load. */}
+        <form method="get" role="search" className="relative w-full lg:max-w-md">
+          {role && <input type="hidden" name="role" value={role} />}
+          <label htmlFor="q" className="sr-only">
+            Search users
+          </label>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-muted"
+            aria-hidden="true"
+          >
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" />
+          </svg>
+          <input
+            id="q"
+            name="q"
+            type="search"
+            defaultValue={search}
+            placeholder="Search by name or email"
+            maxLength={USER_SEARCH_MAX}
+            className="h-12 w-full rounded-full border border-brand-100 bg-card pl-12 pr-28 text-sm shadow-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+          />
+          <div className="absolute inset-y-1 right-1 flex items-center gap-1">
+            {search && (
+              <Link href={usersPageHref(role, 1)} className="rounded-full px-2 py-2 text-xs font-medium text-ink-muted hover:text-ink">
+                Clear
+              </Link>
+            )}
+            <button
+              type="submit"
+              className="h-10 rounded-full bg-brand-600 px-4 text-sm font-semibold text-white transition hover:bg-brand-700"
+            >
+              Search
+            </button>
+          </div>
+        </form>
+
         <Link
-          href={role === "parent" || role === "gate_staff" ? `/admin/users/new?role=${role}` : "/admin/users/new"}
-          className="rounded-full bg-brand-600 shadow-md shadow-brand-600/25 transition hover:-translate-y-0.5 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700"
+          href={role === "parent" || role === "gate_staff" ? "/admin/users/new?role=" + role : "/admin/users/new"}
+          className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-brand-600 px-6 text-sm font-semibold text-white shadow-lg shadow-brand-600/25 transition hover:-translate-y-0.5 hover:bg-brand-700"
         >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="h-4 w-4" aria-hidden="true">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
           Add user
         </Link>
       </div>
-      <nav aria-label="Filter by role" className="flex flex-wrap gap-2">
+
+      <nav
+        aria-label="Filter by role"
+        className="mt-5 flex max-w-full gap-1 overflow-x-auto rounded-full border border-brand-100 bg-card p-1 shadow-sm sm:inline-flex"
+      >
         {ROLE_FILTERS.map((filter) => {
           const active = filter.role === role;
           return (
             <Link
               key={filter.label}
-              href={usersPageHref(filter.role, 1)}
+              href={usersPageHref(filter.role, 1, search)}
               aria-current={active ? "page" : undefined}
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
-                active ? "bg-brand-600 text-white" : "border border-line bg-card text-ink-muted hover:text-ink"
-              }`}
+              className={
+                "flex-1 whitespace-nowrap rounded-full px-4 py-2 text-center text-sm font-medium transition sm:flex-none " +
+                (active ? "bg-brand-600 text-white shadow-md shadow-brand-600/25" : "text-ink-muted hover:bg-brand-50 hover:text-brand-700")
+              }
             >
               {filter.label}
             </Link>
@@ -91,18 +157,24 @@ export default function UsersPage({ user, users, role, page, hasNext }: Props) {
         })}
       </nav>
 
-      <UserTable initialUsers={users} page={page} />
+      {search && (
+        <p className="mt-4 text-sm text-ink-muted" role="status">
+          Showing users matching &quot;{search}&quot;.
+        </p>
+      )}
+
+      <UserTable initialUsers={users} page={page} search={search} />
 
       {(page > 1 || hasNext) && (
-        <nav aria-label="Pages" className="mt-4 flex items-center justify-end gap-2 text-sm">
+        <nav aria-label="Pages" className="mt-6 flex items-center justify-center gap-3 text-sm sm:justify-end">
           {page > 1 && (
-            <Link href={usersPageHref(role, page - 1)} className="rounded-full border border-brand-100 bg-card px-3 py-1.5 hover:text-brand-700">
+            <Link href={usersPageHref(role, page - 1, search)} className={PAGER_LINK}>
               Previous
             </Link>
           )}
-          <span className="px-2 text-ink-muted">Page {page}</span>
+          <span className="text-ink-muted">Page {page}</span>
           {hasNext && (
-            <Link href={usersPageHref(role, page + 1)} className="rounded-full border border-brand-100 bg-card px-3 py-1.5 hover:text-brand-700">
+            <Link href={usersPageHref(role, page + 1, search)} className={PAGER_LINK}>
               Next
             </Link>
           )}
@@ -112,7 +184,7 @@ export default function UsersPage({ user, users, role, page, hasNext }: Props) {
   );
 }
 
-function UserTable({ initialUsers, page }: { initialUsers: SchoolUser[]; page: number }) {
+function UserTable({ initialUsers, page, search }: { initialUsers: SchoolUser[]; page: number; search: string }) {
   const router = useRouter();
   const [users, setUsers] = useState(initialUsers);
   const [editing, setEditing] = useState<SchoolUser | null>(null);
@@ -132,6 +204,23 @@ function UserTable({ initialUsers, page }: { initialUsers: SchoolUser[]; page: n
     void router.replace(router.asPath, undefined, { scroll: false });
   }
 
+  function actionsFor(row: SchoolUser, align?: "start" | "end") {
+    if (!isManageable(row)) return null;
+    return (
+      <UserActions
+        user={row}
+        editingAnother={editing !== null}
+        onEdit={() => {
+          setNotice(null);
+          setEditing(row);
+        }}
+        onChanged={changed}
+        onNotice={setNotice}
+        align={align}
+      />
+    );
+  }
+
   return (
     <>
       <div className="mt-4 space-y-4">
@@ -141,7 +230,7 @@ function UserTable({ initialUsers, page }: { initialUsers: SchoolUser[]; page: n
             key={editing.id}
             user={editing}
             onCancel={() => setEditing(null)}
-            onSaved={(updated) => changed(updated, `${updated.name} updated.`)}
+            onSaved={(updated) => changed(updated, updated.name + " updated.")}
           />
         )}
       </div>
@@ -151,116 +240,126 @@ function UserTable({ initialUsers, page }: { initialUsers: SchoolUser[]; page: n
         {users.map((row) => (
           <li
             key={row.id}
-            className={`rounded-2xl border border-brand-100 p-4 shadow-sm ${row.is_active ? "bg-card" : "bg-surface/60"}`}
+            className={
+              "rounded-3xl border border-brand-100 p-4 shadow-sm transition hover:shadow-md sm:p-5 " +
+              (row.is_active ? "bg-card" : "bg-surface/70")
+            }
           >
-            <div className="flex items-start justify-between gap-3">
-              <p className="min-w-0 break-words font-semibold text-navy-900">{row.name}</p>
+            <div className="flex items-start gap-3">
+              <Avatar user={row} />
+              <div className="min-w-0 flex-1">
+                <p className="break-words font-semibold text-navy-900">{row.name}</p>
+                <p className="break-all text-sm text-ink-muted">{row.email}</p>
+              </div>
               <StatusBadge active={row.is_active} />
             </div>
-            <dl className="mt-3 space-y-1.5 text-sm">
-              <div className="flex gap-2">
-                <dt className="w-14 shrink-0 text-ink-muted">Email</dt>
-                <dd className="min-w-0 break-all">{row.email}</dd>
-              </div>
-              <div className="flex gap-2">
-                <dt className="w-14 shrink-0 text-ink-muted">Phone</dt>
-                <dd className="min-w-0 break-words">{row.phone}</dd>
-              </div>
-              <div className="flex items-center gap-2">
-                <dt className="w-14 shrink-0 text-ink-muted">Role</dt>
-                <dd>
-                  <span className={`rounded-md px-2 py-1 text-xs font-medium ${ROLE_BADGE[row.role] ?? ""}`}>
-                    {ROLE_LABEL[row.role] ?? row.role}
-                  </span>
-                </dd>
-              </div>
-            </dl>
-            {isManageable(row) && (
-              <div className="mt-4 border-t border-line pt-3">
-                <UserActions
-                  user={row}
-                  editingAnother={editing !== null}
-                  onEdit={() => {
-                    setNotice(null);
-                    setEditing(row);
-                  }}
-                  onChanged={changed}
-                  onNotice={setNotice}
-                  align="start"
-                />
-              </div>
-            )}
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+              <RoleBadge role={row.role} />
+              <span className="inline-flex items-center gap-1.5 text-ink-muted">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+                  <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z" />
+                </svg>
+                {row.phone}
+              </span>
+            </div>
+            {isManageable(row) && <div className="mt-4 border-t border-line pt-3">{actionsFor(row, "start")}</div>}
           </li>
         ))}
-        {users.length === 0 && <EmptyRows page={page} />}
+        {users.length === 0 && <EmptyRows page={page} search={search} />}
       </ul>
 
       {/* relative: keeps the visually hidden "Actions" header inside the scroll box. */}
-      <div className="relative mt-4 hidden overflow-x-auto rounded-2xl border border-brand-100 bg-card xl:block">
+      <div className="relative mt-4 hidden overflow-x-auto rounded-3xl border border-brand-100 bg-card shadow-sm xl:block">
         <table className="w-full min-w-[860px] text-left text-sm">
-          <thead className="border-b border-brand-100 bg-brand-50 text-xs font-semibold text-navy-900">
+          <thead className="border-b border-brand-100 bg-brand-50/60 text-xs font-semibold uppercase tracking-wide text-ink-muted">
             <tr>
-              <th scope="col" className="px-4 py-3 font-medium">Name</th>
-              <th scope="col" className="px-4 py-3 font-medium">Email</th>
-              <th scope="col" className="px-4 py-3 font-medium">Phone</th>
-              <th scope="col" className="px-4 py-3 font-medium">Role</th>
-              <th scope="col" className="px-4 py-3 font-medium">Status</th>
-              <th scope="col" className="px-4 py-3 font-medium">
+              <th scope="col" className="px-5 py-3.5">User</th>
+              <th scope="col" className="px-5 py-3.5">Phone</th>
+              <th scope="col" className="px-5 py-3.5">Role</th>
+              <th scope="col" className="px-5 py-3.5">Status</th>
+              <th scope="col" className="px-5 py-3.5">
                 <span className="sr-only">Actions</span>
               </th>
             </tr>
           </thead>
           <tbody>
             {users.map((row) => (
-              <tr key={row.id} className={`border-b border-line last:border-0 ${row.is_active ? "" : "bg-surface/60"}`}>
-                <td className="px-4 py-3 font-medium">{row.name}</td>
-                <td className="px-4 py-3 text-ink-muted">{row.email}</td>
-                <td className="px-4 py-3 text-ink-muted">{row.phone}</td>
-                <td className="px-4 py-3">
-                  <span className={`rounded-md px-2 py-1 text-xs font-medium ${ROLE_BADGE[row.role] ?? ""}`}>
-                    {ROLE_LABEL[row.role] ?? row.role}
-                  </span>
+              <tr
+                key={row.id}
+                className={"border-b border-line transition last:border-0 hover:bg-brand-50/40 " + (row.is_active ? "" : "bg-surface/70")}
+              >
+                <td className="px-5 py-3.5">
+                  <div className="flex items-center gap-3">
+                    <Avatar user={row} />
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-navy-900">{row.name}</p>
+                      <p className="truncate text-ink-muted">{row.email}</p>
+                    </div>
+                  </div>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-5 py-3.5 text-ink-muted">{row.phone}</td>
+                <td className="px-5 py-3.5">
+                  <RoleBadge role={row.role} />
+                </td>
+                <td className="px-5 py-3.5">
                   <StatusBadge active={row.is_active} />
                 </td>
-                <td className="px-4 py-3">
-                  {isManageable(row) && (
-                    <UserActions
-                      user={row}
-                      editingAnother={editing !== null}
-                      onEdit={() => {
-                        setNotice(null);
-                        setEditing(row);
-                      }}
-                      onChanged={changed}
-                      onNotice={setNotice}
-                    />
-                  )}
-                </td>
+                <td className="px-5 py-3.5">{actionsFor(row)}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        {users.length === 0 && <EmptyRows page={page} />}
+        {users.length === 0 && <EmptyRows page={page} search={search} />}
       </div>
     </>
   );
 }
 
-function StatusBadge({ active }: { active: boolean }) {
-  return active ? (
-    <span className="shrink-0 rounded-full bg-success-50 px-2.5 py-0.5 text-xs font-medium text-success-600">Active</span>
-  ) : (
-    <span className="shrink-0 rounded-full bg-danger-50 px-2.5 py-0.5 text-xs font-medium text-danger-600">Inactive</span>
+function Avatar({ user }: { user: SchoolUser }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={"flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold " + (ROLE_AVATAR[user.role] ?? "")}
+    >
+      {initials(user.name)}
+    </span>
   );
 }
 
-function EmptyRows({ page }: { page: number }) {
+function RoleBadge({ role }: { role: Role }) {
   return (
-    <p className="px-4 py-10 text-center text-sm text-ink-muted">
-      {page > 1 ? "No more users." : "No users match this filter yet."}
-    </p>
+    <span className={"inline-flex rounded-full px-2.5 py-1 text-xs font-medium " + (ROLE_BADGE[role] ?? "")}>
+      {ROLE_LABEL[role] ?? role}
+    </span>
+  );
+}
+
+function StatusBadge({ active }: { active: boolean }) {
+  return (
+    <span
+      className={
+        "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium " +
+        (active ? "bg-success-50 text-success-600" : "bg-danger-50 text-danger-600")
+      }
+    >
+      <span aria-hidden="true" className={"h-1.5 w-1.5 rounded-full " + (active ? "bg-success-600" : "bg-danger-600")} />
+      {active ? "Active" : "Inactive"}
+    </span>
+  );
+}
+
+function EmptyRows({ page, search }: { page: number; search: string }) {
+  return (
+    <div className="flex flex-col items-center gap-3 px-4 py-14 text-center">
+      <span aria-hidden="true" className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-50 text-brand-600">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-7 w-7">
+          <path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 10v-1a6 6 0 0 1 12 0v1M16 3.5a4 4 0 0 1 0 7M22 21v-1a6 6 0 0 0-4-5.6" />
+        </svg>
+      </span>
+      <p className="text-sm text-ink-muted">
+        {page > 1 ? "No more users." : search ? "No users match this search." : "No users match this filter yet."}
+      </p>
+    </div>
   );
 }
 

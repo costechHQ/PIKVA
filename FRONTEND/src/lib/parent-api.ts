@@ -4,8 +4,8 @@
  * Turns every answer into either the JSON body or a message for the page.
  */
 import { OFFLINE, UNAVAILABLE, detailText, tooManyMessage } from "@/lib/api-errors";
-import type { PickupPerson } from "@/lib/parent";
-import { PHOTO_TOO_LARGE, photoPath } from "@/lib/photos";
+import type { PickupPerson, Pupil } from "@/lib/parent";
+import { PHOTO_TOO_LARGE, photoPath, pupilPhotoPath } from "@/lib/photos";
 import { LOGIN_PATH } from "@/lib/roles";
 
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; message: string };
@@ -74,6 +74,27 @@ export async function sendPhoto(personId: number, file: File | null): Promise<Ac
   }
 
   return actionResult<PickupPerson>(response, PERSON_GONE, "photo changes");
+}
+
+const PUPIL_GONE = "This pupil no longer exists.";
+
+/** Upload (file) or remove (null) a pupil's photo (SRS 9.3). The answer is the updated pupil. */
+export async function sendPupilPhoto(pupilId: number, file: File | null): Promise<ActionResult<Pupil>> {
+  let response: Response;
+
+  try {
+    if (file) {
+      const form = new FormData();
+      form.append("photo", file);
+      response = await fetch(pupilPhotoPath(pupilId), { method: "PUT", body: form });
+    } else {
+      response = await fetch(pupilPhotoPath(pupilId), { method: "DELETE" });
+    }
+  } catch {
+    return { ok: false, message: OFFLINE };
+  }
+
+  return actionResult<Pupil>(response, PUPIL_GONE, "photo changes");
 }
 
 /** Turn an answer into its JSON body or a message, as sendAsUser describes. */
