@@ -4,7 +4,6 @@ import { useRouter } from "next/router";
 import { type ReactNode, useEffect, useState } from "react";
 
 import { Icon } from "@/components/Icon";
-import { Logo } from "@/components/Logo";
 import type { CurrentUser } from "@/lib/auth-guard";
 import { BELL_LIMIT, bellBadge } from "@/lib/alerts";
 import { ROLE_LABEL, isActive, navItems } from "@/lib/navigation";
@@ -63,10 +62,7 @@ export function AppShell({ user, title, subtitle, children }: AppShellProps) {
             menuOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
-          <div className="flex items-center justify-between px-2">
-            <Link href={homePath} aria-label="Pikva home">
-              <Logo tone="light" size={32} />
-            </Link>
+          <div className="flex items-center justify-end px-2 lg:hidden">
             <button
               type="button"
               aria-label="Close menu"
@@ -77,7 +73,7 @@ export function AppShell({ user, title, subtitle, children }: AppShellProps) {
             </button>
           </div>
 
-          <nav aria-label="Main" className="mt-10 flex-1 space-y-1">
+          <nav aria-label="Main" className="mt-6 flex-1 space-y-1 lg:mt-2">
             {navItems(user.role).map((item) => {
               const active = isActive(item, router.pathname, homePath);
               return (
@@ -85,8 +81,8 @@ export function AppShell({ user, title, subtitle, children }: AppShellProps) {
                   key={item.href}
                   href={item.href}
                   aria-current={active ? "page" : undefined}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium ${
-                    active ? "bg-brand-600 text-white" : "text-white/75 hover:bg-navy-800 hover:text-white"
+                  className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
+                    active ? "bg-sun-400 text-navy-900" : "text-white/75 hover:bg-navy-800 hover:text-white"
                   }`}
                 >
                   <Icon name={item.icon} />
@@ -118,6 +114,9 @@ export function AppShell({ user, title, subtitle, children }: AppShellProps) {
             >
               <Icon name="menu" />
             </button>
+            <Link href={homePath} aria-label="Pikva home" className="shrink-0">
+              <img src="/images/pikva-logo.png" alt="Pikva" width={750} height={341} className="h-9 w-auto sm:h-10" />
+            </Link>
             <div className="ml-auto flex items-center gap-4">
               {/* SRS 18.2: the bell links to Security Alerts (admins only). */}
               {user.role === "school_admin" && <AlertBell />}

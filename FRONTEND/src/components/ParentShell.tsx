@@ -4,7 +4,6 @@ import { useRouter } from "next/router";
 import { type ReactNode, useState } from "react";
 
 import { Icon } from "@/components/Icon";
-import { Logo } from "@/components/Logo";
 import type { CurrentUser } from "@/lib/auth-guard";
 import { initials } from "@/lib/format";
 import { isActive, navItems } from "@/lib/navigation";
@@ -47,7 +46,7 @@ export function ParentShell({ user, title, subtitle, tabTitle, children }: Paren
         {/* Large screens: sidebar */}
         <aside className="hidden w-64 shrink-0 flex-col border-r border-line bg-card px-4 py-6 lg:sticky lg:top-0 lg:flex lg:h-screen">
           <Link href={homePath} aria-label="Pikva home" className="px-2">
-            <Logo size={30} />
+            <img src="/images/pikva-logo.png" alt="Pikva" width={750} height={341} className="h-9 w-auto" />
           </Link>
 
           <nav aria-label="Main" className="mt-10 flex-1 space-y-1">
@@ -93,7 +92,7 @@ export function ParentShell({ user, title, subtitle, tabTitle, children }: Paren
           {/* Small screens: compact top bar */}
           <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-line bg-card/95 px-4 backdrop-blur lg:hidden">
             <Link href={homePath} aria-label="Pikva home">
-              <Logo size={26} />
+              <img src="/images/pikva-logo.png" alt="Pikva" width={750} height={341} className="h-7 w-auto" />
             </Link>
             <div className="ml-auto flex items-center gap-2">
               <Avatar name={user.name} small />
@@ -150,7 +149,7 @@ function Avatar({ name, small = false }: { name: string; small?: boolean }) {
   return (
     <span
       aria-hidden="true"
-      className={`flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-600 to-accent-400 font-semibold text-white ${
+      className={`flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-600 to-sun-400 font-semibold text-white ${
         small ? "h-8 w-8 text-xs" : "h-10 w-10 text-sm"
       }`}
     >

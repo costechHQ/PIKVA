@@ -7,18 +7,18 @@
  * colours, so the look stays consistent and can change in one place.
  */
 @theme {
-  /* Sidebar and dark panels */
-  --color-navy-950: #081430;
-  --color-navy-900: #0b1b45;
-  --color-navy-800: #142a63;
-  --color-navy-700: #1d3a80;
+  /* Sidebar and dark panels (deep purple, same family as grape below) */
+  --color-navy-950: #150b38;
+  --color-navy-900: #231457;
+  --color-navy-800: #33207f;
+  --color-navy-700: #442c9c;
 
-  /* Primary actions (buttons, links, active states) */
-  --color-brand-50: #eef4ff;
-  --color-brand-100: #dbe7ff;
-  --color-brand-500: #2f6bf0;
-  --color-brand-600: #1556e0;
-  --color-brand-700: #1046bd;
+  /* Primary actions (buttons, links, active states): purple, matching the landing page */
+  --color-brand-50: #f3f0ff;
+  --color-brand-100: #e4dcff;
+  --color-brand-500: #6c4ae8;
+  --color-brand-600: #5b3bd6;
+  --color-brand-700: #4a2fb3;
 
   /* Cyan accent (parent portal highlights and gradients) */
   --color-accent-50: #e6fbff;
