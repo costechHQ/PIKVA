@@ -25,7 +25,7 @@ export const config = {
   matcher: [
     {
       // Pages only: not API answers (JSON) or static files.
-      source: "/((?!api|_next/static|_next/image|favicon.ico|sw.js).*)",
+      source: "/((?!api|_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },

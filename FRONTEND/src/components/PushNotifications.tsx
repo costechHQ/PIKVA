@@ -61,7 +61,8 @@ export function PushPrompt() {
 }
 
 const EXPLANATION: Record<Exclude<PushState, "checking" | "off" | "on">, string> = {
-  unsupported: "This browser can't show notifications. Use a recent Chrome, Edge, Firefox or Safari.",
+  unsupported:
+    "This browser can't show notifications. On an iPhone or iPad, tap Share, then Add to Home Screen, and open Pikva from the new icon. Otherwise use a recent Chrome, Edge, Firefox or Safari.",
   unavailable: "Notifications are not set up on the server yet. Ask whoever runs Pikva to add the push keys.",
   blocked: "Notifications are blocked for this site. Allow them in the browser's site settings, then reload this page.",
 };
