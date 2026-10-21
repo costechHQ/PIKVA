@@ -64,7 +64,7 @@ export function PupilAvatar({ pupil, size = "md" }: { pupil: Pick<Pupil, "first_
   return (
     <span
       aria-hidden="true"
-      className={`${box} flex shrink-0 items-center justify-center rounded-full bg-accent-50 font-semibold text-accent-600`}
+      className={`${box} flex shrink-0 items-center justify-center rounded-full bg-brand-100 font-semibold text-brand-700`}
     >
       {initials(pupilName(pupil))}
     </span>
