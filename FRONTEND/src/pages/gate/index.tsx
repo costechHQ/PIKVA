@@ -129,8 +129,8 @@ function CodeEntry({ onResult }: { onResult: (step: Step) => void }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="rounded-2xl border border-line bg-card p-5 shadow-sm sm:p-8">
-      <label htmlFor="code" className="block text-lg font-semibold">
+    <form onSubmit={handleSubmit} noValidate className="rounded-3xl border border-brand-100 bg-card p-5 shadow-sm sm:p-8">
+      <label htmlFor="code" className="block text-lg font-bold text-navy-900">
         Pickup code
       </label>
       <p className="mt-1 text-sm text-ink-muted">Ask the pickup person for their {CODE_LENGTH}-character code.</p>
@@ -147,7 +147,7 @@ function CodeEntry({ onResult }: { onResult: (step: Step) => void }) {
         spellCheck={false}
         maxLength={20}
         aria-describedby={error ? "code-error" : undefined}
-        className="mt-4 w-full rounded-xl border border-line bg-surface px-4 py-4 text-center font-mono text-3xl tracking-[0.25em] uppercase outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+        className="mt-4 w-full rounded-2xl border border-brand-100 bg-surface px-4 py-4 text-center font-mono text-3xl tracking-[0.25em] uppercase outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
       />
       {error && (
         <div id="code-error" className="mt-3">
@@ -168,7 +168,7 @@ function CodeEntry({ onResult }: { onResult: (step: Step) => void }) {
           setScanning(true);
         }}
         disabled={checking}
-        className="mt-3 w-full rounded-xl border border-line px-4 py-3 text-base font-medium text-brand-600 hover:border-brand-500 disabled:opacity-60"
+        className="mt-3 w-full rounded-2xl border border-brand-100 px-4 py-3 text-base font-medium text-brand-600 hover:border-brand-500 disabled:opacity-60"
       >
         Scan QR code
       </button>
@@ -228,8 +228,8 @@ function QrScanner({ onScan, onCancel }: { onScan: (text: string) => void; onCan
   }, []);
 
   return (
-    <section aria-labelledby="scan-heading" className="rounded-2xl border border-line bg-card p-5 shadow-sm sm:p-8">
-      <h2 id="scan-heading" className="text-lg font-semibold">
+    <section aria-labelledby="scan-heading" className="rounded-3xl border border-brand-100 bg-card p-5 shadow-sm sm:p-8">
+      <h2 id="scan-heading" className="text-lg font-bold text-navy-900">
         Scan QR code
       </h2>
       <p className="mt-1 text-sm text-ink-muted">Hold the pickup person&apos;s QR code inside the frame.</p>
@@ -243,7 +243,7 @@ function QrScanner({ onScan, onCancel }: { onScan: (text: string) => void; onCan
       <button
         type="button"
         onClick={() => callbacks.current.onCancel(null)}
-        className="mt-4 w-full rounded-xl border border-line px-4 py-3 text-base font-medium text-ink-muted hover:text-ink"
+        className="mt-4 w-full rounded-2xl border border-brand-100 px-4 py-3 text-base font-medium text-ink-muted hover:text-ink"
       >
         Type the code instead
       </button>
@@ -348,7 +348,7 @@ function ConfirmRelease({
                 type="button"
                 onClick={() => setConfirmingRefusal(false)}
                 disabled={busy}
-                className="rounded-xl border border-line bg-card px-4 py-3 text-sm font-medium text-ink-muted hover:text-ink"
+                className="rounded-2xl border border-brand-100 bg-card px-4 py-3 text-sm font-medium text-ink-muted hover:text-ink"
               >
                 Go back
               </button>
@@ -368,7 +368,7 @@ function ConfirmRelease({
               type="button"
               onClick={() => setConfirmingRefusal(true)}
               disabled={busy}
-              className="w-full rounded-xl border border-line px-4 py-3 text-sm font-medium text-danger-600 hover:border-danger-600"
+              className="w-full rounded-2xl border border-brand-100 px-4 py-3 text-sm font-medium text-danger-600 hover:border-danger-600"
             >
               Don&apos;t release — this is not the right person
             </button>
@@ -463,7 +463,7 @@ function Person({ label, name, detail, photo }: { label: string; name: string; d
         className="mt-3 h-28 w-28 rounded-2xl"
         initialsClassName="bg-surface text-3xl text-ink-muted"
       />
-      <p className="mt-3 text-lg font-semibold">{name}</p>
+      <p className="mt-3 text-lg font-bold text-navy-900">{name}</p>
       {detail && <p className="text-sm text-ink-muted">{detail}</p>}
       {!photo && <p className="mt-1 text-xs text-warning-600">No photo — check their identity another way.</p>}
     </div>

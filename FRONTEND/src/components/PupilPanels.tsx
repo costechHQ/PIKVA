@@ -77,7 +77,7 @@ export function PupilDetails({
     setForm((current) => ({ ...current, [field]: event.target.value }));
 
   return (
-    <section aria-labelledby="details-heading" className="rounded-2xl border border-line bg-card p-5 shadow-sm sm:p-6">
+    <section aria-labelledby="details-heading" className="rounded-3xl border border-brand-100 bg-card p-5 shadow-sm sm:p-6">
       <div className="flex items-center gap-4">
         <PupilAvatar pupil={pupil} />
         <h2 id="details-heading" className="font-semibold">
@@ -87,7 +87,7 @@ export function PupilDetails({
           <button
             type="button"
             onClick={startEditing}
-            className="ml-auto rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-ink-muted hover:text-ink"
+            className="ml-auto rounded-full border border-brand-100 px-3 py-1.5 text-sm font-medium text-ink-muted hover:text-ink"
           >
             Edit
           </button>
@@ -126,7 +126,7 @@ export function PupilDetails({
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+              className="flex-1 rounded-full bg-brand-600 shadow-md shadow-brand-600/25 transition hover:-translate-y-0.5 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
             >
               {saving ? "Saving…" : "Save changes"}
             </button>
@@ -134,7 +134,7 @@ export function PupilDetails({
               type="button"
               onClick={() => setEditing(false)}
               disabled={saving}
-              className="flex-1 rounded-lg border border-line px-4 py-2.5 text-sm font-medium text-ink-muted hover:text-ink"
+              className="flex-1 rounded-full border border-brand-100 px-4 py-2.5 text-sm font-medium text-ink-muted hover:text-ink"
             >
               Cancel
             </button>
@@ -169,7 +169,7 @@ export function PickupPeopleList({
   action?: { href: string; label: string };
 }) {
   return (
-    <section aria-labelledby="people-heading" className="rounded-2xl border border-line bg-card shadow-sm">
+    <section aria-labelledby="people-heading" className="rounded-3xl border border-brand-100 bg-card shadow-sm">
       <div className="flex items-center justify-between px-5 pt-5 sm:px-6">
         <h2 id="people-heading" className="font-semibold">
           Pickup people
@@ -208,7 +208,7 @@ export function RecentPickups({ releases, showStaff = false }: { releases: Relea
   const now = useNow();
 
   return (
-    <section aria-labelledby="recent-heading" className="rounded-2xl border border-line bg-card shadow-sm">
+    <section aria-labelledby="recent-heading" className="rounded-3xl border border-brand-100 bg-card shadow-sm">
       <h2 id="recent-heading" className="px-5 pt-5 font-semibold sm:px-6">
         Recent pickups
       </h2>

@@ -81,7 +81,7 @@ export function OwnDetailsCard({
     setForm((current) => ({ ...current, [field]: event.target.value }));
 
   return (
-    <section aria-labelledby="details-heading" className="rounded-2xl border border-line bg-card p-5 shadow-sm sm:p-6">
+    <section aria-labelledby="details-heading" className="rounded-3xl border border-brand-100 bg-card p-5 shadow-sm sm:p-6">
       <div className="flex items-center justify-between gap-4">
         <h2 id="details-heading" className="font-semibold">
           Your details
@@ -90,7 +90,7 @@ export function OwnDetailsCard({
           <button
             type="button"
             onClick={startEditing}
-            className="rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-ink-muted hover:text-ink"
+            className="rounded-full border border-brand-100 px-3 py-1.5 text-sm font-medium text-ink-muted hover:text-ink"
           >
             Edit
           </button>
@@ -114,7 +114,7 @@ export function OwnDetailsCard({
             <button
               type="submit"
               disabled={saving}
-              className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+              className="rounded-full bg-brand-600 shadow-md shadow-brand-600/25 transition hover:-translate-y-0.5 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
             >
               {saving ? "Saving…" : "Save"}
             </button>
@@ -122,7 +122,7 @@ export function OwnDetailsCard({
               type="button"
               onClick={() => setEditing(false)}
               disabled={saving}
-              className="rounded-lg border border-line px-4 py-2.5 text-sm font-medium text-ink-muted hover:text-ink"
+              className="rounded-full border border-brand-100 px-4 py-2.5 text-sm font-medium text-ink-muted hover:text-ink"
             >
               Cancel
             </button>

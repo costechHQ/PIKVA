@@ -68,7 +68,7 @@ export default function UsersPage({ user, users, role, page, hasNext }: Props) {
       <div className="mb-4 flex justify-end">
         <Link
           href={role === "parent" || role === "gate_staff" ? `/admin/users/new?role=${role}` : "/admin/users/new"}
-          className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700"
+          className="rounded-full bg-brand-600 shadow-md shadow-brand-600/25 transition hover:-translate-y-0.5 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700"
         >
           Add user
         </Link>
@@ -96,13 +96,13 @@ export default function UsersPage({ user, users, role, page, hasNext }: Props) {
       {(page > 1 || hasNext) && (
         <nav aria-label="Pages" className="mt-4 flex items-center justify-end gap-2 text-sm">
           {page > 1 && (
-            <Link href={usersPageHref(role, page - 1)} className="rounded-lg border border-line bg-card px-3 py-1.5 hover:text-brand-700">
+            <Link href={usersPageHref(role, page - 1)} className="rounded-full border border-brand-100 bg-card px-3 py-1.5 hover:text-brand-700">
               Previous
             </Link>
           )}
           <span className="px-2 text-ink-muted">Page {page}</span>
           {hasNext && (
-            <Link href={usersPageHref(role, page + 1)} className="rounded-lg border border-line bg-card px-3 py-1.5 hover:text-brand-700">
+            <Link href={usersPageHref(role, page + 1)} className="rounded-full border border-brand-100 bg-card px-3 py-1.5 hover:text-brand-700">
               Next
             </Link>
           )}
@@ -147,9 +147,9 @@ function UserTable({ initialUsers, page }: { initialUsers: SchoolUser[]; page: n
       </div>
 
       {/* relative: keeps the visually hidden "Actions" header inside the scroll box on phones. */}
-      <div className="relative mt-4 overflow-x-auto rounded-xl border border-line bg-card">
+      <div className="relative mt-4 overflow-x-auto rounded-2xl border border-brand-100 bg-card">
         <table className="w-full min-w-[860px] text-left text-sm">
-          <thead className="border-b border-line text-xs font-medium text-ink-muted">
+          <thead className="border-b border-brand-100 bg-brand-50 text-xs font-semibold text-navy-900">
             <tr>
               <th scope="col" className="px-4 py-3 font-medium">Name</th>
               <th scope="col" className="px-4 py-3 font-medium">Email</th>
@@ -278,7 +278,7 @@ function UserActions({
             type="button"
             onClick={() => setConfirming(false)}
             disabled={busy}
-            className="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink-muted hover:text-ink"
+            className="rounded-full border border-brand-100 px-3 py-1.5 text-xs font-medium text-ink-muted hover:text-ink"
           >
             Cancel
           </button>
@@ -294,7 +294,7 @@ function UserActions({
           <button
             type="button"
             onClick={onEdit}
-            className="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink-muted hover:text-ink"
+            className="rounded-full border border-brand-100 px-3 py-1.5 text-xs font-medium text-ink-muted hover:text-ink"
           >
             Edit
           </button>
@@ -306,7 +306,7 @@ function UserActions({
             disabled={sending}
             aria-label={`Send ${user.name} a set-password link`}
             title="Email a new link to set their password"
-            className="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-brand-600 hover:border-brand-500 disabled:opacity-60"
+            className="rounded-full border border-brand-100 px-3 py-1.5 text-xs font-medium text-brand-600 hover:border-brand-500 disabled:opacity-60"
           >
             {sending ? "Sending…" : "Send link"}
           </button>
@@ -315,7 +315,7 @@ function UserActions({
           <button
             type="button"
             onClick={() => setConfirming(true)}
-            className="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-danger-600 hover:border-danger-600"
+            className="rounded-full border border-brand-100 px-3 py-1.5 text-xs font-medium text-danger-600 hover:border-danger-600"
           >
             Deactivate
           </button>
@@ -324,7 +324,7 @@ function UserActions({
             type="button"
             onClick={() => void setActive(true)}
             disabled={busy}
-            className="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-success-600 hover:border-success-600 disabled:opacity-60"
+            className="rounded-full border border-brand-100 px-3 py-1.5 text-xs font-medium text-success-600 hover:border-success-600 disabled:opacity-60"
           >
             {busy ? "Activating…" : "Activate"}
           </button>
@@ -387,7 +387,7 @@ function UserEditor({
       aria-labelledby="edit-user-heading"
       className="scroll-mt-20 max-w-2xl rounded-2xl border border-brand-100 bg-card p-5 shadow-sm ring-4 ring-brand-50 sm:p-6"
     >
-      <h2 id="edit-user-heading" className="text-lg font-semibold">
+      <h2 id="edit-user-heading" className="text-lg font-bold text-navy-900">
         Edit {user.name}
       </h2>
       <p className="mt-2 text-sm text-ink-muted">
@@ -417,14 +417,14 @@ function UserEditor({
           type="button"
           onClick={onCancel}
           disabled={saving}
-          className="rounded-lg border border-line px-4 py-2.5 text-sm font-medium text-ink-muted hover:text-ink"
+          className="rounded-full border border-brand-100 px-4 py-2.5 text-sm font-medium text-ink-muted hover:text-ink"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={saving}
-          className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+          className="rounded-full bg-brand-600 shadow-md shadow-brand-600/25 transition hover:-translate-y-0.5 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
         >
           {saving ? "Saving…" : "Save changes"}
         </button>

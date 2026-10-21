@@ -128,7 +128,7 @@ export function AppShell({ user, title, subtitle, children }: AppShellProps) {
                 type="button"
                 onClick={handleSignOut}
                 disabled={signingOut}
-                className="flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-sm font-medium text-ink-muted hover:text-ink disabled:opacity-60"
+                className="flex items-center gap-2 rounded-full border border-brand-100 px-3 py-2 text-sm font-medium text-ink-muted hover:text-ink disabled:opacity-60"
               >
                 <Icon name="logout" className="h-4 w-4" />
                 {signingOut ? "Signing out…" : "Sign out"}
@@ -137,7 +137,7 @@ export function AppShell({ user, title, subtitle, children }: AppShellProps) {
           </header>
 
           <main className="flex-1 px-4 py-6 sm:px-8 sm:py-8">
-            <h1 className="text-2xl font-semibold">{title}</h1>
+            <h1 className="text-2xl font-extrabold text-navy-900">{title}</h1>
             {subtitle && <p className="mt-1 text-sm text-ink-muted">{subtitle}</p>}
             <div className="mt-6">{children}</div>
           </main>

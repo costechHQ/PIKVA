@@ -68,7 +68,7 @@ export function ParentShell({ user, title, subtitle, tabTitle, children }: Paren
             })}
           </nav>
 
-          <div className="rounded-2xl border border-line p-3">
+          <div className="rounded-3xl border border-brand-100 p-3">
             <div className="flex items-center gap-3">
               <Avatar name={user.name} />
               <span className="min-w-0">
@@ -80,7 +80,7 @@ export function ParentShell({ user, title, subtitle, tabTitle, children }: Paren
               type="button"
               onClick={handleSignOut}
               disabled={signingOut}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-line px-3 py-2 text-sm font-medium text-ink-muted hover:text-ink disabled:opacity-60"
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-brand-100 px-3 py-2 text-sm font-medium text-ink-muted hover:text-ink disabled:opacity-60"
             >
               <Icon name="logout" className="h-4 w-4" />
               {signingOut ? "Signing out…" : "Sign out"}
@@ -109,7 +109,7 @@ export function ParentShell({ user, title, subtitle, tabTitle, children }: Paren
           </header>
 
           <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 pb-28 sm:px-8 sm:pt-8 lg:pb-10">
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
+            <h1 className="text-2xl font-extrabold tracking-tight text-navy-900 sm:text-3xl">{title}</h1>
             {subtitle && <p className="mt-1 text-sm text-ink-muted sm:text-base">{subtitle}</p>}
             <div className="mt-6 sm:mt-8">{children}</div>
           </main>

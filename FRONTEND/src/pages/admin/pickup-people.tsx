@@ -158,11 +158,11 @@ function PeopleTable({
           className={`${inputClass} sm:max-w-sm`}
         />
         <div className="flex gap-2">
-          <button type="submit" className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700">
+          <button type="submit" className="rounded-full bg-brand-600 shadow-md shadow-brand-600/25 transition hover:-translate-y-0.5 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700">
             Search
           </button>
           {search && (
-            <Link href={peopleHref(status, "")} className="rounded-lg border border-line bg-card px-4 py-2.5 text-sm font-medium text-ink-muted hover:text-ink">
+            <Link href={peopleHref(status, "")} className="rounded-full border border-brand-100 bg-card px-4 py-2.5 text-sm font-medium text-ink-muted hover:text-ink">
               Clear
             </Link>
           )}
@@ -182,9 +182,9 @@ function PeopleTable({
       </div>
 
       {/* relative: keeps the visually hidden "Actions" header inside the scroll box on phones. */}
-      <div className="relative mt-4 overflow-x-auto rounded-xl border border-line bg-card">
+      <div className="relative mt-4 overflow-x-auto rounded-2xl border border-brand-100 bg-card">
         <table className="w-full min-w-[960px] text-left text-sm">
-          <thead className="border-b border-line text-xs font-medium text-ink-muted">
+          <thead className="border-b border-brand-100 bg-brand-50 text-xs font-semibold text-navy-900">
             <tr>
               <th scope="col" className="px-4 py-3 font-medium">Pickup person</th>
               <th scope="col" className="px-4 py-3 font-medium">Collects</th>
@@ -304,7 +304,7 @@ function RowActions({
             type="button"
             onClick={() => setConfirming(false)}
             disabled={busy}
-            className="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink-muted hover:text-ink"
+            className="rounded-full border border-brand-100 px-3 py-1.5 text-xs font-medium text-ink-muted hover:text-ink"
           >
             Cancel
           </button>
@@ -320,7 +320,7 @@ function RowActions({
           <button
             type="button"
             onClick={onEdit}
-            className="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink-muted hover:text-ink"
+            className="rounded-full border border-brand-100 px-3 py-1.5 text-xs font-medium text-ink-muted hover:text-ink"
           >
             Edit
           </button>
@@ -329,7 +329,7 @@ function RowActions({
           <button
             type="button"
             onClick={() => setConfirming(true)}
-            className="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-danger-600 hover:border-danger-600"
+            className="rounded-full border border-brand-100 px-3 py-1.5 text-xs font-medium text-danger-600 hover:border-danger-600"
           >
             Deactivate
           </button>
@@ -338,7 +338,7 @@ function RowActions({
             type="button"
             onClick={() => void setActive(true)}
             disabled={busy}
-            className="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-success-600 hover:border-success-600 disabled:opacity-60"
+            className="rounded-full border border-brand-100 px-3 py-1.5 text-xs font-medium text-success-600 hover:border-success-600 disabled:opacity-60"
           >
             {busy ? "Activating…" : "Activate"}
           </button>
@@ -409,7 +409,7 @@ function AdminPersonEditor({
       aria-labelledby="editor-heading"
       className="scroll-mt-20 rounded-2xl border border-brand-100 bg-card p-5 shadow-sm ring-4 ring-brand-50 sm:p-6"
     >
-      <h2 id="editor-heading" className="text-lg font-semibold">
+      <h2 id="editor-heading" className="text-lg font-bold text-navy-900">
         Edit {person.picker_name}
         {pupil && <span className="font-normal text-ink-muted"> · collects {pupilName(pupil)}</span>}
       </h2>
@@ -453,14 +453,14 @@ function AdminPersonEditor({
           type="button"
           onClick={onCancel}
           disabled={saving}
-          className="rounded-lg border border-line px-4 py-2.5 text-sm font-medium text-ink-muted hover:text-ink"
+          className="rounded-full border border-brand-100 px-4 py-2.5 text-sm font-medium text-ink-muted hover:text-ink"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={saving}
-          className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+          className="rounded-full bg-brand-600 shadow-md shadow-brand-600/25 transition hover:-translate-y-0.5 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
         >
           {saving ? "Saving…" : "Save changes"}
         </button>

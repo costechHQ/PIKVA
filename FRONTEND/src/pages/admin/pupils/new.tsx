@@ -97,7 +97,7 @@ function NewPupilFormCard({ parents }: { parents: SchoolUser[] }) {
     setForm((current) => ({ ...current, [field]: event.target.value }));
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="max-w-2xl rounded-2xl border border-line bg-card p-5 shadow-sm sm:p-6">
+    <form onSubmit={handleSubmit} noValidate className="max-w-2xl rounded-3xl border border-brand-100 bg-card p-5 shadow-sm sm:p-6">
       <FormError message={error} />
 
       <fieldset className="space-y-3">
@@ -156,13 +156,13 @@ function NewPupilFormCard({ parents }: { parents: SchoolUser[] }) {
       </fieldset>
 
       <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-        <Link href="/admin/pupils" className="rounded-lg border border-line px-4 py-2.5 text-center text-sm font-medium text-ink-muted hover:text-ink">
+        <Link href="/admin/pupils" className="rounded-full border border-brand-100 px-4 py-2.5 text-center text-sm font-medium text-ink-muted hover:text-ink">
           Cancel
         </Link>
         <button
           type="submit"
           disabled={saving}
-          className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+          className="rounded-full bg-brand-600 shadow-md shadow-brand-600/25 transition hover:-translate-y-0.5 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
         >
           {saving ? "Adding…" : "Add pupil"}
         </button>

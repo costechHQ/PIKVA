@@ -83,20 +83,20 @@ function AuditList({ data }: { data: Data }) {
           ))}
         </select>
         <div className="flex gap-2">
-          <button type="submit" className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700">
+          <button type="submit" className="rounded-full bg-brand-600 shadow-md shadow-brand-600/25 transition hover:-translate-y-0.5 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700">
             Show
           </button>
           {action && (
-            <Link href="/admin/audit-log" className="rounded-lg border border-line bg-card px-4 py-2.5 text-sm font-medium text-ink-muted hover:text-ink">
+            <Link href="/admin/audit-log" className="rounded-full border border-brand-100 bg-card px-4 py-2.5 text-sm font-medium text-ink-muted hover:text-ink">
               All actions
             </Link>
           )}
         </div>
       </form>
 
-      <div className="overflow-x-auto rounded-xl border border-line bg-card">
+      <div className="overflow-x-auto rounded-2xl border border-brand-100 bg-card">
         <table className="w-full min-w-[820px] text-left text-sm">
-          <thead className="border-b border-line text-xs font-medium text-ink-muted">
+          <thead className="border-b border-brand-100 bg-brand-50 text-xs font-semibold text-navy-900">
             <tr>
               <th scope="col" className="w-40 px-4 py-3 font-medium">When</th>
               <th scope="col" className="px-4 py-3 font-medium">Who</th>
@@ -121,7 +121,7 @@ function AuditList({ data }: { data: Data }) {
       {(page > 1 || hasNext) && (
         <nav aria-label="Pages" className="flex items-center justify-between gap-2 text-sm sm:justify-end">
           {page > 1 ? (
-            <Link href={auditHref(action, page - 1)} className="rounded-lg border border-line bg-card px-4 py-2 font-medium hover:text-brand-700">
+            <Link href={auditHref(action, page - 1)} className="rounded-full border border-brand-100 bg-card px-4 py-2 font-medium hover:text-brand-700">
               Newer
             </Link>
           ) : (
@@ -129,7 +129,7 @@ function AuditList({ data }: { data: Data }) {
           )}
           <span className="px-2 text-ink-muted">Page {page}</span>
           {hasNext ? (
-            <Link href={auditHref(action, page + 1)} className="rounded-lg border border-line bg-card px-4 py-2 font-medium hover:text-brand-700">
+            <Link href={auditHref(action, page + 1)} className="rounded-full border border-brand-100 bg-card px-4 py-2 font-medium hover:text-brand-700">
               Older
             </Link>
           ) : (

@@ -26,7 +26,7 @@ export function LoadError({ message }: { message: string }) {
         type="button"
         onClick={retry}
         disabled={retrying}
-        className="mt-4 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+        className="mt-4 rounded-full bg-brand-600 shadow-md shadow-brand-600/25 transition hover:-translate-y-0.5 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
       >
         {retrying ? "Trying again…" : "Try again"}
       </button>

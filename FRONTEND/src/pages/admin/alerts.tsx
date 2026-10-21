@@ -113,7 +113,7 @@ function AlertList({ data }: { data: Data }) {
       {(page > 1 || hasNext) && (
         <nav aria-label="Pages" className="flex items-center justify-between gap-2 text-sm sm:justify-end">
           {page > 1 ? (
-            <Link href={alertsHref(filter, page - 1)} className="rounded-lg border border-line bg-card px-4 py-2 font-medium hover:text-brand-700">
+            <Link href={alertsHref(filter, page - 1)} className="rounded-full border border-brand-100 bg-card px-4 py-2 font-medium hover:text-brand-700">
               Newer
             </Link>
           ) : (
@@ -121,7 +121,7 @@ function AlertList({ data }: { data: Data }) {
           )}
           <span className="px-2 text-ink-muted">Page {page}</span>
           {hasNext ? (
-            <Link href={alertsHref(filter, page + 1)} className="rounded-lg border border-line bg-card px-4 py-2 font-medium hover:text-brand-700">
+            <Link href={alertsHref(filter, page + 1)} className="rounded-full border border-brand-100 bg-card px-4 py-2 font-medium hover:text-brand-700">
               Older
             </Link>
           ) : (
@@ -208,7 +208,7 @@ function AlertCard({
             type="button"
             onClick={() => void resolve()}
             disabled={busy}
-            className="shrink-0 rounded-lg border border-line px-4 py-2 text-sm font-medium text-ink-muted hover:border-brand-500 hover:text-brand-700 disabled:opacity-60"
+            className="shrink-0 rounded-full border border-brand-100 px-4 py-2 text-sm font-medium text-ink-muted hover:border-brand-500 hover:text-brand-700 disabled:opacity-60"
           >
             {busy ? "Resolving…" : "Mark resolved"}
           </button>
