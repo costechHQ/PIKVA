@@ -26,6 +26,8 @@ export function contentSecurityPolicy(nonce: string, isDev: boolean): string {
     "img-src 'self' https: data: blob:",
     "font-src 'self'",
     "connect-src 'self'",
+    // The notification service worker (public/sw.js) is this site's own file.
+    "worker-src 'self'",
     "media-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",

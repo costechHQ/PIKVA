@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 import { type ReactNode, useEffect, useState, useSyncExternalStore } from "react";
 
 import { Icon } from "@/components/Icon";
+import { PushPrompt } from "@/components/PushNotifications";
 import type { CurrentUser } from "@/lib/auth-guard";
 import {
   ALERT_POLL_MS,
@@ -150,6 +151,8 @@ export function AppShell({ user, title, subtitle, centered = false, children }: 
               </button>
             </div>
           </header>
+          {/* Admins only: the alert notification prompt, until this browser has it on. */}
+          {user.role === "school_admin" && <PushPrompt />}
 
           <main className="flex-1 px-4 py-6 sm:px-8 sm:py-8">
             <div className={centered ? "mx-auto w-full max-w-4xl text-center" : undefined}>

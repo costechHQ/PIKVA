@@ -63,6 +63,9 @@ ACCESS = {
     ("GET", "/api/v1/alerts/{alert_id}"): STAFF,
     ("POST", "/api/v1/alerts/{alert_id}/resolve"): STAFF,
     ("GET", "/api/v1/audit-logs"): STAFF,
+    ("GET", "/api/v1/push/config"): STAFF,
+    ("POST", "/api/v1/push/subscriptions"): STAFF,
+    ("POST", "/api/v1/push/subscriptions/remove"): STAFF,
 }
 
 

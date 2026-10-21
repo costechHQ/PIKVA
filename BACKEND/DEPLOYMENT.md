@@ -29,6 +29,7 @@ secret store) and set:
 - [ ] `REDIS_URL` pointing at the production Redis (database 0, never 15).
 - [ ] `LOG_LEVEL=INFO`.
 - [ ] `RESEND_API_KEY` and `EMAIL_FROM` on a domain verified in Resend.
+- [ ] Push notifications for security alerts: run `uv run python scripts/generate_vapid_keys.py` once, then set `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (secret) and `VAPID_SUBJECT` (a `mailto:` contact). Browsers only allow notifications on `https://` (or `localhost`). Each admin turns them on per device from the banner or the Security Alerts page.
 - [ ] `WEB_APP_URL` set to the web app's public `https://` address (password reset links).
       `onboarding@resend.dev` only delivers to the Resend account owner.
 - [ ] `.env` is not in git and is readable only by the service user.
@@ -86,6 +87,7 @@ secret store) and set:
 | `POST /pickup/codes` | 10 per parent per hour |
 | `PUT` and `DELETE /pickers/{id}/photo` | 20 per user per hour, shared |
 | `POST /schools/users/{id}/setup-email` | 10 per admin and 3 per target user, per hour |
+| Security alert pushes | every alert, no cooldown, to every admin browser that turned them on |
 | Security alert emails | 1 per school per 10 minutes; repeated-attempts alerts always sent |
 
 ## Known limitations (accepted for now)

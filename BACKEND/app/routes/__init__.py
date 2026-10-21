@@ -10,6 +10,7 @@ from app.routes.pickup import router as pickup_router
 from app.routes.releases import router as release_router
 from app.routes.alerts import router as alert_router
 from app.routes.audit_logs import router as audit_log_router
+from app.routes.push import router as push_router
 
 router = APIRouter(prefix="/api/v1")
 
@@ -23,3 +24,4 @@ router.include_router(pickup_router)
 router.include_router(release_router)
 router.include_router(alert_router)
 router.include_router(audit_log_router)
+router.include_router(push_router)

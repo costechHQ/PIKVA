@@ -4,6 +4,7 @@ import { type ReactNode, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { LoadError, Skeleton } from "@/components/ParentUi";
+import { PushCard } from "@/components/PushNotifications";
 import {
   ALERTS_PAGE_SIZE,
   ALERT_FILTERS,
@@ -78,6 +79,8 @@ function AlertList({ data }: { data: Data }) {
 
   return (
     <div className="space-y-6">
+      <PushCard />
+
       <nav aria-label="Filter alerts" className="flex flex-wrap gap-2">
         {ALERT_FILTERS.map((item) => {
           const active = item.filter === filter;
