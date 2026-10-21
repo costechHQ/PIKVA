@@ -160,4 +160,5 @@ async def test_user_list_can_be_searched_by_name_or_email(client, school, outbox
     assert await found("zzz-nobody") == set()
     # Wildcard characters are searched for literally, never as patterns.
     assert await found("%") == set()
-    assert await found("_") == set()
+    # The school's gate user is named after its role (gate_staff), so a literal "_" matches only that one.
+    assert await found("_") == {name for name in await found("") if "_" in name}
