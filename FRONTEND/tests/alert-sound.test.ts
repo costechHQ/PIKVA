@@ -1,7 +1,18 @@
 /** Tests for the new-alert sound rules (SRS 13). */
 import { describe, expect, test } from "bun:test";
 
-import { alertIds, hasUnheardAlert, newestAlertId } from "@/lib/alert-sound";
+import { alertIds, hasUnheardAlert, newestAlertId, shouldRepeatSound } from "@/lib/alert-sound";
+
+describe("shouldRepeatSound", () => {
+  test("repeats while an alert is open and the sound is on", () => {
+    expect(shouldRepeatSound(2, false)).toBe(true);
+  });
+
+  test("stops once every alert is resolved or the admin has muted it", () => {
+    expect(shouldRepeatSound(0, false)).toBe(false);
+    expect(shouldRepeatSound(3, true)).toBe(false);
+  });
+});
 
 describe("alertIds", () => {
   test("reads the IDs of a list of alerts", () => {

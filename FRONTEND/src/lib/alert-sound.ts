@@ -8,6 +8,14 @@
 /** How often an open admin page asks for new alerts. */
 export const ALERT_POLL_MS = 20_000;
 
+/** How often the tone repeats while an alert is still open on an open admin page. */
+export const ALERT_REPEAT_MS = 10_000;
+
+/** Whether the tone should sound again: an alert is still open and the admin has not muted it. */
+export function shouldRepeatSound(openCount: number, muted: boolean): boolean {
+  return openCount > 0 && !muted;
+}
+
 /** The IDs of the alerts in an answer, or null when it is not a list of alerts. */
 export function alertIds(alerts: unknown): number[] | null {
   if (!Array.isArray(alerts)) return null;

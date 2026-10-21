@@ -8,6 +8,7 @@ import { PushPrompt } from "@/components/PushNotifications";
 import type { CurrentUser } from "@/lib/auth-guard";
 import {
   ALERT_POLL_MS,
+  ALERT_REPEAT_MS,
   alertIds,
   hasUnheardAlert,
   newestAlertId,
@@ -15,6 +16,7 @@ import {
   readHeard,
   readMuted,
   setMuted,
+  shouldRepeatSound,
   subscribeMuted,
   unlockAlertSound,
   writeHeard,
@@ -173,7 +175,8 @@ export function AppShell({ user, title, subtitle, centered = false, children }: 
  * down; if it cannot be read the bell simply shows no number. While any
  * admin page is open it checks again every few seconds and sounds when a
  * new alert has arrived, including one that came in while the admin was
- * away. The speaker button beside it mutes that sound.
+ * away. The tone then repeats every few seconds until every alert is
+ * resolved. The speaker button beside it mutes that sound.
  */
 function AlertBell({ userId }: { userId: number }) {
   const [badge, setBadge] = useState<string | null>(null);
@@ -190,6 +193,7 @@ function AlertBell({ userId }: { userId: number }) {
     window.addEventListener("keydown", unlockAlertSound, { once: true });
 
     let controller: AbortController | null = null;
+    let openCount = 0;
 
     async function check() {
       controller?.abort();
@@ -200,6 +204,7 @@ function AlertBell({ userId }: { userId: number }) {
         const ids = response.ok ? alertIds(await response.json()) : null;
         if (!ids) return;
 
+        openCount = ids.length;
         setBadge(bellBadge(ids.length));
 
         const newest = newestAlertId(ids);
@@ -215,6 +220,10 @@ function AlertBell({ userId }: { userId: number }) {
 
     void check();
     const timer = window.setInterval(check, ALERT_POLL_MS);
+    // Keeps sounding until every alert is resolved (the next check sets the count to 0).
+    const repeatTimer = window.setInterval(() => {
+      if (shouldRepeatSound(openCount, readMuted(userId))) playAlertSound();
+    }, ALERT_REPEAT_MS);
     const onVisible = () => {
       if (document.visibilityState === "visible") void check();
     };
@@ -223,6 +232,7 @@ function AlertBell({ userId }: { userId: number }) {
     return () => {
       controller?.abort();
       window.clearInterval(timer);
+      window.clearInterval(repeatTimer);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("pointerdown", unlockAlertSound);
       window.removeEventListener("keydown", unlockAlertSound);
