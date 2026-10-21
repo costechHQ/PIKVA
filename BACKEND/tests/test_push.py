@@ -1,7 +1,7 @@
 """Tests for push notifications of new security alerts (SRS 13)."""
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from pydantic import SecretStr, ValidationError
@@ -17,10 +17,13 @@ from app.models.user import User, UserRole
 from app.schemas.push import PushSubscriptionCreate, push_endpoint_allowed
 from app.services.push_service import (
     MAX_SUBSCRIPTIONS_PER_USER,
+    _repeaters,
     alert_push_payload,
     get_push_sender,
+    push_new_security_alerts,
     push_security_alerts,
     remove_subscription,
+    repeat_open_alert_pushes,
     save_subscription,
 )
 
@@ -354,3 +357,103 @@ async def test_nobody_can_remove_another_admins_browser(session):
     await remove_subscription(session, second.id, FCM + "mine")
 
     assert await stored_endpoints() == [FCM + "mine"]
+
+
+# --- Reminders while an alert stays unresolved ---
+
+
+def test_reminder_payload_says_the_alert_is_still_open():
+    alert = SecurityAlert(school_id=1, alert_type="invalid_code", message="Pickup code was not recognised")
+
+    single = json.loads(alert_push_payload([alert], reminder=True))
+    several = json.loads(alert_push_payload([alert, alert], reminder=True))
+
+    assert single["title"] == "Pikva security alert, still open"
+    assert single["body"] == alert.message
+    assert several["body"] == "2 security alerts are still open. Open the dashboard to review them."
+
+
+async def test_reminders_repeat_until_the_alert_is_resolved(session):
+    school, [admin] = await make_school(session, "Alpha")
+    await save_subscription(session, admin.id, FCM + "laptop", "k", "a")
+    alert = await make_alert(session, school.id)
+    sender = FakeSender()
+    sleeps: list[float] = []
+
+    async def sleep(seconds):
+        sleeps.append(seconds)
+
+        if len(sleeps) == 3:
+            async with async_session() as other:
+                row = await other.get(SecurityAlert, alert.id)
+                row.resolved_at = datetime.now(timezone.utc)
+                await other.commit()
+
+    rounds = await repeat_open_alert_pushes(school.id, sender, sleep)
+
+    # Two reminders went out; the third check found the alert resolved and stopped.
+    assert rounds == 2
+    assert sleeps == [settings.push_repeat_interval_seconds] * 3
+    assert len(sender.sent) == 2
+    assert json.loads(sender.sent[0][1])["title"] == "Pikva security alert, still open"
+
+
+async def test_reminders_stop_for_an_alert_older_than_the_window(session):
+    school, [admin] = await make_school(session, "Alpha")
+    await save_subscription(session, admin.id, FCM + "laptop", "k", "a")
+    alert = await make_alert(session, school.id)
+    alert.created_at = datetime.now(timezone.utc) - timedelta(minutes=settings.push_repeat_window_minutes + 1)
+    await session.commit()
+    sender = FakeSender()
+
+    async def sleep(seconds):
+        pass
+
+    assert await repeat_open_alert_pushes(school.id, sender, sleep) == 0
+    assert sender.sent == []
+
+
+async def test_reminders_ignore_another_schools_alerts(session):
+    school, _ = await make_school(session, "Alpha")
+    other, [other_admin] = await make_school(session, "Beta")
+    await save_subscription(session, other_admin.id, FCM + "beta-admin", "k", "a")
+    await make_alert(session, other.id)
+    sender = FakeSender()
+
+    async def sleep(seconds):
+        pass
+
+    assert await repeat_open_alert_pushes(school.id, sender, sleep) == 0
+    assert sender.sent == []
+
+
+async def test_nothing_repeats_when_push_is_off(session, monkeypatch):
+    monkeypatch.setattr(settings, "vapid_public_key", None)
+    monkeypatch.setattr(settings, "vapid_private_key", None)
+    monkeypatch.setattr(settings, "vapid_subject", None)
+    school, _ = await make_school(session, "Alpha")
+    alert = await make_alert(session, school.id)
+
+    await push_new_security_alerts(school.id, [alert.id])
+
+    assert school.id not in _repeaters
+
+
+async def test_a_second_alert_does_not_start_a_second_reminder_task(session, monkeypatch):
+    monkeypatch.setattr(settings, "vapid_public_key", "PUBLICKEY")
+    monkeypatch.setattr(settings, "vapid_private_key", SecretStr("private"))
+    monkeypatch.setattr(settings, "vapid_subject", "mailto:admin@example.com")
+    # Far in the future, so the task stays asleep until the test cancels it.
+    monkeypatch.setattr(settings, "push_repeat_interval_seconds", 3600)
+    school, _ = await make_school(session, "Alpha")
+    first = await make_alert(session, school.id)
+    second = await make_alert(session, school.id)
+
+    await push_new_security_alerts(school.id, [first.id])
+    task = _repeaters[school.id]
+    await push_new_security_alerts(school.id, [second.id])
+
+    try:
+        assert _repeaters[school.id] is task
+    finally:
+        task.cancel()

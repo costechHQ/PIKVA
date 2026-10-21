@@ -87,7 +87,7 @@ secret store) and set:
 | `POST /pickup/codes` | 10 per parent per hour |
 | `PUT` and `DELETE /pickers/{id}/photo` | 20 per user per hour, shared |
 | `POST /schools/users/{id}/setup-email` | 10 per admin and 3 per target user, per hour |
-| Security alert pushes | every alert, no cooldown, to every admin browser that turned them on |
+| Security alert pushes | every alert, no cooldown, to every admin browser that turned them on; repeated every 60 seconds (`PUSH_REPEAT_INTERVAL_SECONDS`) until the alert is resolved, for at most 30 minutes (`PUSH_REPEAT_WINDOW_MINUTES`). Reminders are lost if the server restarts. |
 | Security alert emails | 1 per school per 10 minutes; repeated-attempts alerts always sent |
 
 ## Known limitations (accepted for now)

@@ -8,7 +8,9 @@ Messages never hold names or pickup codes, only what the alert email holds.
 import asyncio
 import json
 import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from typing import Protocol
 from urllib.parse import urlsplit
 
@@ -149,17 +151,19 @@ async def remove_subscription(session: AsyncSession, user_id: int, endpoint: str
     await session.commit()
 
 
-def alert_push_payload(alerts: list[SecurityAlert]) -> str:
+def alert_push_payload(alerts: list[SecurityAlert], reminder: bool = False) -> str:
     """Build the notification: a title, the alert's own message and where to look."""
 
     if len(alerts) == 1:
         body = alerts[0].message
+    elif reminder:
+        body = f"{len(alerts)} security alerts are still open. Open the dashboard to review them."
     else:
         body = f"{len(alerts)} new security alerts. Open the dashboard to review them."
 
     return json.dumps(
         {
-            "title": "Pikva security alert",
+            "title": "Pikva security alert, still open" if reminder else "Pikva security alert",
             "body": body,
             "url": ALERTS_URL,
             "tag": "pikva-security-alert",
@@ -195,10 +199,21 @@ async def push_security_alerts(
                     )
                 ).all()
             )
+    except Exception as exc:
+        logger.error("Push notification lookup failed: %s", type(exc).__name__)
+        return 0
 
-            if not alerts:
-                return 0
+    if not alerts:
+        return 0
 
+    return await _push_to_school_admins(school_id, alert_push_payload(alerts), sender)
+
+
+async def _push_to_school_admins(school_id: int, payload: str, sender: PushSender) -> int:
+    """Send the payload to every active admin browser at the school; never raises. Returns how many were reached."""
+
+    try:
+        async with async_session() as session:
             rows = (
                 await session.execute(
                     select(PushSubscription.id, PushSubscription.endpoint, PushSubscription.p256dh, PushSubscription.auth)
@@ -215,7 +230,6 @@ async def push_security_alerts(
         logger.error("Push notification lookup failed: %s", type(exc).__name__)
         return 0
 
-    payload = alert_push_payload(alerts)
     reached = 0
     gone: list[int] = []
 
@@ -240,3 +254,77 @@ async def push_security_alerts(
             logger.error("Removing expired push subscriptions failed: %s", type(exc).__name__)
 
     return reached
+
+
+# One repeating task per school, kept here so it is not garbage collected while it runs.
+_repeaters: dict[int, asyncio.Task[None]] = {}
+
+
+async def _open_recent_alerts(school_id: int) -> list[SecurityAlert]:
+    """Return the school's unresolved alerts raised within the repeat window, oldest first."""
+
+    since = datetime.now(timezone.utc) - timedelta(minutes=settings.push_repeat_window_minutes)
+
+    async with async_session() as session:
+        return list(
+            (
+                await session.scalars(
+                    select(SecurityAlert)
+                    .where(
+                        SecurityAlert.school_id == school_id,
+                        SecurityAlert.resolved_at.is_(None),
+                        SecurityAlert.created_at >= since,
+                    )
+                    .order_by(SecurityAlert.id)
+                )
+            ).all()
+        )
+
+
+async def repeat_open_alert_pushes(
+        school_id: int,
+        sender: PushSender,
+        sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+) -> int:
+    """Push a reminder every interval while the school has unresolved alerts; never raises.
+
+    Stops once every alert is resolved, or older than the repeat window, so a
+    forgotten alert cannot ring all night. Returns how many reminder rounds were sent.
+    """
+
+    rounds = 0
+
+    while True:
+        await sleep(settings.push_repeat_interval_seconds)
+
+        try:
+            alerts = await _open_recent_alerts(school_id)
+        except Exception as exc:
+            logger.error("Push reminder lookup failed: %s", type(exc).__name__)
+            return rounds
+
+        if not alerts:
+            return rounds
+
+        await _push_to_school_admins(school_id, alert_push_payload(alerts, reminder=True), sender)
+        rounds += 1
+
+
+async def push_new_security_alerts(school_id: int, alert_ids: list[int]) -> None:
+    """Push new alerts now, then keep reminding the school's admins until the alerts are resolved.
+
+    Reminders run as one task per school, so a second alert joins the one
+    already running instead of doubling the pushes. They are lost if the server restarts.
+    """
+
+    await push_security_alerts(school_id, alert_ids)
+
+    sender = get_push_sender()
+
+    if sender is None or settings.push_repeat_interval_seconds <= 0:
+        return
+
+    running = _repeaters.get(school_id)
+
+    if running is None or running.done():
+        _repeaters[school_id] = asyncio.create_task(repeat_open_alert_pushes(school_id, sender))

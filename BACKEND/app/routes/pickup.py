@@ -23,7 +23,7 @@ from app.schemas.pickup import (
 from app.schemas.release import PickupReleaseResponse
 from app.services.alert_service import notify_security_alerts
 from app.services.pickup_service import AlertNotifier, issue_pickup_code, refuse_pickup, verify_pickup
-from app.services.push_service import push_security_alerts
+from app.services.push_service import push_new_security_alerts
 from app.services.release_service import release_pupil
 
 router = APIRouter(prefix="/pickup", tags=["Pickup"])
@@ -34,7 +34,7 @@ def _email_admins_later(background_tasks: BackgroundTasks) -> AlertNotifier:
 
     def notify(school_id: int, alert_ids: list[int]) -> None:
         background_tasks.add_task(notify_security_alerts, school_id, alert_ids)
-        background_tasks.add_task(push_security_alerts, school_id, alert_ids)
+        background_tasks.add_task(push_new_security_alerts, school_id, alert_ids)
 
     return notify
 

@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     vapid_private_key: SecretStr | None = None
     # A mailto: or https: address push services can contact the sender on.
     vapid_subject: str | None = None
+    # While an alert stays unresolved its push repeats this often, for this long. 0 turns reminders off.
+    push_repeat_interval_seconds: int = 60
+    push_repeat_window_minutes: int = 30
 
     # The web app's address, for links in emails (password reset, SRS 6.6).
     web_app_url: str = "http://localhost:3000"
