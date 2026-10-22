@@ -87,7 +87,7 @@ async def login_user(
     if not user.is_active:
         raise ValueError(ACCOUNT_DEACTIVATED)
 
-    access_token = create_access_token(str(user.id))
+    access_token = create_access_token(str(user.id), user.role)
 
     return {
         "access_token": access_token,
