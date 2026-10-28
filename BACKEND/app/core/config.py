@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Literal
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,7 +12,13 @@ class Settings(BaseSettings):
 
     database_url: str
     secret_key: str
-    access_token_expire_minutes: int = 30
+    # Session lifetime (SRS 6.10). The name predates sliding sessions, so it
+    # stays: it is how long staff (admin, gate) can be inactive before they
+    # are signed out. The others are the staff maximum age and the parent limits.
+    access_token_expire_minutes: int = Field(default=30, gt=0)
+    session_max_hours_staff: int = Field(default=12, gt=0)
+    session_idle_minutes_parent: int = Field(default=1440, gt=0)
+    session_max_days_parent: int = Field(default=30, gt=0)
     database_echo: bool = False
 
     # Rate-limit counters. Database 0 for the app; tests switch to 15.

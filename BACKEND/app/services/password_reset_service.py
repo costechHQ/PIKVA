@@ -270,6 +270,8 @@ async def change_password(
     # Built before the commit, while the user is still loaded.
     notice = password_changed_email(user, now)
     user_id = user.id
+    role = user.role
     await session.commit()
 
-    return ChangedPassword(access_token=create_access_token(str(user_id)), notice=notice)
+    # Entering the current password is a sign-in, so auth_time starts again (SRS 6.10).
+    return ChangedPassword(access_token=create_access_token(str(user_id), role), notice=notice)
