@@ -28,6 +28,7 @@ ACCESS = {
     ("GET", "/api/v1/auth/me"): ROLES,
     ("PATCH", "/api/v1/auth/me"): ROLES,
     ("POST", "/api/v1/auth/change-password"): ROLES,
+    ("POST", "/api/v1/auth/refresh"): ROLES,
     ("GET", "/api/v1/health/auth"): ROLES,
     ("GET", "/api/v1/health/admin"): STAFF,
     ("GET", "/api/v1/schools/me"): STAFF,

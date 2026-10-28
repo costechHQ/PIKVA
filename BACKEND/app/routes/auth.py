@@ -1,6 +1,7 @@
 import logging
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
+from fastapi.security import HTTPAuthorizationCredentials
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,8 +19,11 @@ from app.core.constants import (
     PASSWORD_RESET_WINDOW_SECONDS,
     REGISTER_IP_LIMIT,
     REGISTER_WINDOW_SECONDS,
+    SESSION_REFRESH_LIMIT,
+    SESSION_REFRESH_WINDOW_SECONDS,
 )
-from app.core.dependencies import get_current_user
+from app.core.dependencies import bearer_scheme, get_current_user
+from app.core.security import decode_access_token
 from app.models.school import School
 from app.models.user import User
 from app.schemas.auth import (
@@ -34,7 +38,12 @@ from app.schemas.auth import (
     UserRegister,
     UserResponse,
 )
-from app.services.auth_service import login_user, register_school_admin, update_own_details
+from app.services.auth_service import (
+    login_user,
+    register_school_admin,
+    renew_session,
+    update_own_details,
+)
 from app.services.notification_service import send_email_safely
 from app.services.password_reset_service import (
     change_password,
@@ -126,6 +135,45 @@ async def login(
             detail=str(exc),
         )
 
+
+
+@router.post(
+    "/refresh",
+    response_model=TokenResponse,
+    responses={
+        401: {"description": "The session cannot be renewed; sign in again"},
+        **rate_limit.RATE_LIMITED_RESPONSE,
+    },
+)
+async def refresh(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    current_user: User = Depends(get_current_user),
+    redis: Redis = Depends(get_redis),
+):
+
+    """Renew the signed-in session with a new access token (SRS 6.10).
+
+    The new token never outlives the session's maximum age. Rate limited per
+    user, so a stolen token cannot be used to hammer this endpoint.
+    """
+
+    await rate_limit.hit(
+        redis,
+        f"pikva:rl:refresh:user:{current_user.id}",
+        SESSION_REFRESH_LIMIT,
+        SESSION_REFRESH_WINDOW_SECONDS,
+    )
+
+    # get_current_user has already verified this token.
+    payload = decode_access_token(credentials.credentials)
+
+    try:
+        return renew_session(current_user, payload)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+        )
 
 
 PASSWORD_RESET_SENT = (

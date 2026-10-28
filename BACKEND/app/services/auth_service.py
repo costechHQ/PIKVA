@@ -1,9 +1,12 @@
+from datetime import datetime, timezone
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.core.security import (
     create_access_token,
-    hash_password, 
+    hash_password,
+    session_limits,
     verify_dummy_password,
     verify_password,
 )
@@ -91,6 +94,34 @@ async def login_user(
 
     return {
         "access_token": access_token,
+        "token_type": "bearer",
+    }
+
+
+def renew_session(user: User, payload: dict, now: datetime | None = None) -> dict:
+    """Return a new access token for a still-valid session (SRS 6.10).
+
+    The caller has already checked the token, the user and the last password
+    change. auth_time is copied unchanged, so renewal never extends the
+    maximum age; a token without it, or past it, cannot be renewed. now is
+    for tests only.
+    """
+
+    now = now or datetime.now(timezone.utc)
+    auth_time = payload.get("auth_time")
+
+    if not isinstance(auth_time, int):
+        raise ValueError("This session cannot be renewed")
+
+    signed_in_at = datetime.fromtimestamp(auth_time, tz=timezone.utc)
+
+    if signed_in_at + session_limits(user.role).max_age <= now:
+        raise ValueError("This session cannot be renewed")
+
+    return {
+        "access_token": create_access_token(
+            str(user.id), user.role, auth_time=signed_in_at, now=now
+        ),
         "token_type": "bearer",
     }
 
