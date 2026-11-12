@@ -3,9 +3,9 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/domain/current_user.dart';
 import '../../features/auth/presentation/auth_controller.dart';
 import '../../features/auth/presentation/login_screen.dart';
-import '../../features/home/role_home_screen.dart';
 import '../../features/home/splash_screen.dart';
 import '../../features/account/presentation/account_screen.dart';
+import '../../features/admin/alerts/presentation/alerts_screen.dart';
 import '../../features/history/presentation/history_screen.dart';
 import '../../features/gate/presentation/gate_screen.dart';
 import '../../features/home/role_shell.dart';
@@ -139,9 +139,25 @@ GoRouter buildRouter(AuthController auth, Repositories repos) {
           ),
         ],
       ),
-      GoRoute(
-        path: Routes.admin,
-        builder: (_, _) => RoleHomeScreen(auth: auth, title: 'Admin'),
+      ShellRoute(
+        builder: (_, state, child) =>
+            RoleShell(tabs: adminTabs, location: state.uri.path, child: child),
+        routes: [
+          GoRoute(
+            path: Routes.admin,
+            builder: (_, _) => AlertsScreen(
+              alerts: repos.alerts,
+              pupils: repos.pupils,
+              pickers: repos.pickers,
+            ),
+            routes: [
+              GoRoute(
+                path: 'account',
+                builder: (_, _) => AccountScreen(auth: auth),
+              ),
+            ],
+          ),
+        ],
       ),
     ],
   );

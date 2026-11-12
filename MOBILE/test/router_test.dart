@@ -85,7 +85,7 @@ void main() {
   for (final c in [
     ('parent', Routes.parent, 'My children'),
     ('gate_staff', Routes.gate, 'Check a pickup code'),
-    ('school_admin', Routes.admin, 'Admin home'),
+    ('school_admin', Routes.admin, 'Security alerts'),
   ]) {
     testWidgets('${c.$1} lands on ${c.$2}', (tester) async {
       await tester.pumpWidget(

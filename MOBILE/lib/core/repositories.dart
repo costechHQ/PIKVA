@@ -1,3 +1,4 @@
+import '../features/admin/alerts/data/alert_repository.dart';
 import '../features/gate/data/gate_repository.dart';
 import '../features/history/data/release_repository.dart';
 import '../features/pickers/data/picker_repository.dart';
@@ -13,6 +14,7 @@ class Repositories {
     required this.pickers,
     required this.releases,
     required this.gate,
+    required this.alerts,
     PhotoPicker? photoPicker,
     QrScanner? scanner,
   }) : photoPicker = photoPicker ?? ImagePickerPhotoPicker(),
@@ -27,6 +29,7 @@ class Repositories {
     pickers: PickerRepository(api),
     releases: ReleaseRepository(api),
     gate: GateRepository(api),
+    alerts: AlertRepository(api),
     photoPicker: photoPicker,
     scanner: scanner,
   );
@@ -35,6 +38,7 @@ class Repositories {
   final PickerRepository pickers;
   final ReleaseRepository releases;
   final GateRepository gate;
+  final AlertRepository alerts;
 
   /// Camera and gallery access for photo uploads.
   final PhotoPicker photoPicker;
