@@ -1,3 +1,4 @@
+import '../features/gate/data/gate_repository.dart';
 import '../features/history/data/release_repository.dart';
 import '../features/pickers/data/picker_repository.dart';
 import '../features/pupils/data/pupil_repository.dart';
@@ -10,6 +11,7 @@ class Repositories {
     required this.pupils,
     required this.pickers,
     required this.releases,
+    required this.gate,
     PhotoPicker? photoPicker,
   }) : photoPicker = photoPicker ?? ImagePickerPhotoPicker();
 
@@ -18,12 +20,14 @@ class Repositories {
         pupils: PupilRepository(api),
         pickers: PickerRepository(api),
         releases: ReleaseRepository(api),
+        gate: GateRepository(api),
         photoPicker: photoPicker,
       );
 
   final PupilRepository pupils;
   final PickerRepository pickers;
   final ReleaseRepository releases;
+  final GateRepository gate;
 
   /// Camera and gallery access for photo uploads.
   final PhotoPicker photoPicker;
@@ -32,5 +36,6 @@ class Repositories {
   void clearCaches() {
     pupils.clearCache();
     pickers.clearCache();
+    gate.clearCache();
   }
 }

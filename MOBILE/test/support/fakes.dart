@@ -135,6 +135,7 @@ Map<String, dynamic> pickerJson({
 ({FakeBackend backend, AuthController auth, Repositories repos}) parentApp(
   Map<String, (int, Object)> routes, {
   PhotoPicker? photoPicker,
+  String role = 'parent',
 }) {
   final backend = FakeBackend({
     'GET /auth/me': (
@@ -145,7 +146,7 @@ Map<String, dynamic> pickerJson({
         'name': 'Ada Eze',
         'email': 'a@example.com',
         'phone': '08000000000',
-        'role': 'parent',
+        'role': role,
         'school_name': 'Sunrise School',
       },
     ),
