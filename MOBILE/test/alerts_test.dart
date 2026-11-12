@@ -328,10 +328,12 @@ void main() {
       expect(find.text('Unrecognised code'), findsOneWidget);
     });
 
-    testWidgets('the Account tab is there', (tester) async {
+    testWidgets('Account is reachable through More', (tester) async {
       await openAlerts(tester, {'GET /alerts': (200, [])});
 
-      await tester.tap(find.widgetWithText(NavigationDestination, 'Account'));
+      await tester.tap(find.widgetWithText(NavigationDestination, 'More'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Account'));
       await tester.pumpAndSettle();
 
       expect(find.text('Your details'), findsOneWidget);

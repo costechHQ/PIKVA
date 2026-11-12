@@ -248,12 +248,12 @@ void main() {
       expect(find.textContaining('Welcome back'), findsOneWidget);
     });
 
-    testWidgets('has Dashboard, Alerts, Approvals and Account tabs', (
+    testWidgets('has Dashboard, Alerts, Approvals and More tabs', (
       tester,
     ) async {
       await openDashboard(tester, {});
 
-      for (final label in ['Dashboard', 'Alerts', 'Approvals', 'Account']) {
+      for (final label in ['Dashboard', 'Alerts', 'Approvals', 'More']) {
         expect(
           find.widgetWithText(NavigationDestination, label),
           findsOneWidget,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
@@ -9,9 +10,12 @@ import 'edit_details_screen.dart';
 
 /// The signed-in user's details, password and sign out (SRS 6.8, 6.9).
 class AccountScreen extends StatefulWidget {
-  const AccountScreen({super.key, required this.auth});
+  const AccountScreen({super.key, required this.auth, this.backTo});
 
   final AuthController auth;
+
+  /// Where the back arrow goes, for when this screen is reached from a menu.
+  final String? backTo;
 
   @override
   State<AccountScreen> createState() => _AccountScreenState();
@@ -108,7 +112,16 @@ class _AccountScreenState extends State<AccountScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Account')),
+      appBar: AppBar(
+        title: const Text('Account'),
+        leading: widget.backTo == null
+            ? null
+            : IconButton(
+                tooltip: 'Back',
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => context.go(widget.backTo!),
+              ),
+      ),
       // Rebuilds when the details are edited.
       body: ListenableBuilder(
         listenable: widget.auth,

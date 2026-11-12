@@ -42,7 +42,7 @@ const adminTabs = [
     Icons.how_to_reg,
     'Approvals',
   ),
-  AppTab('/admin/account', Icons.person_outline, Icons.person, 'Account'),
+  AppTab('/admin/more', Icons.menu, Icons.menu, 'More'),
 ];
 
 /// A role's bottom navigation. Each tab is its own screen with its own app

@@ -8,6 +8,8 @@ import '../../features/account/presentation/account_screen.dart';
 import '../../features/admin/alerts/presentation/alerts_screen.dart';
 import '../../features/admin/approvals/presentation/approvals_screen.dart';
 import '../../features/admin/dashboard/presentation/dashboard_screen.dart';
+import '../../features/admin/more/more_screen.dart';
+import '../../features/admin/users/presentation/users_screen.dart';
 import '../../features/history/presentation/history_screen.dart';
 import '../../features/gate/presentation/gate_screen.dart';
 import '../../features/home/role_shell.dart';
@@ -166,8 +168,19 @@ GoRouter buildRouter(AuthController auth, Repositories repos) {
                 ),
               ),
               GoRoute(
-                path: 'account',
-                builder: (_, _) => AccountScreen(auth: auth),
+                path: 'more',
+                builder: (_, _) => const MoreScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'users',
+                    builder: (_, _) => UsersScreen(users: repos.users),
+                  ),
+                  GoRoute(
+                    path: 'account',
+                    builder: (_, _) =>
+                        AccountScreen(auth: auth, backTo: '/admin/more'),
+                  ),
+                ],
               ),
             ],
           ),
