@@ -164,10 +164,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
             color: AppColors.warning50,
             borderRadius: BorderRadius.circular(14),
           ),
-          child: Text(
-            '${waiting.length} pickup '
-            '${waiting.length == 1 ? 'person is' : 'people are'} waiting for '
-            'approval. They cannot collect until approved.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${waiting.length} pickup '
+                '${waiting.length == 1 ? 'person is' : 'people are'} waiting '
+                'for approval. They cannot collect until approved.',
+              ),
+              TextButton(
+                onPressed: () => context.go('/admin/approvals'),
+                child: const Text('Review approvals'),
+              ),
+            ],
           ),
         ),
       ],

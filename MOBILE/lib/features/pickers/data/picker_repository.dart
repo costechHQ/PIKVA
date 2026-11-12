@@ -44,6 +44,17 @@ class PickerRepository {
     return PickupPerson.fromJson(json);
   }
 
+  /// School approval (admins only). Sends the `updated_at` the admin saw, so
+  /// the server refuses (409) if the parent has changed the person since or
+  /// someone already approved.
+  Future<PickupPerson> approve(PickupPerson person) async {
+    final json = await _api.post<Map<String, dynamic>>(
+      '/pickers/${person.id}/approve',
+      body: {'updated_at': person.updatedAtRaw},
+    );
+    return PickupPerson.fromJson(json);
+  }
+
   /// Issues today's code. The server shows it once, and a new code makes any
   /// earlier unused one stop working, so callers must confirm first.
   Future<PickupCode> issueCode(int authorisationId) async {

@@ -6,6 +6,7 @@ import '../../features/auth/presentation/login_screen.dart';
 import '../../features/home/splash_screen.dart';
 import '../../features/account/presentation/account_screen.dart';
 import '../../features/admin/alerts/presentation/alerts_screen.dart';
+import '../../features/admin/approvals/presentation/approvals_screen.dart';
 import '../../features/admin/dashboard/presentation/dashboard_screen.dart';
 import '../../features/history/presentation/history_screen.dart';
 import '../../features/gate/presentation/gate_screen.dart';
@@ -153,6 +154,13 @@ GoRouter buildRouter(AuthController auth, Repositories repos) {
                 path: 'alerts',
                 builder: (_, _) => AlertsScreen(
                   alerts: repos.alerts,
+                  pupils: repos.pupils,
+                  pickers: repos.pickers,
+                ),
+              ),
+              GoRoute(
+                path: 'approvals',
+                builder: (_, _) => ApprovalsScreen(
                   pupils: repos.pupils,
                   pickers: repos.pickers,
                 ),

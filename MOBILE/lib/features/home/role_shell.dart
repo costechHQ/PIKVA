@@ -36,6 +36,12 @@ const adminTabs = [
     Icons.notifications,
     'Alerts',
   ),
+  AppTab(
+    '/admin/approvals',
+    Icons.how_to_reg_outlined,
+    Icons.how_to_reg,
+    'Approvals',
+  ),
   AppTab('/admin/account', Icons.person_outline, Icons.person, 'Account'),
 ];
 
