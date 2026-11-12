@@ -17,9 +17,15 @@ class ParentShell extends StatelessWidget {
       Icons.groups,
       'Pickup people',
     ),
+    ('/parent/history', Icons.history_outlined, Icons.history, 'History'),
   ];
 
-  int get _index => location.startsWith('/parent/pickup-people') ? 1 : 0;
+  int get _index {
+    final i = _tabs.indexWhere(
+      (t) => t.$1 != '/parent' && location.startsWith(t.$1),
+    );
+    return i < 0 ? 0 : i;
+  }
 
   @override
   Widget build(BuildContext context) {

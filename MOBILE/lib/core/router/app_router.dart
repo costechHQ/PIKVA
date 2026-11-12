@@ -5,6 +5,7 @@ import '../../features/auth/presentation/auth_controller.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/home/role_home_screen.dart';
 import '../../features/home/splash_screen.dart';
+import '../../features/history/presentation/history_screen.dart';
 import '../../features/home/parent_shell.dart';
 import '../../features/pickers/presentation/pickup_people_screen.dart';
 import '../../features/pupils/presentation/pupil_detail_screen.dart';
@@ -95,6 +96,13 @@ GoRouter buildRouter(AuthController auth, Repositories repos) {
                 builder: (_, state) => PupilDetailScreen(
                   pupilId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
                   repository: repos.pupils,
+                ),
+              ),
+              GoRoute(
+                path: 'history',
+                builder: (_, _) => HistoryScreen(
+                  pupils: repos.pupils,
+                  releases: repos.releases,
                 ),
               ),
               GoRoute(

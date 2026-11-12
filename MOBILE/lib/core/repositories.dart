@@ -1,3 +1,4 @@
+import '../features/history/data/release_repository.dart';
 import '../features/pickers/data/picker_repository.dart';
 import '../features/pupils/data/pupil_repository.dart';
 import 'api/api_client.dart';
@@ -8,6 +9,7 @@ class Repositories {
   Repositories({
     required this.pupils,
     required this.pickers,
+    required this.releases,
     PhotoPicker? photoPicker,
   }) : photoPicker = photoPicker ?? ImagePickerPhotoPicker();
 
@@ -15,11 +17,13 @@ class Repositories {
       Repositories(
         pupils: PupilRepository(api),
         pickers: PickerRepository(api),
+        releases: ReleaseRepository(api),
         photoPicker: photoPicker,
       );
 
   final PupilRepository pupils;
   final PickerRepository pickers;
+  final ReleaseRepository releases;
 
   /// Camera and gallery access for photo uploads.
   final PhotoPicker photoPicker;

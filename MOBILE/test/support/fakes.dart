@@ -17,6 +17,12 @@ class FakeBackend implements HttpClientAdapter {
   final Map<String, (int, Object)> routes;
   final calls = <String>[];
 
+  /// The query parameters of the last request to each "METHOD /path".
+  final queries = <String, Map<String, dynamic>>{};
+
+  /// Answers that depend on the request (paging). Checked before [routes].
+  final handlers = <String, (int, Object) Function(RequestOptions)>{};
+
   /// The last request body sent to each "METHOD /path".
   final bodies = <String, Object?>{};
 
@@ -31,7 +37,8 @@ class FakeBackend implements HttpClientAdapter {
     final key = '${o.method} ${o.path}';
     calls.add(key);
     bodies[key] = o.data;
-    final hit = routes[key];
+    queries[key] = o.queryParameters;
+    final hit = handlers[key]?.call(o) ?? routes[key];
     if (hit == null) {
       return ResponseBody.fromString(
         '{"detail":"Not found"}',
