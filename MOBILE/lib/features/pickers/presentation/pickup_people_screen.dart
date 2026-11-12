@@ -10,6 +10,7 @@ import '../../pupils/domain/pupil.dart';
 import '../../pupils/presentation/pupil_avatar.dart';
 import '../data/picker_repository.dart';
 import '../domain/pickup_person.dart';
+import 'pickup_code_sheet.dart';
 
 class PickupPeopleScreen extends StatefulWidget {
   const PickupPeopleScreen({
@@ -232,6 +233,53 @@ class _PersonCardState extends State<_PersonCard> {
     if (ok == true) await _setActive(false);
   }
 
+  Future<void> _getCode() async {
+    final person = widget.person;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Get a new pickup code for ${person.name}?'),
+        content: Text(
+          'Any earlier code for ${person.name} that has not been used will '
+          'stop working. The code is shown once and works for one pickup '
+          'today.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Get new code'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final code = await widget.repository.issueCode(person.id);
+      if (!mounted) return;
+      setState(() => _busy = false);
+      await showPickupCodeSheet(
+        context,
+        person: person,
+        pupilFirstName: widget.pupil.firstName,
+        code: code,
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final person = widget.person;
@@ -285,23 +333,36 @@ class _PersonCardState extends State<_PersonCard> {
               _Note(color: AppColors.danger50, text: _error!),
             ],
             const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: person.isActive
-                  ? OutlinedButton(
-                      onPressed: _busy ? null : _confirmDeactivate,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.danger600,
-                      ),
-                      child: Text(_busy ? 'Working…' : 'Deactivate'),
-                    )
-                  : FilledButton(
-                      onPressed: _busy ? null : () => _setActive(true),
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size(0, 40),
-                      ),
-                      child: Text(_busy ? 'Working…' : 'Activate'),
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (person.status == PersonStatus.active)
+                  FilledButton.tonal(
+                    onPressed: _busy ? null : _getCode,
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, 40),
                     ),
+                    child: const Text("Get today's code"),
+                  ),
+                if (person.isActive)
+                  OutlinedButton(
+                    onPressed: _busy ? null : _confirmDeactivate,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.danger600,
+                    ),
+                    child: Text(_busy ? 'Working…' : 'Deactivate'),
+                  )
+                else
+                  FilledButton(
+                    onPressed: _busy ? null : () => _setActive(true),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, 40),
+                    ),
+                    child: Text(_busy ? 'Working…' : 'Activate'),
+                  ),
+              ],
             ),
           ],
         ),

@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/api/photo_loader.dart';
+import '../domain/pickup_code.dart';
 import '../domain/pickup_person.dart';
 
 class PickerRepository {
@@ -22,6 +23,16 @@ class PickerRepository {
     final action = active ? 'activate' : 'deactivate';
     final json = await _api.post<Map<String, dynamic>>('/pickers/$id/$action');
     return PickupPerson.fromJson(json);
+  }
+
+  /// Issues today's code. The server shows it once, and a new code makes any
+  /// earlier unused one stop working, so callers must confirm first.
+  Future<PickupCode> issueCode(int authorisationId) async {
+    final json = await _api.post<Map<String, dynamic>>(
+      '/pickup/codes',
+      body: {'authorisation_id': authorisationId},
+    );
+    return PickupCode.fromJson(json);
   }
 
   Future<Uint8List?> photo(PickupPerson person) {

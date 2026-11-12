@@ -1,14 +1,15 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pikva/core/repositories.dart';
 import 'package:pikva/features/auth/data/auth_repository.dart';
 import 'package:pikva/features/auth/data/token_store.dart';
 import 'package:pikva/features/auth/presentation/auth_controller.dart';
 import 'package:pikva/features/pickers/data/picker_repository.dart';
+import 'package:pikva/features/pickers/domain/pickup_code.dart';
 import 'package:pikva/features/pickers/domain/pickup_person.dart';
 import 'package:pikva/main.dart';
+import 'package:pikva/features/pickers/presentation/pickup_code_sheet.dart';
 
 import 'support/fakes.dart';
 
@@ -262,6 +263,174 @@ void main() {
       await tester.tap(find.text('Children'));
       await tester.pumpAndSettle();
       expect(find.text('My children'), findsOneWidget);
+    });
+  });
+
+  group('pickup code', () {
+    const qr =
+        '{"code":"ABCD2345","code_date":"2026-11-12","expires_at":"2026-11-12T20:00:00Z"}';
+    final issued = {
+      'authorisation_id': 10,
+      'pupil_id': 1,
+      'code': 'ABCD2345',
+      'code_date': '2026-11-12',
+      'expires_at': '2026-11-12T20:00:00Z',
+      'qr_data': qr,
+    };
+
+    test('PickupCode parses the response', () {
+      final c = PickupCode.fromJson(issued);
+      expect(c.code, 'ABCD2345');
+      expect(c.qrData, qr);
+      expect(c.authorisationId, 10);
+      expect(c.toString(), isNot(contains('ABCD2345')));
+    });
+
+    test('issueCode posts the authorisation id', () async {
+      final backend = FakeBackend({'POST /pickup/codes': (201, issued)});
+      final code = await PickerRepository(apiFor(backend)).issueCode(10);
+      expect(code.code, 'ABCD2345');
+      expect(backend.bodies['POST /pickup/codes'], {'authorisation_id': 10});
+    });
+
+    ({FakeBackend backend, AuthController auth, Repositories repos}) app(
+      Map<String, (int, Object)> routes,
+    ) {
+      final backend = FakeBackend({
+        'GET /auth/me': (200, _me),
+        'GET /pupils': (200, [pupilJson()]),
+        ...routes,
+      });
+      final tokens = MemoryTokenStore()..write('t');
+      final api = apiFor(backend, token: tokens.read);
+      return (
+        backend: backend,
+        auth: AuthController(AuthRepository(api: api, tokens: tokens)),
+        repos: Repositories.from(api),
+      );
+    }
+
+    Future<void> openPeople(WidgetTester tester, dynamic a) async {
+      // Tall enough for the whole code sheet to be on screen.
+      tester.view.physicalSize = const Size(800, 2400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(PikvaApp(auth: a.auth, repos: a.repos));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Pickup people').last);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('only active people get the code button', (tester) async {
+      final a = app({
+        'GET /pickers': (
+          200,
+          [
+            pickerJson(),
+            pickerJson(id: 11, name: 'Pending One', status: 'pending_approval'),
+            pickerJson(
+              id: 12,
+              name: 'Off Person',
+              isActive: false,
+              status: 'inactive',
+            ),
+          ],
+        ),
+      });
+      tester.view.physicalSize = const Size(800, 2400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await openPeople(tester, a);
+
+      expect(find.text("Get today's code"), findsOneWidget);
+    });
+
+    testWidgets('confirm, show the code and QR once, then hide it', (
+      tester,
+    ) async {
+      final a = app({
+        'GET /pickers': (200, [pickerJson()]),
+        'POST /pickup/codes': (201, issued),
+      });
+      await openPeople(tester, a);
+
+      await tester.tap(find.text("Get today's code"));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Get a new pickup code for'), findsOneWidget);
+
+      // Cancel asks the server for nothing.
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(a.backend.count('POST /pickup/codes'), 0);
+
+      await tester.tap(find.text("Get today's code"));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Get new code'));
+      await tester.pumpAndSettle();
+
+      expect(a.backend.count('POST /pickup/codes'), 1);
+      expect(find.text('ABCD 2345'), findsOneWidget);
+      final qrView = tester.widget<PickupQrCode>(find.byType(PickupQrCode));
+      expect(qrView.data, qr);
+      expect(find.textContaining('Works once'), findsOneWidget);
+
+      await tester.tap(find.text('Hide'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('ABCD 2345'), findsNothing);
+      expect(find.byType(PickupQrCode), findsNothing);
+    });
+
+    testWidgets('copy puts the plain code on the clipboard', (tester) async {
+      String? copied;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            copied = (call.arguments as Map)['text'] as String;
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      final a = app({
+        'GET /pickers': (200, [pickerJson()]),
+        'POST /pickup/codes': (201, issued),
+      });
+      await openPeople(tester, a);
+
+      await tester.tap(find.text("Get today's code"));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Get new code'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Copy code'));
+      await tester.pumpAndSettle();
+
+      expect(copied, 'ABCD2345');
+      expect(find.text('Copied'), findsOneWidget);
+    });
+
+    testWidgets('a refused request shows the message and no code', (
+      tester,
+    ) async {
+      final a = app({
+        'GET /pickers': (200, [pickerJson()]),
+        'POST /pickup/codes': (429, {'detail': 'Too many code requests'}),
+      });
+      await openPeople(tester, a);
+
+      await tester.tap(find.text("Get today's code"));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Get new code'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Too many code requests'), findsOneWidget);
+      expect(find.byType(PickupQrCode), findsNothing);
     });
   });
 }

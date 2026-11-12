@@ -13,6 +13,9 @@ class FakeBackend implements HttpClientAdapter {
   final Map<String, (int, Object)> routes;
   final calls = <String>[];
 
+  /// The last request body sent to each "METHOD /path".
+  final bodies = <String, Object?>{};
+
   int count(String call) => calls.where((c) => c == call).length;
 
   @override
@@ -23,6 +26,7 @@ class FakeBackend implements HttpClientAdapter {
   ) async {
     final key = '${o.method} ${o.path}';
     calls.add(key);
+    bodies[key] = o.data;
     final hit = routes[key];
     if (hit == null) {
       return ResponseBody.fromString(
