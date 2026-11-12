@@ -128,7 +128,8 @@ GoRouter buildRouter(AuthController auth, Repositories repos) {
         routes: [
           GoRoute(
             path: Routes.gate,
-            builder: (_, _) => GateScreen(gate: repos.gate),
+            builder: (_, _) =>
+                GateScreen(gate: repos.gate, scanner: repos.scanner),
             routes: [
               GoRoute(
                 path: 'account',

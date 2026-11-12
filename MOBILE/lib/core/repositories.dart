@@ -4,6 +4,7 @@ import '../features/pickers/data/picker_repository.dart';
 import '../features/pupils/data/pupil_repository.dart';
 import 'api/api_client.dart';
 import 'photo_picker.dart';
+import 'qr_scanner.dart';
 
 /// Every data source the screens use, built once from one [ApiClient].
 class Repositories {
@@ -13,16 +14,22 @@ class Repositories {
     required this.releases,
     required this.gate,
     PhotoPicker? photoPicker,
-  }) : photoPicker = photoPicker ?? ImagePickerPhotoPicker();
+    QrScanner? scanner,
+  }) : photoPicker = photoPicker ?? ImagePickerPhotoPicker(),
+       scanner = scanner ?? const MobileQrScanner();
 
-  factory Repositories.from(ApiClient api, {PhotoPicker? photoPicker}) =>
-      Repositories(
-        pupils: PupilRepository(api),
-        pickers: PickerRepository(api),
-        releases: ReleaseRepository(api),
-        gate: GateRepository(api),
-        photoPicker: photoPicker,
-      );
+  factory Repositories.from(
+    ApiClient api, {
+    PhotoPicker? photoPicker,
+    QrScanner? scanner,
+  }) => Repositories(
+    pupils: PupilRepository(api),
+    pickers: PickerRepository(api),
+    releases: ReleaseRepository(api),
+    gate: GateRepository(api),
+    photoPicker: photoPicker,
+    scanner: scanner,
+  );
 
   final PupilRepository pupils;
   final PickerRepository pickers;
@@ -31,6 +38,9 @@ class Repositories {
 
   /// Camera and gallery access for photo uploads.
   final PhotoPicker photoPicker;
+
+  /// Camera QR reading for the gate.
+  final QrScanner scanner;
 
   /// Photos are private to the signed-in family: call on sign out.
   void clearCaches() {
