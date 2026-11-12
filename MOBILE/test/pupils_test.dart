@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pikva/core/repositories.dart';
 import 'package:pikva/features/auth/data/auth_repository.dart';
 import 'package:pikva/features/auth/data/token_store.dart';
 import 'package:pikva/features/auth/presentation/auth_controller.dart';
@@ -99,7 +100,7 @@ void main() {
   });
 
   group('parent screens', () {
-    ({FakeBackend backend, AuthController auth, PupilRepository pupils}) app(
+    ({FakeBackend backend, AuthController auth, Repositories repos}) app(
       Map<String, (int, Object)> routes,
     ) {
       final backend = FakeBackend({'GET /auth/me': (200, _me), ...routes});
@@ -108,7 +109,7 @@ void main() {
       return (
         backend: backend,
         auth: AuthController(AuthRepository(api: api, tokens: tokens)),
-        pupils: PupilRepository(api),
+        repos: Repositories.from(api),
       );
     }
 
@@ -117,7 +118,7 @@ void main() {
         'GET /pupils': (200, [pupilJson(), pupilJson(id: 2, first: 'Amaka')]),
         'GET /pupils/2': (200, pupilJson(id: 2, first: 'Amaka')),
       });
-      await tester.pumpWidget(PikvaApp(auth: a.auth, pupils: a.pupils));
+      await tester.pumpWidget(PikvaApp(auth: a.auth, repos: a.repos));
       await tester.pumpAndSettle();
 
       expect(find.text('My children'), findsOneWidget);
@@ -138,7 +139,7 @@ void main() {
 
     testWidgets('shows a message when there are no children', (tester) async {
       final a = app({'GET /pupils': (200, <Object>[])});
-      await tester.pumpWidget(PikvaApp(auth: a.auth, pupils: a.pupils));
+      await tester.pumpWidget(PikvaApp(auth: a.auth, repos: a.repos));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('No children yet'), findsOneWidget);
@@ -148,7 +149,7 @@ void main() {
       final a = app({
         'GET /pupils': (500, {'detail': 'boom'}),
       });
-      await tester.pumpWidget(PikvaApp(auth: a.auth, pupils: a.pupils));
+      await tester.pumpWidget(PikvaApp(auth: a.auth, repos: a.repos));
       await tester.pumpAndSettle();
 
       expect(find.text('Try again'), findsOneWidget);

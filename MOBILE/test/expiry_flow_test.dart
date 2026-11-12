@@ -77,7 +77,7 @@ void main() {
     tester,
   ) async {
     final app = _app();
-    await tester.pumpWidget(PikvaApp(auth: app.auth, pupils: stubPupils()));
+    await tester.pumpWidget(PikvaApp(auth: app.auth, repos: stubRepos()));
     await tester.pumpAndSettle();
     expect(_where(tester), Routes.parent);
 
@@ -105,7 +105,7 @@ void main() {
 
   testWidgets('tapping sign out does not keep the page', (tester) async {
     final app = _app();
-    await tester.pumpWidget(PikvaApp(auth: app.auth, pupils: stubPupils()));
+    await tester.pumpWidget(PikvaApp(auth: app.auth, repos: stubRepos()));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Sign out'));
@@ -120,7 +120,7 @@ void main() {
 
   testWidgets('an unsafe next is ignored after sign in', (tester) async {
     final app = _app();
-    await tester.pumpWidget(PikvaApp(auth: app.auth, pupils: stubPupils()));
+    await tester.pumpWidget(PikvaApp(auth: app.auth, repos: stubRepos()));
     await tester.pumpAndSettle();
 
     GoRouter.of(tester.element(find.byType(Scaffold).first))

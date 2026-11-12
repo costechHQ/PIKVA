@@ -5,9 +5,11 @@ import '../../features/auth/presentation/auth_controller.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/home/role_home_screen.dart';
 import '../../features/home/splash_screen.dart';
-import '../../features/pupils/data/pupil_repository.dart';
+import '../../features/home/parent_shell.dart';
+import '../../features/pickers/presentation/pickup_people_screen.dart';
 import '../../features/pupils/presentation/pupil_detail_screen.dart';
 import '../../features/pupils/presentation/pupils_screen.dart';
+import '../repositories.dart';
 
 abstract final class Routes {
   static const splash = '/splash';
@@ -42,7 +44,7 @@ bool isSafeNext(String? next, String home) {
 
 /// One router for the whole app. The redirect keeps each role inside its own
 /// area; the backend still decides what each role may actually do.
-GoRouter buildRouter(AuthController auth, PupilRepository pupils) {
+GoRouter buildRouter(AuthController auth, Repositories repos) {
   return GoRouter(
     initialLocation: Routes.splash,
     refreshListenable: auth,
@@ -79,16 +81,30 @@ GoRouter buildRouter(AuthController auth, PupilRepository pupils) {
         path: Routes.login,
         builder: (_, _) => LoginScreen(auth: auth),
       ),
-      GoRoute(
-        path: Routes.parent,
-        builder: (_, _) => PupilsScreen(auth: auth, repository: pupils),
+      ShellRoute(
+        builder: (_, state, child) =>
+            ParentShell(location: state.uri.path, child: child),
         routes: [
           GoRoute(
-            path: 'pupils/:id',
-            builder: (_, state) => PupilDetailScreen(
-              pupilId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
-              repository: pupils,
-            ),
+            path: Routes.parent,
+            builder: (_, _) =>
+                PupilsScreen(auth: auth, repository: repos.pupils),
+            routes: [
+              GoRoute(
+                path: 'pupils/:id',
+                builder: (_, state) => PupilDetailScreen(
+                  pupilId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
+                  repository: repos.pupils,
+                ),
+              ),
+              GoRoute(
+                path: 'pickup-people',
+                builder: (_, _) => PickupPeopleScreen(
+                  pupils: repos.pupils,
+                  pickers: repos.pickers,
+                ),
+              ),
+            ],
           ),
         ],
       ),

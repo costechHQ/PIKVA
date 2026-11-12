@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:pikva/core/api/api_client.dart';
-import 'package:pikva/features/pupils/data/pupil_repository.dart';
+import 'package:pikva/core/repositories.dart';
 
 /// A fake backend keyed by "METHOD /path". A body that is [Uint8List] is sent
 /// as raw bytes (photos); anything else as JSON. Unknown routes answer 404.
@@ -63,8 +63,8 @@ ApiClient apiFor(FakeBackend backend, {Future<String?> Function()? token}) =>
       dio: Dio()..httpClientAdapter = backend,
     );
 
-/// A pupil repository that finds nothing, for tests that are not about pupils.
-PupilRepository stubPupils() => PupilRepository(apiFor(FakeBackend()));
+/// Repositories whose backend finds nothing, for tests not about data.
+Repositories stubRepos() => Repositories.from(apiFor(FakeBackend()));
 
 Map<String, dynamic> pupilJson({
   int id = 1,
@@ -87,4 +87,30 @@ Map<String, dynamic> pupilJson({
   'photo_url': null,
   'photo_updated_at': photoUpdatedAt,
   'date_of_birth': dob,
+};
+
+Map<String, dynamic> pickerJson({
+  int id = 10,
+  int pupilId = 1,
+  String name = 'Grace Okafor',
+  String relationship = 'Aunt',
+  String type = 'permanent',
+  bool isActive = true,
+  String status = 'active',
+  String? photoUpdatedAt,
+}) => {
+  'id': id,
+  'pupil_id': pupilId,
+  'picker_name': name,
+  'picker_phone': '08011112222',
+  'relationship': relationship,
+  'photo_updated_at': photoUpdatedAt,
+  'type': type,
+  'starts_at': '2026-11-01T08:00:00Z',
+  'expires_at': '2027-11-01T08:00:00Z',
+  'is_active': isActive,
+  'status': status,
+  'approved_at': '2026-11-01T09:00:00Z',
+  'created_at': '2026-11-01T07:00:00Z',
+  'updated_at': '2026-11-01T07:00:00Z',
 };

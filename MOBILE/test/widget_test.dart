@@ -16,7 +16,7 @@ void main() {
     final api = ApiClient(baseUrl: 'http://test', dio: Dio());
     final auth = AuthController(AuthRepository(api: api, tokens: tokens));
 
-    await tester.pumpWidget(PikvaApp(auth: auth, pupils: stubPupils()));
+    await tester.pumpWidget(PikvaApp(auth: auth, repos: stubRepos()));
     await tester.pumpAndSettle();
 
     expect(find.text('Sign in'), findsNWidgets(2)); // heading + button

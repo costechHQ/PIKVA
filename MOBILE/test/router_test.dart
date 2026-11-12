@@ -76,7 +76,7 @@ String _location(WidgetTester tester) {
 void main() {
   testWidgets('signed out users land on login', (tester) async {
     await tester.pumpWidget(
-      PikvaApp(auth: _auth(withToken: false), pupils: stubPupils()),
+      PikvaApp(auth: _auth(withToken: false), repos: stubRepos()),
     );
     await tester.pumpAndSettle();
     expect(_location(tester), Routes.login);
@@ -91,7 +91,7 @@ void main() {
       await tester.pumpWidget(
         PikvaApp(
           auth: _auth(role: c.$1),
-          pupils: stubPupils(),
+          repos: stubRepos(),
         ),
       );
       await tester.pumpAndSettle();
@@ -104,7 +104,7 @@ void main() {
     await tester.pumpWidget(
       PikvaApp(
         auth: _auth(role: 'parent'),
-        pupils: stubPupils(),
+        repos: stubRepos(),
       ),
     );
     await tester.pumpAndSettle();
@@ -119,7 +119,7 @@ void main() {
     await tester.pumpWidget(
       PikvaApp(
         auth: _auth(role: 'parent'),
-        pupils: stubPupils(),
+        repos: stubRepos(),
       ),
     );
     await tester.pumpAndSettle();
@@ -131,7 +131,7 @@ void main() {
   });
 
   testWidgets('an expired saved token lands on login', (tester) async {
-    await tester.pumpWidget(PikvaApp(auth: _auth(), pupils: stubPupils()));
+    await tester.pumpWidget(PikvaApp(auth: _auth(), repos: stubRepos()));
     await tester.pumpAndSettle();
     expect(_location(tester), Routes.login);
   });
