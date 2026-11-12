@@ -18,6 +18,7 @@ class ParentShell extends StatelessWidget {
       'Pickup people',
     ),
     ('/parent/history', Icons.history_outlined, Icons.history, 'History'),
+    ('/parent/account', Icons.person_outline, Icons.person, 'Account'),
   ];
 
   int get _index {

@@ -78,6 +78,17 @@ class AuthController extends ChangeNotifier {
     }
   }
 
+  /// Saves new name/phone and updates [user] everywhere it is shown.
+  Future<void> updateDetails(Map<String, Object?> changes) async {
+    _set(AuthStatus.signedIn, await _repo.updateDetails(changes));
+  }
+
+  Future<void> changePassword(String current, String next) =>
+      _repo.changePassword(current, next);
+
+  Future<String> requestPasswordReset() =>
+      _repo.requestPasswordReset(_user!.email);
+
   Future<void> signOut() async {
     await _repo.logout();
     _sessionExpired = false;

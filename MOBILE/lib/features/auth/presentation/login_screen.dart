@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/api/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/error_text.dart';
 import '../../../shared/widgets/pikva_logo.dart';
 import 'auth_controller.dart';
 
@@ -39,18 +40,10 @@ class _LoginScreenState extends State<LoginScreen> {
       await widget.auth.signIn(_email.text, _password.text);
     } on ApiException catch (e) {
       if (!mounted) return;
-      setState(() => _error = _messageFor(e));
+      setState(() => _error = errorText(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
-  }
-
-  String _messageFor(ApiException e) {
-    if (e.kind == ApiErrorKind.rateLimited && e.retryAfter != null) {
-      final mins = (e.retryAfter!.inSeconds / 60).ceil();
-      return 'Too many attempts. Try again in $mins minute${mins == 1 ? '' : 's'}.';
-    }
-    return e.message;
   }
 
   @override

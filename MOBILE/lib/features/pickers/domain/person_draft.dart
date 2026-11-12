@@ -1,3 +1,4 @@
+import '../../../shared/form_result.dart';
 import 'pickup_person.dart';
 
 const nameMax = 150;
@@ -162,13 +163,5 @@ class PersonDraft {
       _toMinute(local).toUtc().toIso8601String();
 }
 
-/// Either a request body or the first thing wrong with the form.
-class PersonResult {
-  const PersonResult.ok(Map<String, Object?> this.body) : error = null;
-  const PersonResult.error(String this.error) : body = null;
-
-  final Map<String, Object?>? body;
-  final String? error;
-
-  bool get isOk => body != null;
-}
+/// Kept as a name for readability at the call sites.
+typedef PersonResult = FormResult;

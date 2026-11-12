@@ -4,15 +4,13 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/format.dart';
 import '../../../shared/widgets/error_view.dart';
-import '../../auth/presentation/auth_controller.dart';
 import '../data/pupil_repository.dart';
 import '../domain/pupil.dart';
 import 'pupil_avatar.dart';
 
 class PupilsScreen extends StatefulWidget {
-  const PupilsScreen({super.key, required this.auth, required this.repository});
+  const PupilsScreen({super.key, required this.repository});
 
-  final AuthController auth;
   final PupilRepository repository;
 
   @override
@@ -37,16 +35,7 @@ class _PupilsScreenState extends State<PupilsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My children'),
-        actions: [
-          IconButton(
-            tooltip: 'Sign out',
-            icon: const Icon(Icons.logout),
-            onPressed: widget.auth.signOut,
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('My children')),
       body: FutureBuilder<List<Pupil>>(
         future: _pupils,
         builder: (context, snap) {

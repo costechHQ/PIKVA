@@ -5,6 +5,7 @@ import '../../features/auth/presentation/auth_controller.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/home/role_home_screen.dart';
 import '../../features/home/splash_screen.dart';
+import '../../features/account/presentation/account_screen.dart';
 import '../../features/history/presentation/history_screen.dart';
 import '../../features/home/parent_shell.dart';
 import '../../features/pickers/presentation/pickup_people_screen.dart';
@@ -88,8 +89,7 @@ GoRouter buildRouter(AuthController auth, Repositories repos) {
         routes: [
           GoRoute(
             path: Routes.parent,
-            builder: (_, _) =>
-                PupilsScreen(auth: auth, repository: repos.pupils),
+            builder: (_, _) => PupilsScreen(repository: repos.pupils),
             routes: [
               GoRoute(
                 path: 'pupils/:id',
@@ -97,6 +97,10 @@ GoRouter buildRouter(AuthController auth, Repositories repos) {
                   pupilId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
                   repository: repos.pupils,
                 ),
+              ),
+              GoRoute(
+                path: 'account',
+                builder: (_, _) => AccountScreen(auth: auth),
               ),
               GoRoute(
                 path: 'history',
