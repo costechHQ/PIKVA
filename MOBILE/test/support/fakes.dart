@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:pikva/core/api/api_client.dart';
+import 'package:pikva/core/photo_picker.dart';
 import 'package:pikva/core/repositories.dart';
 import 'package:pikva/features/auth/data/auth_repository.dart';
 import 'package:pikva/features/auth/data/token_store.dart';
@@ -125,8 +126,9 @@ Map<String, dynamic> pickerJson({
 /// A signed-in parent talking to a fake backend. [routes] are added on top of
 /// `/auth/me` and `/pupils` (Chidi and Amaka).
 ({FakeBackend backend, AuthController auth, Repositories repos}) parentApp(
-  Map<String, (int, Object)> routes,
-) {
+  Map<String, (int, Object)> routes, {
+  PhotoPicker? photoPicker,
+}) {
   final backend = FakeBackend({
     'GET /auth/me': (
       200,
@@ -148,6 +150,29 @@ Map<String, dynamic> pickerJson({
   return (
     backend: backend,
     auth: AuthController(AuthRepository(api: api, tokens: tokens)),
-    repos: Repositories.from(api),
+    repos: Repositories.from(api, photoPicker: photoPicker),
   );
 }
+
+/// Answers every pick with a canned result instead of opening the camera.
+class FakePhotoPicker implements PhotoPicker {
+  FakePhotoPicker({this.result, this.error});
+
+  /// What the person "chooses"; null means they cancel.
+  PickedPhoto? result;
+
+  /// Thrown instead, as when permission is denied.
+  Object? error;
+
+  final requested = <PhotoSource>[];
+
+  @override
+  Future<PickedPhoto?> pick(PhotoSource source) async {
+    requested.add(source);
+    if (error != null) throw error!;
+    return result;
+  }
+}
+
+PickedPhoto jpegPhoto({String name = 'face.jpg', int size = 4}) =>
+    PickedPhoto(bytes: Uint8List(size), name: name);

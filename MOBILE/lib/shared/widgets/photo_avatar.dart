@@ -21,17 +21,18 @@ class PhotoAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final initialsText = Text(
+      initials,
+      style: TextStyle(
+        color: AppColors.brand700,
+        fontWeight: FontWeight.w600,
+        fontSize: radius * 0.7,
+      ),
+    );
     final fallback = CircleAvatar(
       radius: radius,
       backgroundColor: AppColors.brand100,
-      child: Text(
-        initials,
-        style: TextStyle(
-          color: AppColors.brand700,
-          fontWeight: FontWeight.w600,
-          fontSize: radius * 0.7,
-        ),
-      ),
+      child: initialsText,
     );
     final pending = photo;
     if (pending == null) return fallback;
@@ -41,10 +42,14 @@ class PhotoAvatar extends StatelessWidget {
       builder: (context, snap) {
         final bytes = snap.data;
         if (bytes == null) return fallback;
+        // The initials sit underneath, so an image that cannot be decoded
+        // simply leaves them showing.
         return CircleAvatar(
           radius: radius,
           backgroundColor: AppColors.brand100,
-          backgroundImage: MemoryImage(bytes),
+          foregroundImage: MemoryImage(bytes),
+          onForegroundImageError: (_, _) {},
+          child: initialsText,
         );
       },
     );

@@ -102,6 +102,7 @@ GoRouter buildRouter(AuthController auth, Repositories repos) {
                 builder: (_, _) => PickupPeopleScreen(
                   pupils: repos.pupils,
                   pickers: repos.pickers,
+                  photoPicker: repos.photoPicker,
                 ),
               ),
             ],

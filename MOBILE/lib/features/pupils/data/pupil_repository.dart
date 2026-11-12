@@ -12,9 +12,7 @@ class PupilRepository {
 
   Future<List<Pupil>> list() async {
     final json = await _api.get<List<dynamic>>('/pupils');
-    return json
-        .map((e) => Pupil.fromJson(e as Map<String, dynamic>))
-        .toList();
+    return json.map((e) => Pupil.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<Pupil> get(int id) async {
