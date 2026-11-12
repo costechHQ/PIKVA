@@ -8,6 +8,7 @@ import 'features/auth/data/auth_repository.dart';
 import 'features/auth/data/session_renewer.dart';
 import 'features/auth/data/token_store.dart';
 import 'features/auth/presentation/auth_controller.dart';
+import 'features/pupils/data/pupil_repository.dart';
 
 void main() {
   final tokens = SecureTokenStore();
@@ -35,20 +36,28 @@ void main() {
   );
   auth = AuthController(AuthRepository(api: api, tokens: tokens));
 
-  runApp(PikvaApp(auth: auth));
+  final pupils = PupilRepository(api);
+
+  // Photos belong to the signed-in family: forget them when anyone signs out.
+  auth.addListener(() {
+    if (auth.status == AuthStatus.signedOut) pupils.clearCache();
+  });
+
+  runApp(PikvaApp(auth: auth, pupils: pupils));
 }
 
 class PikvaApp extends StatefulWidget {
-  const PikvaApp({super.key, required this.auth});
+  const PikvaApp({super.key, required this.auth, required this.pupils});
 
   final AuthController auth;
+  final PupilRepository pupils;
 
   @override
   State<PikvaApp> createState() => _PikvaAppState();
 }
 
 class _PikvaAppState extends State<PikvaApp> with WidgetsBindingObserver {
-  late final GoRouter _router = buildRouter(widget.auth);
+  late final GoRouter _router = buildRouter(widget.auth, widget.pupils);
 
   @override
   void initState() {

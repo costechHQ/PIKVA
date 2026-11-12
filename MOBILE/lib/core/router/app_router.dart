@@ -5,6 +5,9 @@ import '../../features/auth/presentation/auth_controller.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/home/role_home_screen.dart';
 import '../../features/home/splash_screen.dart';
+import '../../features/pupils/data/pupil_repository.dart';
+import '../../features/pupils/presentation/pupil_detail_screen.dart';
+import '../../features/pupils/presentation/pupils_screen.dart';
 
 abstract final class Routes {
   static const splash = '/splash';
@@ -14,10 +17,10 @@ abstract final class Routes {
   static const admin = '/admin';
 
   static String homeFor(UserRole role) => switch (role) {
-        UserRole.parent => parent,
-        UserRole.gateStaff => gate,
-        UserRole.schoolAdmin => admin,
-      };
+    UserRole.parent => parent,
+    UserRole.gateStaff => gate,
+    UserRole.schoolAdmin => admin,
+  };
 }
 
 bool _inArea(String path, String home) =>
@@ -39,7 +42,7 @@ bool isSafeNext(String? next, String home) {
 
 /// One router for the whole app. The redirect keeps each role inside its own
 /// area; the backend still decides what each role may actually do.
-GoRouter buildRouter(AuthController auth) {
+GoRouter buildRouter(AuthController auth, PupilRepository pupils) {
   return GoRouter(
     initialLocation: Routes.splash,
     refreshListenable: auth,
@@ -78,7 +81,16 @@ GoRouter buildRouter(AuthController auth) {
       ),
       GoRoute(
         path: Routes.parent,
-        builder: (_, _) => RoleHomeScreen(auth: auth, title: 'Parent'),
+        builder: (_, _) => PupilsScreen(auth: auth, repository: pupils),
+        routes: [
+          GoRoute(
+            path: 'pupils/:id',
+            builder: (_, state) => PupilDetailScreen(
+              pupilId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
+              repository: pupils,
+            ),
+          ),
+        ],
       ),
       GoRoute(
         path: Routes.gate,

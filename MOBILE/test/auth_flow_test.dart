@@ -15,13 +15,20 @@ class _Adapter implements HttpClientAdapter {
   final Map<String, (int, Object)> routes;
 
   @override
-  Future<ResponseBody> fetch(RequestOptions o, Stream<Uint8List>? s,
-      Future<void>? c) async {
+  Future<ResponseBody> fetch(
+    RequestOptions o,
+    Stream<Uint8List>? s,
+    Future<void>? c,
+  ) async {
     final hit = routes['${o.method} ${o.path}'];
     if (hit == null) return ResponseBody.fromString('{"detail":"nope"}', 404);
-    return ResponseBody.fromString(jsonEncode(hit.$2), hit.$1, headers: {
-      Headers.contentTypeHeader: ['application/json'],
-    });
+    return ResponseBody.fromString(
+      jsonEncode(hit.$2),
+      hit.$1,
+      headers: {
+        Headers.contentTypeHeader: ['application/json'],
+      },
+    );
   }
 
   @override

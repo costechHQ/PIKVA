@@ -19,15 +19,23 @@ class TokenClaims {
     try {
       final parts = token.split('.');
       if (parts.length != 3) return null;
-      final payload = utf8.decode(base64Url.decode(base64Url.normalize(parts[1])));
+      final payload = utf8.decode(
+        base64Url.decode(base64Url.normalize(parts[1])),
+      );
       final json = jsonDecode(payload);
       if (json is! Map) return null;
       final iat = json['iat'];
       final exp = json['exp'];
       if (iat is! num || exp is! num) return null;
       return TokenClaims(
-        issuedAt: DateTime.fromMillisecondsSinceEpoch(iat.toInt() * 1000, isUtc: true),
-        expiresAt: DateTime.fromMillisecondsSinceEpoch(exp.toInt() * 1000, isUtc: true),
+        issuedAt: DateTime.fromMillisecondsSinceEpoch(
+          iat.toInt() * 1000,
+          isUtc: true,
+        ),
+        expiresAt: DateTime.fromMillisecondsSinceEpoch(
+          exp.toInt() * 1000,
+          isUtc: true,
+        ),
       );
     } catch (_) {
       return null;

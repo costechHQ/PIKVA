@@ -28,8 +28,10 @@ class RoleHomeScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Hello, ${user.name}',
-                style: Theme.of(context).textTheme.headlineSmall),
+            Text(
+              'Hello, ${user.name}',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
             const SizedBox(height: 8),
             Text(user.schoolName),
           ],

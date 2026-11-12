@@ -3,14 +3,14 @@ import 'package:pikva/features/auth/data/token_store.dart';
 import 'package:pikva/features/auth/domain/current_user.dart';
 
 Map<String, dynamic> _json(String role) => {
-      'id': 7,
-      'school_id': 1,
-      'name': 'Ada Obi',
-      'email': 'ada@example.com',
-      'phone': '08012345678',
-      'role': role,
-      'school_name': 'Sunrise School',
-    };
+  'id': 7,
+  'school_id': 1,
+  'name': 'Ada Obi',
+  'email': 'ada@example.com',
+  'phone': '08012345678',
+  'role': role,
+  'school_name': 'Sunrise School',
+};
 
 void main() {
   test('parses each backend role', () {

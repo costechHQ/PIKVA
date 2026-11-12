@@ -4,17 +4,18 @@ import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
 ThemeData buildAppTheme() {
-  final scheme = ColorScheme.fromSeed(
-    seedColor: AppColors.brand600,
-    brightness: Brightness.light,
-  ).copyWith(
-    primary: AppColors.brand600,
-    onPrimary: Colors.white,
-    surface: AppColors.card,
-    onSurface: AppColors.ink,
-    error: AppColors.danger600,
-    outline: AppColors.line,
-  );
+  final scheme =
+      ColorScheme.fromSeed(
+        seedColor: AppColors.brand600,
+        brightness: Brightness.light,
+      ).copyWith(
+        primary: AppColors.brand600,
+        onPrimary: Colors.white,
+        surface: AppColors.card,
+        onSurface: AppColors.ink,
+        error: AppColors.danger600,
+        outline: AppColors.line,
+      );
 
   final border = OutlineInputBorder(
     borderRadius: BorderRadius.circular(12),

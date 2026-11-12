@@ -12,6 +12,8 @@ import 'package:pikva/features/auth/data/token_store.dart';
 import 'package:pikva/features/auth/presentation/auth_controller.dart';
 import 'package:pikva/main.dart';
 
+import 'support/fakes.dart';
+
 class _Adapter implements HttpClientAdapter {
   _Adapter(this.role);
 
@@ -19,14 +21,20 @@ class _Adapter implements HttpClientAdapter {
 
   @override
   Future<ResponseBody> fetch(
-      RequestOptions o, Stream<Uint8List>? s, Future<void>? c) async {
+    RequestOptions o,
+    Stream<Uint8List>? s,
+    Future<void>? c,
+  ) async {
     final headers = {
       Headers.contentTypeHeader: ['application/json'],
     };
     if (o.path == '/auth/me') {
       if (role == null) {
-        return ResponseBody.fromString('{"detail":"expired"}', 401,
-            headers: headers);
+        return ResponseBody.fromString(
+          '{"detail":"expired"}',
+          401,
+          headers: headers,
+        );
       }
       return ResponseBody.fromString(
         jsonEncode({
@@ -67,18 +75,25 @@ String _location(WidgetTester tester) {
 
 void main() {
   testWidgets('signed out users land on login', (tester) async {
-    await tester.pumpWidget(PikvaApp(auth: _auth(withToken: false)));
+    await tester.pumpWidget(
+      PikvaApp(auth: _auth(withToken: false), pupils: stubPupils()),
+    );
     await tester.pumpAndSettle();
     expect(_location(tester), Routes.login);
   });
 
   for (final c in [
-    ('parent', Routes.parent, 'Parent home'),
+    ('parent', Routes.parent, 'My children'),
     ('gate_staff', Routes.gate, 'Gate home'),
     ('school_admin', Routes.admin, 'Admin home'),
   ]) {
     testWidgets('${c.$1} lands on ${c.$2}', (tester) async {
-      await tester.pumpWidget(PikvaApp(auth: _auth(role: c.$1)));
+      await tester.pumpWidget(
+        PikvaApp(
+          auth: _auth(role: c.$1),
+          pupils: stubPupils(),
+        ),
+      );
       await tester.pumpAndSettle();
       expect(_location(tester), c.$2);
       expect(find.text(c.$3), findsOneWidget);
@@ -86,7 +101,12 @@ void main() {
   }
 
   testWidgets('a parent cannot navigate into the admin area', (tester) async {
-    await tester.pumpWidget(PikvaApp(auth: _auth(role: 'parent')));
+    await tester.pumpWidget(
+      PikvaApp(
+        auth: _auth(role: 'parent'),
+        pupils: stubPupils(),
+      ),
+    );
     await tester.pumpAndSettle();
 
     GoRouter.of(tester.element(find.byType(Scaffold).first)).go(Routes.admin);
@@ -96,7 +116,12 @@ void main() {
   });
 
   testWidgets('sign out returns to login', (tester) async {
-    await tester.pumpWidget(PikvaApp(auth: _auth(role: 'parent')));
+    await tester.pumpWidget(
+      PikvaApp(
+        auth: _auth(role: 'parent'),
+        pupils: stubPupils(),
+      ),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Sign out'));
@@ -106,7 +131,7 @@ void main() {
   });
 
   testWidgets('an expired saved token lands on login', (tester) async {
-    await tester.pumpWidget(PikvaApp(auth: _auth()));
+    await tester.pumpWidget(PikvaApp(auth: _auth(), pupils: stubPupils()));
     await tester.pumpAndSettle();
     expect(_location(tester), Routes.login);
   });

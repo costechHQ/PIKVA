@@ -32,7 +32,8 @@ class ApiClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          final skip = options.extra[_background] == true ||
+          final skip =
+              options.extra[_background] == true ||
               options.extra[_skipSession] == true;
           if (!skip) await beforeRequest?.call();
 
@@ -43,8 +44,9 @@ class ApiClient {
           handler.next(options);
         },
         onError: (e, handler) {
-          final sentToken =
-              e.requestOptions.headers.containsKey('Authorization');
+          final sentToken = e.requestOptions.headers.containsKey(
+            'Authorization',
+          );
           if (e.response?.statusCode == 401 && sentToken) {
             onUnauthorized?.call();
           }
@@ -75,19 +77,22 @@ class ApiClient {
     String path, {
     Map<String, dynamic>? query,
     bool background = false,
-  }) =>
-      _send(() => _dio.get<T>(
-            path,
-            queryParameters: query,
-            options: _options(background: background),
-          ));
+  }) => _send(
+    () => _dio.get<T>(
+      path,
+      queryParameters: query,
+      options: _options(background: background),
+    ),
+  );
 
   Future<T> post<T>(String path, {Object? body, bool skipSession = false}) =>
-      _send(() => _dio.post<T>(
-            path,
-            data: body,
-            options: _options(skipSession: skipSession),
-          ));
+      _send(
+        () => _dio.post<T>(
+          path,
+          data: body,
+          options: _options(skipSession: skipSession),
+        ),
+      );
 
   Future<T> patch<T>(String path, {Object? body}) =>
       _send(() => _dio.patch<T>(path, data: body, options: _options()));

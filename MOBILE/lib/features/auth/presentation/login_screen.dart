@@ -74,8 +74,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 4),
                     Text(
                       'Safe school pickups',
-                      style: theme.textTheme.bodyMedium
-                          ?.copyWith(color: AppColors.inkMuted),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: AppColors.inkMuted,
+                      ),
                     ),
                     if (widget.auth.sessionExpired) ...[
                       const SizedBox(height: 16),
@@ -112,17 +113,21 @@ class _LoginScreenState extends State<LoginScreen> {
                       decoration: InputDecoration(
                         labelText: 'Password',
                         suffixIcon: IconButton(
-                          tooltip:
-                              _hidePassword ? 'Show password' : 'Hide password',
-                          icon: Icon(_hidePassword
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined),
+                          tooltip: _hidePassword
+                              ? 'Show password'
+                              : 'Hide password',
+                          icon: Icon(
+                            _hidePassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
                           onPressed: () =>
                               setState(() => _hidePassword = !_hidePassword),
                         ),
                       ),
-                      validator: (v) =>
-                          (v == null || v.isEmpty) ? 'Enter your password' : null,
+                      validator: (v) => (v == null || v.isEmpty)
+                          ? 'Enter your password'
+                          : null,
                     ),
                     if (_error != null) ...[
                       const SizedBox(height: 16),

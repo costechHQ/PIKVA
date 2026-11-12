@@ -12,13 +12,18 @@ import 'package:pikva/features/auth/data/token_store.dart';
 import 'package:pikva/features/auth/presentation/auth_controller.dart';
 import 'package:pikva/main.dart';
 
+import 'support/fakes.dart';
+
 /// A fake backend whose session can be ended mid-test.
 class _Backend implements HttpClientAdapter {
   bool sessionValid = true;
 
   @override
   Future<ResponseBody> fetch(
-      RequestOptions o, Stream<Uint8List>? s, Future<void>? c) async {
+    RequestOptions o,
+    Stream<Uint8List>? s,
+    Future<void>? c,
+  ) async {
     final h = {
       Headers.contentTypeHeader: ['application/json'],
     };
@@ -30,7 +35,9 @@ class _Backend implements HttpClientAdapter {
       return json(200, {'access_token': 'new', 'token_type': 'bearer'});
     }
     if (o.path == '/auth/me') {
-      if (!sessionValid) return json(401, {'detail': 'Invalid or expired token'});
+      if (!sessionValid) {
+        return json(401, {'detail': 'Invalid or expired token'});
+      }
       return json(200, {
         'id': 1,
         'school_id': 1,
@@ -66,10 +73,11 @@ String _where(WidgetTester t) =>
     GoRouter.of(t.element(find.byType(Scaffold).first)).state.uri.toString();
 
 void main() {
-  testWidgets('an ended session goes to login with the page kept, then back',
-      (tester) async {
+  testWidgets('an ended session goes to login with the page kept, then back', (
+    tester,
+  ) async {
     final app = _app();
-    await tester.pumpWidget(PikvaApp(auth: app.auth));
+    await tester.pumpWidget(PikvaApp(auth: app.auth, pupils: stubPupils()));
     await tester.pumpAndSettle();
     expect(_where(tester), Routes.parent);
 
@@ -81,8 +89,10 @@ void main() {
 
     expect(app.auth.sessionExpired, isTrue);
     expect(_where(tester), '/login?next=%2Fparent');
-    expect(find.text('Your session ended. Sign in again to continue.'),
-        findsOneWidget);
+    expect(
+      find.text('Your session ended. Sign in again to continue.'),
+      findsOneWidget,
+    );
 
     await tester.enterText(find.byType(TextFormField).first, 'p@example.com');
     await tester.enterText(find.byType(TextFormField).last, 'secret');
@@ -95,20 +105,22 @@ void main() {
 
   testWidgets('tapping sign out does not keep the page', (tester) async {
     final app = _app();
-    await tester.pumpWidget(PikvaApp(auth: app.auth));
+    await tester.pumpWidget(PikvaApp(auth: app.auth, pupils: stubPupils()));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Sign out'));
     await tester.pumpAndSettle();
 
     expect(_where(tester), Routes.login);
-    expect(find.text('Your session ended. Sign in again to continue.'),
-        findsNothing);
+    expect(
+      find.text('Your session ended. Sign in again to continue.'),
+      findsNothing,
+    );
   });
 
   testWidgets('an unsafe next is ignored after sign in', (tester) async {
     final app = _app();
-    await tester.pumpWidget(PikvaApp(auth: app.auth));
+    await tester.pumpWidget(PikvaApp(auth: app.auth, pupils: stubPupils()));
     await tester.pumpAndSettle();
 
     GoRouter.of(tester.element(find.byType(Scaffold).first))

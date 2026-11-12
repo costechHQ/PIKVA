@@ -39,7 +39,11 @@ ResponseBody _json(int status, Object body, {Map<String, List<String>>? h}) =>
 
 ApiClient _client(_FakeAdapter adapter, {TokenProvider? tokens}) {
   final dio = Dio()..httpClientAdapter = adapter;
-  return ApiClient(baseUrl: 'http://test/api/v1', tokenProvider: tokens, dio: dio);
+  return ApiClient(
+    baseUrl: 'http://test/api/v1',
+    tokenProvider: tokens,
+    dio: dio,
+  );
 }
 
 Future<ApiException> _failure(Future<dynamic> call) async {
@@ -70,8 +74,9 @@ void main() {
   });
 
   test('401 becomes unauthorized with the backend message', () async {
-    final adapter =
-        _FakeAdapter((_) => _json(401, {'detail': 'Invalid or expired token'}));
+    final adapter = _FakeAdapter(
+      (_) => _json(401, {'detail': 'Invalid or expired token'}),
+    );
     final e = await _failure(_client(adapter).get('/auth/me'));
 
     expect(e.kind, ApiErrorKind.unauthorized);
@@ -80,11 +85,16 @@ void main() {
   });
 
   test('422 uses the first validation message', () async {
-    final adapter = _FakeAdapter((_) => _json(422, {
-          'detail': [
-            {'loc': ['body', 'email'], 'msg': 'value is not a valid email'}
-          ]
-        }));
+    final adapter = _FakeAdapter(
+      (_) => _json(422, {
+        'detail': [
+          {
+            'loc': ['body', 'email'],
+            'msg': 'value is not a valid email',
+          },
+        ],
+      }),
+    );
     final e = await _failure(_client(adapter).post('/auth/login', body: {}));
 
     expect(e.kind, ApiErrorKind.validation);
@@ -92,11 +102,15 @@ void main() {
   });
 
   test('429 reads Retry-After', () async {
-    final adapter = _FakeAdapter((_) => _json(
-          429,
-          {'detail': 'Too many requests'},
-          h: {'retry-after': ['30']},
-        ));
+    final adapter = _FakeAdapter(
+      (_) => _json(
+        429,
+        {'detail': 'Too many requests'},
+        h: {
+          'retry-after': ['30'],
+        },
+      ),
+    );
     final e = await _failure(_client(adapter).post('/auth/login', body: {}));
 
     expect(e.kind, ApiErrorKind.rateLimited);
@@ -112,10 +126,12 @@ void main() {
   });
 
   test('a dropped connection becomes a network error', () async {
-    final adapter = _FakeAdapter((o) => throw DioException(
-          requestOptions: o,
-          type: DioExceptionType.connectionError,
-        ));
+    final adapter = _FakeAdapter(
+      (o) => throw DioException(
+        requestOptions: o,
+        type: DioExceptionType.connectionError,
+      ),
+    );
     final e = await _failure(_client(adapter).get('/pupils'));
 
     expect(e.kind, ApiErrorKind.network);
