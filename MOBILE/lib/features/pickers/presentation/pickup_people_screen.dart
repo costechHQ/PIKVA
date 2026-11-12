@@ -10,6 +10,7 @@ import '../../pupils/domain/pupil.dart';
 import '../../pupils/presentation/pupil_avatar.dart';
 import '../data/picker_repository.dart';
 import '../domain/pickup_person.dart';
+import 'person_form_screen.dart';
 import 'pickup_code_sheet.dart';
 
 class PickupPeopleScreen extends StatefulWidget {
@@ -74,11 +75,51 @@ class _PickupPeopleScreenState extends State<PickupPeopleScreen> {
     });
   }
 
+  void _tell(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _add() async {
+    final saved = await showPersonForm(
+      context,
+      repository: widget.pickers,
+      pupils: _pupils,
+    );
+    if (saved == null || !mounted) return;
+    setState(() => _people = [..._people, saved]);
+    _tell(
+      'Added ${saved.name}. Your school will approve them before they can '
+      'collect.',
+    );
+  }
+
+  Future<void> _edit(PickupPerson person) async {
+    final saved = await showPersonForm(
+      context,
+      repository: widget.pickers,
+      pupils: _pupils,
+      original: person,
+    );
+    if (saved == null || !mounted) return;
+    _replace(saved);
+    _tell('Saved changes to ${saved.name}.');
+  }
+
   @override
   Widget build(BuildContext context) {
+    final canAdd = !_loading && _error == null && _pupils.isNotEmpty;
     return Scaffold(
       appBar: AppBar(title: const Text('Pickup people')),
       body: _body(),
+      floatingActionButton: canAdd
+          ? FloatingActionButton.extended(
+              onPressed: _add,
+              icon: const Icon(Icons.person_add_alt_1),
+              label: const Text('Add person'),
+            )
+          : null,
     );
   }
 
@@ -100,7 +141,7 @@ class _PickupPeopleScreenState extends State<PickupPeopleScreen> {
       onRefresh: _load,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
         children: [
           for (final pupil in _pupils) ...[
             _PupilHeader(pupil: pupil, repository: widget.pupils),
@@ -136,6 +177,7 @@ class _PickupPeopleScreenState extends State<PickupPeopleScreen> {
             pupil: pupil,
             repository: widget.pickers,
             onChanged: _replace,
+            onEdit: () => _edit(person),
           ),
         ),
     ];
@@ -172,8 +214,10 @@ class _PersonCard extends StatefulWidget {
     required this.pupil,
     required this.repository,
     required this.onChanged,
+    required this.onEdit,
   });
 
+  final VoidCallback onEdit;
   final PickupPerson person;
   final Pupil pupil;
   final PickerRepository repository;
@@ -338,6 +382,10 @@ class _PersonCardState extends State<_PersonCard> {
               spacing: 8,
               runSpacing: 8,
               children: [
+                TextButton(
+                  onPressed: _busy ? null : widget.onEdit,
+                  child: const Text('Edit'),
+                ),
                 if (person.status == PersonStatus.active)
                   FilledButton.tonal(
                     onPressed: _busy ? null : _getCode,

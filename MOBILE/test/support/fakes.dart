@@ -4,6 +4,9 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:pikva/core/api/api_client.dart';
 import 'package:pikva/core/repositories.dart';
+import 'package:pikva/features/auth/data/auth_repository.dart';
+import 'package:pikva/features/auth/data/token_store.dart';
+import 'package:pikva/features/auth/presentation/auth_controller.dart';
 
 /// A fake backend keyed by "METHOD /path". A body that is [Uint8List] is sent
 /// as raw bytes (photos); anything else as JSON. Unknown routes answer 404.
@@ -118,3 +121,33 @@ Map<String, dynamic> pickerJson({
   'created_at': '2026-11-01T07:00:00Z',
   'updated_at': '2026-11-01T07:00:00Z',
 };
+
+/// A signed-in parent talking to a fake backend. [routes] are added on top of
+/// `/auth/me` and `/pupils` (Chidi and Amaka).
+({FakeBackend backend, AuthController auth, Repositories repos}) parentApp(
+  Map<String, (int, Object)> routes,
+) {
+  final backend = FakeBackend({
+    'GET /auth/me': (
+      200,
+      {
+        'id': 7,
+        'school_id': 1,
+        'name': 'Ada Eze',
+        'email': 'a@example.com',
+        'phone': '08000000000',
+        'role': 'parent',
+        'school_name': 'Sunrise School',
+      },
+    ),
+    'GET /pupils': (200, [pupilJson(), pupilJson(id: 2, first: 'Amaka')]),
+    ...routes,
+  });
+  final tokens = MemoryTokenStore()..write('t');
+  final api = apiFor(backend, token: tokens.read);
+  return (
+    backend: backend,
+    auth: AuthController(AuthRepository(api: api, tokens: tokens)),
+    repos: Repositories.from(api),
+  );
+}

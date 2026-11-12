@@ -18,6 +18,22 @@ class PickerRepository {
         .toList();
   }
 
+  /// Adds a person (starts as awaiting school approval).
+  Future<PickupPerson> create(Map<String, Object?> body) async {
+    final json = await _api.post<Map<String, dynamic>>('/pickers', body: body);
+    return PickupPerson.fromJson(json);
+  }
+
+  /// Sends only the changed fields. An edit can send the person back to
+  /// school approval, which the server decides.
+  Future<PickupPerson> update(int id, Map<String, Object?> changes) async {
+    final json = await _api.patch<Map<String, dynamic>>(
+      '/pickers/$id',
+      body: changes,
+    );
+    return PickupPerson.fromJson(json);
+  }
+
   /// Returns the updated person as the server now sees them.
   Future<PickupPerson> setActive(int id, {required bool active}) async {
     final action = active ? 'activate' : 'deactivate';
