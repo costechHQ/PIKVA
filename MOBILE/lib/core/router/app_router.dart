@@ -20,6 +20,23 @@ abstract final class Routes {
       };
 }
 
+bool _inArea(String path, String home) =>
+    path == home || path.startsWith('$home/');
+
+/// The return-to-page rule (SRS 6.10): a relative path on this app (one
+/// leading slash, no scheme or host), inside the signed-in role's own area,
+/// and never an /api/ path.
+bool isSafeNext(String? next, String home) {
+  if (next == null || !next.startsWith('/') || next.startsWith('//')) {
+    return false;
+  }
+  if (next.contains('\\')) return false;
+  final uri = Uri.tryParse(next);
+  if (uri == null || uri.hasScheme || uri.hasAuthority) return false;
+  if (uri.path.startsWith('/api/') || uri.path == '/api') return false;
+  return _inArea(uri.path, home);
+}
+
 /// One router for the whole app. The redirect keeps each role inside its own
 /// area; the backend still decides what each role may actually do.
 GoRouter buildRouter(AuthController auth) {
@@ -33,11 +50,24 @@ GoRouter buildRouter(AuthController auth) {
         case AuthStatus.unknown:
           return path == Routes.splash ? null : Routes.splash;
         case AuthStatus.signedOut:
-          return path == Routes.login ? null : Routes.login;
+          if (path == Routes.login) return null;
+          // Only a session that ended keeps the page; a tap on sign out
+          // does not. Splash is never worth returning to.
+          if (auth.sessionExpired && path != Routes.splash) {
+            return Uri(
+              path: Routes.login,
+              queryParameters: {'next': state.uri.toString()},
+            ).toString();
+          }
+          return Routes.login;
         case AuthStatus.signedIn:
           final home = Routes.homeFor(auth.user!.role);
+          if (path == Routes.login) {
+            final next = state.uri.queryParameters['next'];
+            return isSafeNext(next, home) ? next : home;
+          }
           // Anywhere outside the user's own area goes to their home.
-          return (path == home || path.startsWith('$home/')) ? null : home;
+          return _inArea(path, home) ? null : home;
       }
     },
     routes: [

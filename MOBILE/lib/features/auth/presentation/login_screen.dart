@@ -77,6 +77,20 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: theme.textTheme.bodyMedium
                           ?.copyWith(color: AppColors.inkMuted),
                     ),
+                    if (widget.auth.sessionExpired) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.warning50,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text(
+                          'Your session ended. Sign in again to continue.',
+                          style: TextStyle(color: AppColors.warning600),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 24),
                     TextFormField(
                       controller: _email,
