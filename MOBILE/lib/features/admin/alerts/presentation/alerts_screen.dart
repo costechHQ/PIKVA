@@ -59,7 +59,11 @@ class _AlertsScreenState extends State<AlertsScreen> {
     try {
       final (page, names) = await (
         widget.alerts.list(_filter),
-        widget.alerts.names(pupils: widget.pupils, pickers: widget.pickers),
+        // Names are a nicety: if they cannot load, the alerts still show,
+        // with numbers instead of names.
+        widget.alerts
+            .names(pupils: widget.pupils, pickers: widget.pickers)
+            .catchError((_) => const AlertNames()),
       ).wait;
       if (!mounted || gen != _generation) return;
       setState(() {

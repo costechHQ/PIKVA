@@ -1,8 +1,8 @@
 import '../../../shared/format.dart';
 
 /// One time a pupil was collected at the gate (`GET /releases`). Parents are
-/// never told which staff member released the pupil (SRS 18.9), so there is
-/// no staff field.
+/// never told which staff member released the pupil (SRS 18.9), so for them
+/// [verifiedByName] is null; school admins do see who released.
 class Release {
   const Release({
     required this.id,
@@ -13,6 +13,7 @@ class Release {
     required this.relationship,
     required this.viaQr,
     required this.releasedAt,
+    this.verifiedByName,
   });
 
   final int id;
@@ -25,6 +26,9 @@ class Release {
   /// True if the code was scanned, false if it was typed in.
   final bool viaQr;
   final DateTime releasedAt;
+
+  /// The gate staff member, shown to admins only.
+  final String? verifiedByName;
 
   String get pupilName => '$pupilFirstName $pupilLastName';
 
@@ -42,6 +46,8 @@ class Release {
       relationship: picker['relationship'] as String,
       viaQr: json['verification_method'] == 'qr',
       releasedAt: DateTime.parse(json['released_at'] as String),
+      verifiedByName:
+          (json['verified_by'] as Map<String, dynamic>?)?['name'] as String?,
     );
   }
 }

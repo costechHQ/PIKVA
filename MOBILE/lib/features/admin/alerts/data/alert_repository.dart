@@ -34,6 +34,17 @@ class AlertRepository {
     );
   }
 
+  /// Up to [limit] open alerts, newest first, with no paging (for summaries).
+  Future<List<SecurityAlert>> open(int limit) async {
+    final json = await _api.get<List<dynamic>>(
+      '/alerts',
+      query: {'limit': limit, 'status': 'open'},
+    );
+    return json
+        .map((e) => SecurityAlert.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   /// Marks an open alert resolved and returns it as the server now has it.
   Future<SecurityAlert> resolve(int id) async => SecurityAlert.fromJson(
     await _api.post<Map<String, dynamic>>('/alerts/$id/resolve'),

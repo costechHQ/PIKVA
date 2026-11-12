@@ -146,10 +146,13 @@ void main() {
       }, role: 'school_admin');
       await tester.pumpWidget(PikvaApp(auth: a.auth, repos: a.repos));
       await tester.pumpAndSettle();
+      // Admins land on the dashboard; the alerts are their own tab.
+      await tester.tap(find.widgetWithText(NavigationDestination, 'Alerts'));
+      await tester.pumpAndSettle();
       return (backend: a.backend);
     }
 
-    testWidgets('admins land on the alerts with names filled in', (
+    testWidgets('the Alerts tab shows alerts with names filled in', (
       tester,
     ) async {
       await openAlerts(tester, {
@@ -190,6 +193,20 @@ void main() {
       expect(find.text('Pupil #99'), findsOneWidget);
       expect(find.text('Pickup person #98'), findsOneWidget);
       expect(find.text('Staff #97'), findsOneWidget);
+    });
+
+    testWidgets('alerts still show when the names cannot be loaded', (
+      tester,
+    ) async {
+      await openAlerts(tester, {
+        'GET /alerts': (200, [alertJson(pupilId: 1, authorisationId: 10)]),
+        'GET /schools/users': (500, {'detail': 'boom'}),
+      });
+
+      expect(find.text('Unrecognised code'), findsOneWidget);
+      expect(find.text('Pupil #1'), findsOneWidget);
+      expect(find.text('Pickup person #10'), findsOneWidget);
+      expect(find.text('Try again'), findsNothing);
     });
 
     testWidgets('Mark resolved updates the card', (tester) async {
@@ -262,7 +279,8 @@ void main() {
       await tester.tap(find.widgetWithText(ChoiceChip, 'Resolved'));
       await tester.pumpAndSettle();
       expect(find.text('No alerts here yet.'), findsOneWidget);
-      expect(g.backend.count('GET /alerts'), 2);
+      // The dashboard asked once, then Open, then Resolved.
+      expect(g.backend.count('GET /alerts'), 3);
     });
 
     testWidgets('Show older loads the next page', (tester) async {

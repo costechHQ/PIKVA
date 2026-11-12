@@ -1,4 +1,5 @@
 import '../features/admin/alerts/data/alert_repository.dart';
+import '../features/admin/dashboard/data/dashboard_repository.dart';
 import '../features/gate/data/gate_repository.dart';
 import '../features/history/data/release_repository.dart';
 import '../features/pickers/data/picker_repository.dart';
@@ -45,6 +46,14 @@ class Repositories {
 
   /// Camera QR reading for the gate.
   final QrScanner scanner;
+
+  /// The admin dashboard's summary of the other lists.
+  DashboardRepository get dashboard => DashboardRepository(
+    pupils: pupils,
+    pickers: pickers,
+    releases: releases,
+    alerts: alerts,
+  );
 
   /// Photos are private to the signed-in family: call on sign out.
   void clearCaches() {

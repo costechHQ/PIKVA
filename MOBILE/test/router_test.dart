@@ -85,7 +85,7 @@ void main() {
   for (final c in [
     ('parent', Routes.parent, 'My children'),
     ('gate_staff', Routes.gate, 'Check a pickup code'),
-    ('school_admin', Routes.admin, 'Security alerts'),
+    ('school_admin', Routes.admin, 'Dashboard'),
   ]) {
     testWidgets('${c.$1} lands on ${c.$2}', (tester) async {
       await tester.pumpWidget(
@@ -96,7 +96,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(_location(tester), c.$2);
-      expect(find.text(c.$3), findsOneWidget);
+      expect(find.text(c.$3), findsWidgets);
     });
   }
 

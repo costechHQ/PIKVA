@@ -29,7 +29,13 @@ const gateTabs = [
 ];
 
 const adminTabs = [
-  AppTab('/admin', Icons.notifications_outlined, Icons.notifications, 'Alerts'),
+  AppTab('/admin', Icons.dashboard_outlined, Icons.dashboard, 'Dashboard'),
+  AppTab(
+    '/admin/alerts',
+    Icons.notifications_outlined,
+    Icons.notifications,
+    'Alerts',
+  ),
   AppTab('/admin/account', Icons.person_outline, Icons.person, 'Account'),
 ];
 
