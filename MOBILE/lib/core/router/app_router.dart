@@ -9,6 +9,7 @@ import '../../features/admin/alerts/presentation/alerts_screen.dart';
 import '../../features/admin/approvals/presentation/approvals_screen.dart';
 import '../../features/admin/dashboard/presentation/dashboard_screen.dart';
 import '../../features/admin/more/more_screen.dart';
+import '../../features/admin/people/presentation/admin_people_screen.dart';
 import '../../features/admin/pupils/presentation/admin_pupil_detail_screen.dart';
 import '../../features/admin/pupils/presentation/admin_pupils_screen.dart';
 import '../../features/admin/users/presentation/users_screen.dart';
@@ -196,6 +197,14 @@ GoRouter buildRouter(AuthController auth, Repositories repos) {
                         ),
                       ),
                     ],
+                  ),
+                  GoRoute(
+                    path: 'pickup-people',
+                    builder: (_, _) => AdminPeopleScreen(
+                      pupils: repos.pupils,
+                      pickers: repos.pickers,
+                      photoPicker: repos.photoPicker,
+                    ),
                   ),
                   GoRoute(
                     path: 'users',

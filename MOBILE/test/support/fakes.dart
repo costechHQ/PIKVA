@@ -117,11 +117,12 @@ Map<String, dynamic> pickerJson({
   String status = 'active',
   String? photoUpdatedAt,
   String updatedAt = '2026-11-01T07:00:00Z',
+  String phone = '08011112222',
 }) => {
   'id': id,
   'pupil_id': pupilId,
   'picker_name': name,
-  'picker_phone': '08011112222',
+  'picker_phone': phone,
   'relationship': relationship,
   'photo_updated_at': photoUpdatedAt,
   'type': type,

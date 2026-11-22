@@ -12,6 +12,7 @@ import '../../pupils/presentation/pupil_avatar.dart';
 import '../data/picker_repository.dart';
 import '../domain/pickup_person.dart';
 import 'person_form_screen.dart';
+import 'status_badge.dart';
 import 'pickup_code_sheet.dart';
 
 class PickupPeopleScreen extends StatefulWidget {
@@ -373,7 +374,7 @@ class _PersonCardState extends State<_PersonCard> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                _StatusBadge(person.status),
+                StatusBadge(person.status),
               ],
             ),
             const SizedBox(height: 12),
@@ -479,37 +480,6 @@ class _Note extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(text),
-    );
-  }
-}
-
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge(this.status);
-
-  final PersonStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    final (bg, fg) = switch (status) {
-      PersonStatus.active => (AppColors.success50, AppColors.success600),
-      PersonStatus.pendingApproval => (
-        AppColors.warning50,
-        AppColors.warning600,
-      ),
-      PersonStatus.scheduled => (AppColors.brand50, AppColors.brand700),
-      PersonStatus.expired => (AppColors.danger50, AppColors.danger600),
-      PersonStatus.inactive => (AppColors.line, AppColors.inkMuted),
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        status.label,
-        style: TextStyle(color: fg, fontSize: 12, fontWeight: FontWeight.w600),
-      ),
     );
   }
 }
