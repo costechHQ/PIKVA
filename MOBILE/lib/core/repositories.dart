@@ -1,4 +1,5 @@
 import '../features/admin/alerts/data/alert_repository.dart';
+import '../features/admin/audit/data/audit_repository.dart';
 import '../features/admin/dashboard/data/dashboard_repository.dart';
 import '../features/admin/users/data/user_repository.dart';
 import '../features/gate/data/gate_repository.dart';
@@ -18,6 +19,7 @@ class Repositories {
     required this.gate,
     required this.alerts,
     required this.users,
+    required this.audit,
     PhotoPicker? photoPicker,
     QrScanner? scanner,
   }) : photoPicker = photoPicker ?? ImagePickerPhotoPicker(),
@@ -34,6 +36,7 @@ class Repositories {
     gate: GateRepository(api),
     alerts: AlertRepository(api),
     users: UserRepository(api),
+    audit: AuditRepository(api),
     photoPicker: photoPicker,
     scanner: scanner,
   );
@@ -44,6 +47,7 @@ class Repositories {
   final GateRepository gate;
   final AlertRepository alerts;
   final UserRepository users;
+  final AuditRepository audit;
 
   /// Camera and gallery access for photo uploads.
   final PhotoPicker photoPicker;

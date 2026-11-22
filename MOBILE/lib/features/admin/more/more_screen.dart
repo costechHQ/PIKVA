@@ -41,6 +41,12 @@ class MoreScreen extends StatelessWidget {
             path: '/admin/more/users',
           ),
           _Entry(
+            icon: Icons.fact_check_outlined,
+            title: 'Audit log',
+            subtitle: 'Who did what, and when',
+            path: '/admin/more/audit-log',
+          ),
+          _Entry(
             icon: Icons.person_outline,
             title: 'Account',
             subtitle: 'Your details, password and sign out',
