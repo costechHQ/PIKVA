@@ -199,6 +199,15 @@ GoRouter buildRouter(AuthController auth, Repositories repos) {
                     ],
                   ),
                   GoRoute(
+                    path: 'history',
+                    builder: (_, _) => HistoryScreen(
+                      pupils: repos.pupils,
+                      releases: repos.releases,
+                      admin: true,
+                      backTo: '/admin/more',
+                    ),
+                  ),
+                  GoRoute(
                     path: 'pickup-people',
                     builder: (_, _) => AdminPeopleScreen(
                       pupils: repos.pupils,

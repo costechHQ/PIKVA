@@ -337,6 +337,105 @@ void main() {
     });
   });
 
+  group('admin history', () {
+    Future<({FakeBackend backend})> openAdminHistory(
+      WidgetTester tester,
+      Map<String, (int, Object)> routes,
+    ) async {
+      tester.view.physicalSize = const Size(800, 3500);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final a = parentApp({
+        'GET /pickers': (200, []),
+        'GET /releases': (200, []),
+        'GET /alerts': (200, []),
+        ...routes,
+      }, role: 'school_admin');
+      await tester.pumpWidget(PikvaApp(auth: a.auth, repos: a.repos));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(NavigationDestination, 'More'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Pickup history'));
+      await tester.pumpAndSettle();
+      return (backend: a.backend);
+    }
+
+    testWidgets('shows every release with who released the pupil', (
+      tester,
+    ) async {
+      final r = releaseJson(id: 1, at: DateTime(2026, 11, 12, 9, 30));
+      r['verified_by'] = {'id': 30, 'name': 'Sam Gate'};
+      await openAdminHistory(tester, {
+        'GET /releases': (200, [r]),
+      });
+
+      expect(find.text('Picked up by Grace Okafor (Aunt)'), findsOneWidget);
+      expect(find.text('Released by Sam Gate'), findsOneWidget);
+      expect(find.text('Collected · QR code'), findsOneWidget);
+    });
+
+    testWidgets('parents are never shown who released their child', (
+      tester,
+    ) async {
+      final a = parentApp({
+        'GET /releases': (
+          200,
+          [releaseJson(id: 1, at: DateTime(2026, 11, 12, 9, 30))],
+        ),
+      });
+      await tester.pumpWidget(PikvaApp(auth: a.auth, repos: a.repos));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('History'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Picked up by Grace Okafor (Aunt)'), findsOneWidget);
+      expect(find.textContaining('Released by'), findsNothing);
+    });
+
+    testWidgets('the pupil filter is a menu with All pupils', (tester) async {
+      final g = await openAdminHistory(tester, {});
+
+      expect(find.byType(ChoiceChip), findsNothing);
+      await tester.tap(find.text('All pupils'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Amaka Eze').last);
+      await tester.pumpAndSettle();
+
+      expect(g.backend.queries['GET /releases']!['pupil_id'], 2);
+
+      await tester.tap(find.text('Amaka Eze'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('All pupils').last);
+      await tester.pumpAndSettle();
+
+      expect(
+        g.backend.queries['GET /releases']!.containsKey('pupil_id'),
+        isFalse,
+      );
+    });
+
+    testWidgets('the day filter works for admins too', (tester) async {
+      final g = await openAdminHistory(tester, {});
+
+      await tester.tap(find.text('Pick a day'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+
+      expect(g.backend.queries['GET /releases']!.containsKey('since'), isTrue);
+      expect(find.text('No pickups on this day.'), findsOneWidget);
+    });
+
+    testWidgets('the back arrow returns to the More menu', (tester) async {
+      await openAdminHistory(tester, {});
+
+      await tester.tap(find.byTooltip('Back'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Account'), findsOneWidget);
+    });
+  });
+
   testWidgets('the History tab is reachable from the parent bar', (
     tester,
   ) async {

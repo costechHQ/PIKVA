@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
@@ -15,11 +16,20 @@ class HistoryScreen extends StatefulWidget {
     super.key,
     required this.pupils,
     required this.releases,
+    this.admin = false,
+    this.backTo,
     this.clock = DateTime.now,
   });
 
   final PupilRepository pupils;
   final ReleaseRepository releases;
+
+  /// A school admin sees every pupil, so the child filter is a menu rather
+  /// than chips, and each pickup also says who released the pupil.
+  final bool admin;
+
+  /// Where the back arrow goes, for when this screen is reached from a menu.
+  final String? backTo;
 
   /// For tests.
   final DateTime Function() clock;
@@ -143,7 +153,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Pickup history')),
+      appBar: AppBar(
+        title: const Text('Pickup history'),
+        leading: widget.backTo == null
+            ? null
+            : IconButton(
+                tooltip: 'Back',
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => context.go(widget.backTo!),
+              ),
+      ),
       body: _body(),
     );
   }
@@ -174,11 +193,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
         children: [
-          if (_pupils.length > 1) _pupilChips(),
+          if (_pupils.length > 1) widget.admin ? _pupilMenu() : _pupilChips(),
           _dayFilter(),
           const SizedBox(height: 8),
           ..._results(),
         ],
+      ),
+    );
+  }
+
+  Widget _pupilMenu() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DropdownButtonFormField<int?>(
+        initialValue: _pupilId,
+        isExpanded: true,
+        decoration: const InputDecoration(labelText: 'Pupil'),
+        items: [
+          const DropdownMenuItem<int?>(value: null, child: Text('All pupils')),
+          for (final p in _pupils)
+            DropdownMenuItem<int?>(value: p.id, child: Text(p.fullName)),
+        ],
+        onChanged: _selectPupil,
       ),
     );
   }
@@ -352,6 +388,11 @@ class _ReleaseTile extends StatelessWidget {
                   '(${release.relationship})',
                   style: const TextStyle(color: AppColors.inkMuted),
                 ),
+                if (release.verifiedByName != null)
+                  Text(
+                    'Released by ${release.verifiedByName}',
+                    style: const TextStyle(color: AppColors.inkMuted),
+                  ),
                 const SizedBox(height: 6),
                 Container(
                   padding: const EdgeInsets.symmetric(

@@ -29,6 +29,12 @@ class MoreScreen extends StatelessWidget {
             path: '/admin/more/pickup-people',
           ),
           _Entry(
+            icon: Icons.history,
+            title: 'Pickup history',
+            subtitle: 'Every pupil released at the school, newest first',
+            path: '/admin/more/history',
+          ),
+          _Entry(
             icon: Icons.people_outline,
             title: 'Users',
             subtitle: 'Parents and gate staff: add, edit, deactivate',
