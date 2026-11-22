@@ -23,6 +23,7 @@ Future<PickupPerson?> showPersonForm(
   PickupPerson? original,
   int? initialPupilId,
   void Function(PickupPerson)? onStored,
+  bool adminEdit = false,
 }) {
   return Navigator.of(context).push<PickupPerson>(
     MaterialPageRoute(
@@ -34,6 +35,7 @@ Future<PickupPerson?> showPersonForm(
         original: original,
         initialPupilId: initialPupilId,
         onStored: onStored,
+        adminEdit: adminEdit,
       ),
     ),
   );
@@ -48,6 +50,7 @@ class PersonFormScreen extends StatefulWidget {
     this.original,
     this.initialPupilId,
     this.onStored,
+    this.adminEdit = false,
     this.clock = DateTime.now,
   });
 
@@ -57,6 +60,10 @@ class PersonFormScreen extends StatefulWidget {
   final PickupPerson? original;
   final int? initialPupilId;
   final void Function(PickupPerson)? onStored;
+
+  /// A school admin editing details: no photo (only parents change photos),
+  /// and the approval note says the school's approval is kept.
+  final bool adminEdit;
 
   /// For tests.
   final DateTime Function() clock;
@@ -344,16 +351,18 @@ class _PersonFormScreenState extends State<PersonFormScreen> {
               onTap: _busy ? null : _pickEnd,
             ),
             const SizedBox(height: 24),
-            PhotoChooser(
-              name: _name.text,
-              current: original != null && original.hasPhoto
-                  ? widget.repository.photo(original)
-                  : null,
-              choice: _photo,
-              busy: _busy,
-              onPick: _choosePhoto,
-              onChoice: (c) => setState(() => _photo = c),
-            ),
+            if (!widget.adminEdit) ...[
+              PhotoChooser(
+                name: _name.text,
+                current: original != null && original.hasPhoto
+                    ? widget.repository.photo(original)
+                    : null,
+                choice: _photo,
+                busy: _busy,
+                onPick: _choosePhoto,
+                onChoice: (c) => setState(() => _photo = c),
+              ),
+            ],
             if (_error != null) ...[
               const SizedBox(height: 16),
               Container(
@@ -389,6 +398,11 @@ class _PersonFormScreenState extends State<PersonFormScreen> {
   }
 
   String _approvalNote(PickupPerson? original) {
+    if (widget.adminEdit) {
+      return "Your changes keep the school's approval, and a code the parent "
+          'already has keeps working. To stop someone collecting, deactivate '
+          'them instead.';
+    }
     if (original == null) {
       return 'Your school will approve this person before they can collect.';
     }
