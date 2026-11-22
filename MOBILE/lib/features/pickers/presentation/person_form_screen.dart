@@ -1,12 +1,10 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 
 import '../../../core/api/api_exception.dart';
 import '../../../core/photo_picker.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/format.dart';
-import '../../../shared/widgets/photo_avatar.dart';
+import '../../../shared/widgets/photo_chooser.dart';
 import '../../pupils/domain/pupil.dart';
 import '../data/picker_repository.dart';
 import '../domain/person_draft.dart';
@@ -39,24 +37,6 @@ Future<PickupPerson?> showPersonForm(
       ),
     ),
   );
-}
-
-/// What to do with the photo when the form is saved.
-sealed class _PhotoChoice {
-  const _PhotoChoice();
-}
-
-class _Keep extends _PhotoChoice {
-  const _Keep();
-}
-
-class _Replace extends _PhotoChoice {
-  const _Replace(this.photo);
-  final PickedPhoto photo;
-}
-
-class _Remove extends _PhotoChoice {
-  const _Remove();
 }
 
 class PersonFormScreen extends StatefulWidget {
@@ -97,7 +77,7 @@ class _PersonFormScreenState extends State<PersonFormScreen> {
   /// The person being edited. For a new person it is set as soon as their
   /// details are saved, so retrying a failed photo never adds them twice.
   PickupPerson? _original;
-  _PhotoChoice _photo = const _Keep();
+  PhotoChoice _photo = const KeepPhoto();
 
   bool get _editing => _original != null;
 
@@ -186,7 +166,7 @@ class _PersonFormScreenState extends State<PersonFormScreen> {
     final problem = photoProblem(chosen);
     setState(() {
       _error = problem;
-      if (problem == null) _photo = _Replace(chosen);
+      if (problem == null) _photo = ReplacePhoto(chosen);
     });
   }
 
@@ -199,7 +179,7 @@ class _PersonFormScreenState extends State<PersonFormScreen> {
     }
     final changes = result.body!;
     final detailsChanged = !_editing || changes.isNotEmpty;
-    if (!detailsChanged && _photo is _Keep) {
+    if (!detailsChanged && _photo is KeepPhoto) {
       Navigator.pop(context); // nothing changed, nothing to send
       return;
     }
@@ -229,9 +209,9 @@ class _PersonFormScreenState extends State<PersonFormScreen> {
     // details, so there is always a person by now.
     var saved = person!;
     final choice = _photo;
-    if (choice is! _Keep) {
+    if (choice is! KeepPhoto) {
       try {
-        saved = choice is _Replace
+        saved = choice is ReplacePhoto
             ? await widget.repository.setPhoto(saved.id, choice.photo)
             : await widget.repository.removePhoto(saved.id);
       } on ApiException catch (e) {
@@ -246,7 +226,7 @@ class _PersonFormScreenState extends State<PersonFormScreen> {
           _busy = false;
           _error =
               "${stored.name}'s details were saved, but the photo "
-              '${choice is _Replace ? 'was not uploaded' : 'was not removed'}: '
+              '${choice is ReplacePhoto ? 'was not uploaded' : 'was not removed'}: '
               '${e.message}';
         });
         return;
@@ -364,7 +344,7 @@ class _PersonFormScreenState extends State<PersonFormScreen> {
               onTap: _busy ? null : _pickEnd,
             ),
             const SizedBox(height: 24),
-            _PhotoSection(
+            PhotoChooser(
               name: _name.text,
               current: original != null && original.hasPhoto
                   ? widget.repository.photo(original)
@@ -418,130 +398,6 @@ class _PersonFormScreenState extends State<PersonFormScreen> {
     return 'If you save changes, ${original.name} cannot collect until your '
         'school approves them again, and any code you already got for them '
         'will stop working.';
-  }
-}
-
-class _PhotoSection extends StatelessWidget {
-  const _PhotoSection({
-    required this.name,
-    required this.current,
-    required this.choice,
-    required this.busy,
-    required this.onPick,
-    required this.onChoice,
-  });
-
-  final String name;
-
-  /// The photo they have now, or null if none.
-  final Future<Uint8List?>? current;
-  final _PhotoChoice choice;
-  final bool busy;
-  final void Function(PhotoSource) onPick;
-  final void Function(_PhotoChoice) onChoice;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = choice;
-    final Future<Uint8List?>? shown = switch (c) {
-      _Replace() => Future.value(c.photo.bytes),
-      _Remove() => null,
-      _Keep() => current,
-    };
-    final initials = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
-    final hasCurrent = current != null;
-
-    final String note = switch (c) {
-      _Replace() => 'This photo will be saved with the other details.',
-      _Remove() => 'The photo will be removed when you save.',
-      _Keep() =>
-        'Optional. JPEG, PNG or WebP, up to 5 MB. It helps gate staff '
-            'recognise who is collecting.',
-    };
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Photo (optional)', style: Theme.of(context).textTheme.titleSmall),
-        const SizedBox(height: 12),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            PhotoAvatar(initials: initials, photo: shown, radius: 36),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      OutlinedButton.icon(
-                        onPressed: busy
-                            ? null
-                            : () => onPick(PhotoSource.camera),
-                        icon: const Icon(Icons.photo_camera_outlined),
-                        label: const Text('Take photo'),
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(0, 40),
-                        ),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: busy
-                            ? null
-                            : () => onPick(PhotoSource.gallery),
-                        icon: const Icon(Icons.photo_library_outlined),
-                        label: const Text('Choose photo'),
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(0, 40),
-                        ),
-                      ),
-                      if (c is _Replace)
-                        TextButton(
-                          onPressed: busy
-                              ? null
-                              : () => onChoice(const _Keep()),
-                          child: Text(
-                            hasCurrent
-                                ? 'Keep current photo'
-                                : "Don't use this photo",
-                          ),
-                        ),
-                      if (c is _Keep && hasCurrent)
-                        TextButton(
-                          onPressed: busy
-                              ? null
-                              : () => onChoice(const _Remove()),
-                          style: TextButton.styleFrom(
-                            foregroundColor: AppColors.danger600,
-                          ),
-                          child: const Text('Remove photo'),
-                        ),
-                      if (c is _Remove)
-                        TextButton(
-                          onPressed: busy
-                              ? null
-                              : () => onChoice(const _Keep()),
-                          child: const Text('Keep photo'),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    note,
-                    style: const TextStyle(
-                      color: AppColors.inkMuted,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
   }
 }
 

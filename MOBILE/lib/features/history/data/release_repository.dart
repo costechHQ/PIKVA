@@ -18,10 +18,10 @@ class ReleaseRepository {
   final ApiClient _api;
 
   /// The latest [limit] releases, newest first, with no paging (for summaries).
-  Future<List<Release>> latest(int limit) async {
+  Future<List<Release>> latest(int limit, {int? pupilId}) async {
     final json = await _api.get<List<dynamic>>(
       '/releases',
-      query: {'limit': limit},
+      query: {'limit': limit, 'pupil_id': ?pupilId},
     );
     return json
         .map((e) => Release.fromJson(e as Map<String, dynamic>))
