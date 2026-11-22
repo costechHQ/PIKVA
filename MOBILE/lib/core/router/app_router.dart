@@ -5,7 +5,10 @@ import '../../features/auth/presentation/auth_controller.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/home/role_home_screen.dart';
 import '../../features/home/splash_screen.dart';
-import '../../features/home/parent_shell.dart';
+import '../../features/account/presentation/account_screen.dart';
+import '../../features/history/presentation/history_screen.dart';
+import '../../features/gate/presentation/gate_screen.dart';
+import '../../features/home/role_shell.dart';
 import '../../features/pickers/presentation/pickup_people_screen.dart';
 import '../../features/pupils/presentation/pupil_detail_screen.dart';
 import '../../features/pupils/presentation/pupils_screen.dart';
@@ -83,12 +86,11 @@ GoRouter buildRouter(AuthController auth, Repositories repos) {
       ),
       ShellRoute(
         builder: (_, state, child) =>
-            ParentShell(location: state.uri.path, child: child),
+            RoleShell(tabs: parentTabs, location: state.uri.path, child: child),
         routes: [
           GoRoute(
             path: Routes.parent,
-            builder: (_, _) =>
-                PupilsScreen(auth: auth, repository: repos.pupils),
+            builder: (_, _) => PupilsScreen(repository: repos.pupils),
             routes: [
               GoRoute(
                 path: 'pupils/:id',
@@ -98,19 +100,43 @@ GoRouter buildRouter(AuthController auth, Repositories repos) {
                 ),
               ),
               GoRoute(
+                path: 'account',
+                builder: (_, _) => AccountScreen(auth: auth),
+              ),
+              GoRoute(
+                path: 'history',
+                builder: (_, _) => HistoryScreen(
+                  pupils: repos.pupils,
+                  releases: repos.releases,
+                ),
+              ),
+              GoRoute(
                 path: 'pickup-people',
                 builder: (_, _) => PickupPeopleScreen(
                   pupils: repos.pupils,
                   pickers: repos.pickers,
+                  photoPicker: repos.photoPicker,
                 ),
               ),
             ],
           ),
         ],
       ),
-      GoRoute(
-        path: Routes.gate,
-        builder: (_, _) => RoleHomeScreen(auth: auth, title: 'Gate'),
+      ShellRoute(
+        builder: (_, state, child) =>
+            RoleShell(tabs: gateTabs, location: state.uri.path, child: child),
+        routes: [
+          GoRoute(
+            path: Routes.gate,
+            builder: (_, _) => GateScreen(gate: repos.gate),
+            routes: [
+              GoRoute(
+                path: 'account',
+                builder: (_, _) => AccountScreen(auth: auth),
+              ),
+            ],
+          ),
+        ],
       ),
       GoRoute(
         path: Routes.admin,

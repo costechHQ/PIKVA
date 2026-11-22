@@ -104,11 +104,20 @@ void main() {
   });
 
   testWidgets('tapping sign out does not keep the page', (tester) async {
+    // Tall enough that the Account screen needs no scrolling.
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     final app = _app();
     await tester.pumpWidget(PikvaApp(auth: app.auth, repos: stubRepos()));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Sign out'));
+    // Sign out now lives on the Account tab, behind a confirmation.
+    await tester.tap(find.widgetWithText(NavigationDestination, 'Account'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Sign out'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Sign out'));
     await tester.pumpAndSettle();
 
     expect(_where(tester), Routes.login);

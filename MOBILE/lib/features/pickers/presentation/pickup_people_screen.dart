@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/api/api_exception.dart';
+import '../../../core/photo_picker.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/format.dart';
 import '../../../shared/widgets/error_view.dart';
@@ -18,10 +19,12 @@ class PickupPeopleScreen extends StatefulWidget {
     super.key,
     required this.pupils,
     required this.pickers,
+    required this.photoPicker,
   });
 
   final PupilRepository pupils;
   final PickerRepository pickers;
+  final PhotoPicker photoPicker;
 
   @override
   State<PickupPeopleScreen> createState() => _PickupPeopleScreenState();
@@ -69,6 +72,16 @@ class _PickupPeopleScreenState extends State<PickupPeopleScreen> {
     _load();
   }
 
+  /// Adds the person, or replaces them if they are already listed.
+  void _upsert(PickupPerson person) {
+    setState(() {
+      final known = _people.any((p) => p.id == person.id);
+      _people = known
+          ? [for (final p in _people) p.id == person.id ? person : p]
+          : [..._people, person];
+    });
+  }
+
   void _replace(PickupPerson updated) {
     setState(() {
       _people = [for (final p in _people) p.id == updated.id ? updated : p];
@@ -85,10 +98,12 @@ class _PickupPeopleScreenState extends State<PickupPeopleScreen> {
     final saved = await showPersonForm(
       context,
       repository: widget.pickers,
+      photoPicker: widget.photoPicker,
       pupils: _pupils,
+      onStored: _upsert,
     );
     if (saved == null || !mounted) return;
-    setState(() => _people = [..._people, saved]);
+    _upsert(saved);
     _tell(
       'Added ${saved.name}. Your school will approve them before they can '
       'collect.',
@@ -99,8 +114,10 @@ class _PickupPeopleScreenState extends State<PickupPeopleScreen> {
     final saved = await showPersonForm(
       context,
       repository: widget.pickers,
+      photoPicker: widget.photoPicker,
       pupils: _pupils,
       original: person,
+      onStored: _upsert,
     );
     if (saved == null || !mounted) return;
     _replace(saved);

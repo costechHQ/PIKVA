@@ -100,9 +100,18 @@ class ApiClient {
   Future<T> delete<T>(String path) =>
       _send(() => _dio.delete<T>(path, options: _options()));
 
-  /// Multipart upload, used for pupil and picker photos.
-  Future<T> upload<T>(String path, FormData form) =>
-      _send(() => _dio.post<T>(path, data: form, options: _options()));
+  /// Multipart upload, used for pupil and picker photos (which use PUT).
+  Future<T> upload<T>(String path, FormData form, {String method = 'POST'}) =>
+      _send(
+        () => _dio.request<T>(
+          path,
+          data: form,
+          options: Options(
+            method: method,
+            extra: {_background: false, _skipSession: false},
+          ),
+        ),
+      );
 
   /// Raw bytes, for photos that need the Bearer header.
   Future<List<int>> getBytes(String path) async {

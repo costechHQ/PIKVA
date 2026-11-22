@@ -84,7 +84,7 @@ void main() {
 
   for (final c in [
     ('parent', Routes.parent, 'My children'),
-    ('gate_staff', Routes.gate, 'Gate home'),
+    ('gate_staff', Routes.gate, 'Check a pickup code'),
     ('school_admin', Routes.admin, 'Admin home'),
   ]) {
     testWidgets('${c.$1} lands on ${c.$2}', (tester) async {
@@ -116,6 +116,10 @@ void main() {
   });
 
   testWidgets('sign out returns to login', (tester) async {
+    // Tall enough that the Account screen needs no scrolling.
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(
       PikvaApp(
         auth: _auth(role: 'parent'),
@@ -124,7 +128,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Sign out'));
+    // Sign out now lives on the Account tab, behind a confirmation.
+    await tester.tap(find.widgetWithText(NavigationDestination, 'Account'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Sign out'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Sign out'));
     await tester.pumpAndSettle();
 
     expect(_location(tester), Routes.login);

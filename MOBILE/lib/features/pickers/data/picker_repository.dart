@@ -1,7 +1,10 @@
 import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
+
 import '../../../core/api/api_client.dart';
 import '../../../core/api/photo_loader.dart';
+import '../../../core/photo_picker.dart';
 import '../domain/pickup_code.dart';
 import '../domain/pickup_person.dart';
 
@@ -49,6 +52,25 @@ class PickerRepository {
       body: {'authorisation_id': authorisationId},
     );
     return PickupCode.fromJson(json);
+  }
+
+  /// Uploads or replaces the photo (multipart field "photo"). The server
+  /// cleans it into a JPEG, and an approved person needs approval again.
+  Future<PickupPerson> setPhoto(int id, PickedPhoto photo) async {
+    final form = FormData.fromMap({
+      'photo': MultipartFile.fromBytes(photo.bytes, filename: photo.name),
+    });
+    final json = await _api.upload<Map<String, dynamic>>(
+      '/pickers/$id/photo',
+      form,
+      method: 'PUT',
+    );
+    return PickupPerson.fromJson(json);
+  }
+
+  Future<PickupPerson> removePhoto(int id) async {
+    final json = await _api.delete<Map<String, dynamic>>('/pickers/$id/photo');
+    return PickupPerson.fromJson(json);
   }
 
   Future<Uint8List?> photo(PickupPerson person) {

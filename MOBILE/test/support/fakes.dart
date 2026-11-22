@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:pikva/core/api/api_client.dart';
+import 'package:pikva/core/photo_picker.dart';
 import 'package:pikva/core/repositories.dart';
 import 'package:pikva/features/auth/data/auth_repository.dart';
 import 'package:pikva/features/auth/data/token_store.dart';
@@ -15,6 +16,12 @@ class FakeBackend implements HttpClientAdapter {
 
   final Map<String, (int, Object)> routes;
   final calls = <String>[];
+
+  /// The query parameters of the last request to each "METHOD /path".
+  final queries = <String, Map<String, dynamic>>{};
+
+  /// Answers that depend on the request (paging). Checked before [routes].
+  final handlers = <String, (int, Object) Function(RequestOptions)>{};
 
   /// The last request body sent to each "METHOD /path".
   final bodies = <String, Object?>{};
@@ -30,7 +37,8 @@ class FakeBackend implements HttpClientAdapter {
     final key = '${o.method} ${o.path}';
     calls.add(key);
     bodies[key] = o.data;
-    final hit = routes[key];
+    queries[key] = o.queryParameters;
+    final hit = handlers[key]?.call(o) ?? routes[key];
     if (hit == null) {
       return ResponseBody.fromString(
         '{"detail":"Not found"}',
@@ -125,8 +133,10 @@ Map<String, dynamic> pickerJson({
 /// A signed-in parent talking to a fake backend. [routes] are added on top of
 /// `/auth/me` and `/pupils` (Chidi and Amaka).
 ({FakeBackend backend, AuthController auth, Repositories repos}) parentApp(
-  Map<String, (int, Object)> routes,
-) {
+  Map<String, (int, Object)> routes, {
+  PhotoPicker? photoPicker,
+  String role = 'parent',
+}) {
   final backend = FakeBackend({
     'GET /auth/me': (
       200,
@@ -136,7 +146,7 @@ Map<String, dynamic> pickerJson({
         'name': 'Ada Eze',
         'email': 'a@example.com',
         'phone': '08000000000',
-        'role': 'parent',
+        'role': role,
         'school_name': 'Sunrise School',
       },
     ),
@@ -148,6 +158,29 @@ Map<String, dynamic> pickerJson({
   return (
     backend: backend,
     auth: AuthController(AuthRepository(api: api, tokens: tokens)),
-    repos: Repositories.from(api),
+    repos: Repositories.from(api, photoPicker: photoPicker),
   );
 }
+
+/// Answers every pick with a canned result instead of opening the camera.
+class FakePhotoPicker implements PhotoPicker {
+  FakePhotoPicker({this.result, this.error});
+
+  /// What the person "chooses"; null means they cancel.
+  PickedPhoto? result;
+
+  /// Thrown instead, as when permission is denied.
+  Object? error;
+
+  final requested = <PhotoSource>[];
+
+  @override
+  Future<PickedPhoto?> pick(PhotoSource source) async {
+    requested.add(source);
+    if (error != null) throw error!;
+    return result;
+  }
+}
+
+PickedPhoto jpegPhoto({String name = 'face.jpg', int size = 4}) =>
+    PickedPhoto(bytes: Uint8List(size), name: name);

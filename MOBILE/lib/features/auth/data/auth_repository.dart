@@ -30,6 +30,35 @@ class AuthRepository {
     return CurrentUser.fromJson(json);
   }
 
+  /// Changes name and/or phone (never the email) and returns the user.
+  Future<CurrentUser> updateDetails(Map<String, Object?> changes) async {
+    final json = await _api.patch<Map<String, dynamic>>(
+      '/auth/me',
+      body: changes,
+    );
+    return CurrentUser.fromJson(json);
+  }
+
+  /// Changes the password. The server signs out every other session and
+  /// returns a new token for this one, which replaces the saved token.
+  Future<void> changePassword(String current, String next) async {
+    final res = await _api.post<Map<String, dynamic>>(
+      '/auth/change-password',
+      body: {'current_password': current, 'new_password': next},
+    );
+    await _tokens.write(res['access_token'] as String);
+  }
+
+  /// Emails a reset link. The server answers the same whether or not the
+  /// account exists; the message it sends is returned.
+  Future<String> requestPasswordReset(String email) async {
+    final res = await _api.post<Map<String, dynamic>>(
+      '/auth/password-reset/request',
+      body: {'email': email},
+    );
+    return res['detail'] as String;
+  }
+
   Future<bool> hasToken() async => (await _tokens.read()) != null;
 
   Future<void> logout() => _tokens.clear();

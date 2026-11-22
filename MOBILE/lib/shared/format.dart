@@ -34,3 +34,49 @@ String formatCode(String code) {
   }
   return buffer.toString();
 }
+
+/// 3:45 PM (in the phone's local time)
+String formatTime(DateTime utcOrLocal) {
+  final d = utcOrLocal.toLocal();
+  final hour12 = d.hour % 12 == 0 ? 12 : d.hour % 12;
+  final minute = d.minute.toString().padLeft(2, '0');
+  return '$hour12:$minute ${d.hour < 12 ? 'AM' : 'PM'}';
+}
+
+const _weekdays = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+];
+const _longMonths = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
+/// Today, Yesterday, or "Tuesday, 3 November" (with the year when it is not
+/// this year). [day] and [now] are compared in the phone's local time.
+String formatDayLabel(DateTime day, DateTime now) {
+  final d = day.toLocal();
+  final n = now.toLocal();
+  final dKey = DateTime(d.year, d.month, d.day);
+  final today = DateTime(n.year, n.month, n.day);
+  if (dKey == today) return 'Today';
+  if (dKey == DateTime(n.year, n.month, n.day - 1)) return 'Yesterday';
+  final base =
+      '${_weekdays[d.weekday - 1]}, ${d.day} ${_longMonths[d.month - 1]}';
+  return d.year == n.year ? base : '$base ${d.year}';
+}
