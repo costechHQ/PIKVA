@@ -38,6 +38,7 @@ class PickupPerson {
     required this.isActive,
     required this.status,
     required this.photoUpdatedAt,
+    required this.updatedAtRaw,
   });
 
   final int id;
@@ -51,6 +52,12 @@ class PickupPerson {
   final bool isActive;
   final PersonStatus status;
   final DateTime? photoUpdatedAt;
+
+  /// `updated_at` exactly as the server sent it. Approving sends it back so
+  /// a later change by the parent is never approved unseen (SRS 9.2).
+  final String updatedAtRaw;
+
+  DateTime get updatedAt => DateTime.parse(updatedAtRaw);
 
   bool get hasPhoto => photoUpdatedAt != null;
 
@@ -79,6 +86,7 @@ class PickupPerson {
       isActive: json['is_active'] as bool,
       status: PersonStatus.parse(json['status'] as String),
       photoUpdatedAt: photo == null ? null : DateTime.parse(photo),
+      updatedAtRaw: json['updated_at'] as String,
     );
   }
 }

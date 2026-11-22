@@ -17,6 +17,17 @@ class ReleaseRepository {
 
   final ApiClient _api;
 
+  /// The latest [limit] releases, newest first, with no paging (for summaries).
+  Future<List<Release>> latest(int limit) async {
+    final json = await _api.get<List<dynamic>>(
+      '/releases',
+      query: {'limit': limit},
+    );
+    return json
+        .map((e) => Release.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   /// Newest first. [offset] is how many are already loaded. [day] limits to
   /// that local calendar day (midnight to midnight on the phone).
   Future<ReleasePage> list({

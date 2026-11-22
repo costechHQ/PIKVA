@@ -116,6 +116,7 @@ Map<String, dynamic> pickerJson({
   bool isActive = true,
   String status = 'active',
   String? photoUpdatedAt,
+  String updatedAt = '2026-11-01T07:00:00Z',
 }) => {
   'id': id,
   'pupil_id': pupilId,
@@ -130,7 +131,7 @@ Map<String, dynamic> pickerJson({
   'status': status,
   'approved_at': '2026-11-01T09:00:00Z',
   'created_at': '2026-11-01T07:00:00Z',
-  'updated_at': '2026-11-01T07:00:00Z',
+  'updated_at': updatedAt,
 };
 
 /// A signed-in parent talking to a fake backend. [routes] are added on top of

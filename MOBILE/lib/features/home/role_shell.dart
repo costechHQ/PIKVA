@@ -28,6 +28,23 @@ const gateTabs = [
   AppTab('/gate/account', Icons.person_outline, Icons.person, 'Account'),
 ];
 
+const adminTabs = [
+  AppTab('/admin', Icons.dashboard_outlined, Icons.dashboard, 'Dashboard'),
+  AppTab(
+    '/admin/alerts',
+    Icons.notifications_outlined,
+    Icons.notifications,
+    'Alerts',
+  ),
+  AppTab(
+    '/admin/approvals',
+    Icons.how_to_reg_outlined,
+    Icons.how_to_reg,
+    'Approvals',
+  ),
+  AppTab('/admin/more', Icons.menu, Icons.menu, 'More'),
+];
+
 /// A role's bottom navigation. Each tab is its own screen with its own app
 /// bar. The first tab is the role's home and also the fallback.
 class RoleShell extends StatelessWidget {

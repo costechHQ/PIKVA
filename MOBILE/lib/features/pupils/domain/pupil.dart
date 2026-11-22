@@ -1,3 +1,26 @@
+/// The pupil's parent, so the school can contact the family (SRS 8). Parents
+/// see themselves here; admins use it to reach the family.
+class PupilParent {
+  const PupilParent({
+    required this.id,
+    required this.name,
+    required this.email,
+    required this.phone,
+  });
+
+  final int id;
+  final String name;
+  final String email;
+  final String phone;
+
+  factory PupilParent.fromJson(Map<String, dynamic> json) => PupilParent(
+    id: json['id'] as int,
+    name: json['name'] as String,
+    email: json['email'] as String,
+    phone: json['phone'] as String,
+  );
+}
+
 class Pupil {
   const Pupil({
     required this.id,
@@ -5,6 +28,7 @@ class Pupil {
     required this.lastName,
     required this.dateOfBirth,
     required this.photoUpdatedAt,
+    this.parent,
   });
 
   final int id;
@@ -14,6 +38,9 @@ class Pupil {
 
   /// Null means no photo. Also serves as the photo's version for caching.
   final DateTime? photoUpdatedAt;
+
+  /// Null if the server did not include the parent.
+  final PupilParent? parent;
 
   String get fullName => '$firstName $lastName';
   bool get hasPhoto => photoUpdatedAt != null;
@@ -41,6 +68,9 @@ class Pupil {
       lastName: json['last_name'] as String,
       dateOfBirth: DateTime.parse(json['date_of_birth'] as String),
       photoUpdatedAt: photo == null ? null : DateTime.parse(photo),
+      parent: json['parent'] == null
+          ? null
+          : PupilParent.fromJson(json['parent'] as Map<String, dynamic>),
     );
   }
 }
