@@ -10,7 +10,7 @@ abstract interface class TokenStore {
 /// Keychain on iOS, encrypted storage on Android.
 class SecureTokenStore implements TokenStore {
   SecureTokenStore([FlutterSecureStorage? storage])
-      : _storage = storage ?? const FlutterSecureStorage();
+    : _storage = storage ?? const FlutterSecureStorage();
 
   static const _key = 'pikva_access_token';
   final FlutterSecureStorage _storage;

@@ -1,0 +1,153 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
+import 'package:pikva/core/api/api_client.dart';
+import 'package:pikva/core/repositories.dart';
+import 'package:pikva/features/auth/data/auth_repository.dart';
+import 'package:pikva/features/auth/data/token_store.dart';
+import 'package:pikva/features/auth/presentation/auth_controller.dart';
+
+/// A fake backend keyed by "METHOD /path". A body that is [Uint8List] is sent
+/// as raw bytes (photos); anything else as JSON. Unknown routes answer 404.
+class FakeBackend implements HttpClientAdapter {
+  FakeBackend([Map<String, (int, Object)>? routes]) : routes = routes ?? {};
+
+  final Map<String, (int, Object)> routes;
+  final calls = <String>[];
+
+  /// The last request body sent to each "METHOD /path".
+  final bodies = <String, Object?>{};
+
+  int count(String call) => calls.where((c) => c == call).length;
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions o,
+    Stream<Uint8List>? s,
+    Future<void>? c,
+  ) async {
+    final key = '${o.method} ${o.path}';
+    calls.add(key);
+    bodies[key] = o.data;
+    final hit = routes[key];
+    if (hit == null) {
+      return ResponseBody.fromString(
+        '{"detail":"Not found"}',
+        404,
+        headers: {
+          Headers.contentTypeHeader: ['application/json'],
+        },
+      );
+    }
+    final (status, body) = hit;
+    if (body is Uint8List) {
+      return ResponseBody.fromBytes(
+        body,
+        status,
+        headers: {
+          Headers.contentTypeHeader: ['image/jpeg'],
+        },
+      );
+    }
+    return ResponseBody.fromString(
+      jsonEncode(body),
+      status,
+      headers: {
+        Headers.contentTypeHeader: ['application/json'],
+      },
+    );
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
+
+ApiClient apiFor(FakeBackend backend, {Future<String?> Function()? token}) =>
+    ApiClient(
+      baseUrl: 'http://test',
+      tokenProvider: token,
+      dio: Dio()..httpClientAdapter = backend,
+    );
+
+/// Repositories whose backend finds nothing, for tests not about data.
+Repositories stubRepos() => Repositories.from(apiFor(FakeBackend()));
+
+Map<String, dynamic> pupilJson({
+  int id = 1,
+  String first = 'Chidi',
+  String last = 'Eze',
+  String dob = '2018-03-12',
+  String? photoUpdatedAt,
+}) => {
+  'id': id,
+  'school_id': 1,
+  'parent_id': 7,
+  'parent': {
+    'id': 7,
+    'name': 'Ada Eze',
+    'email': 'a@example.com',
+    'phone': '08000000000',
+  },
+  'first_name': first,
+  'last_name': last,
+  'photo_url': null,
+  'photo_updated_at': photoUpdatedAt,
+  'date_of_birth': dob,
+};
+
+Map<String, dynamic> pickerJson({
+  int id = 10,
+  int pupilId = 1,
+  String name = 'Grace Okafor',
+  String relationship = 'Aunt',
+  String type = 'permanent',
+  bool isActive = true,
+  String status = 'active',
+  String? photoUpdatedAt,
+}) => {
+  'id': id,
+  'pupil_id': pupilId,
+  'picker_name': name,
+  'picker_phone': '08011112222',
+  'relationship': relationship,
+  'photo_updated_at': photoUpdatedAt,
+  'type': type,
+  'starts_at': '2026-11-01T08:00:00Z',
+  'expires_at': '2027-11-01T08:00:00Z',
+  'is_active': isActive,
+  'status': status,
+  'approved_at': '2026-11-01T09:00:00Z',
+  'created_at': '2026-11-01T07:00:00Z',
+  'updated_at': '2026-11-01T07:00:00Z',
+};
+
+/// A signed-in parent talking to a fake backend. [routes] are added on top of
+/// `/auth/me` and `/pupils` (Chidi and Amaka).
+({FakeBackend backend, AuthController auth, Repositories repos}) parentApp(
+  Map<String, (int, Object)> routes,
+) {
+  final backend = FakeBackend({
+    'GET /auth/me': (
+      200,
+      {
+        'id': 7,
+        'school_id': 1,
+        'name': 'Ada Eze',
+        'email': 'a@example.com',
+        'phone': '08000000000',
+        'role': 'parent',
+        'school_name': 'Sunrise School',
+      },
+    ),
+    'GET /pupils': (200, [pupilJson(), pupilJson(id: 2, first: 'Amaka')]),
+    ...routes,
+  });
+  final tokens = MemoryTokenStore()..write('t');
+  final api = apiFor(backend, token: tokens.read);
+  return (
+    backend: backend,
+    auth: AuthController(AuthRepository(api: api, tokens: tokens)),
+    repos: Repositories.from(api),
+  );
+}
