@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/api/api_exception.dart';
+import '../../../core/qr_scanner.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/error_text.dart';
 import '../../../shared/format.dart';
@@ -12,9 +13,10 @@ import '../domain/gate.dart';
 /// Gate verification (SRS 11, 18.6): check a pickup code, confirm the person
 /// in front of you matches, then release. A failed check never releases.
 class GateScreen extends StatefulWidget {
-  const GateScreen({super.key, required this.gate});
+  const GateScreen({super.key, required this.gate, required this.scanner});
 
   final GateRepository gate;
+  final QrScanner scanner;
 
   @override
   State<GateScreen> createState() => _GateScreenState();
@@ -72,7 +74,11 @@ class _GateScreenState extends State<GateScreen> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 520),
               child: switch (step) {
-                _Enter() => _CodeEntry(gate: widget.gate, onResult: _go),
+                _Enter() => _CodeEntry(
+                  gate: widget.gate,
+                  scanner: widget.scanner,
+                  onResult: _go,
+                ),
                 _Verified() => _ConfirmRelease(
                   gate: widget.gate,
                   step: step,
@@ -100,9 +106,14 @@ class _GateScreenState extends State<GateScreen> {
 }
 
 class _CodeEntry extends StatefulWidget {
-  const _CodeEntry({required this.gate, required this.onResult});
+  const _CodeEntry({
+    required this.gate,
+    required this.scanner,
+    required this.onResult,
+  });
 
   final GateRepository gate;
+  final QrScanner scanner;
   final void Function(_Step) onResult;
 
   @override
@@ -112,6 +123,7 @@ class _CodeEntry extends StatefulWidget {
 class _CodeEntryState extends State<_CodeEntry> {
   final _controller = TextEditingController();
   bool _checking = false;
+  bool _scanning = false;
   String? _error;
 
   @override
@@ -127,6 +139,22 @@ class _CodeEntryState extends State<_CodeEntry> {
       return;
     }
     await _verify(GateRequest.manual(typed.code!));
+  }
+
+  void _scanned(String text) {
+    final qr = parseQrData(text);
+    setState(() {
+      _scanning = false;
+      _error = qr.error;
+    });
+    if (qr.qrData != null) _verify(GateRequest.qr(qr.qrData!));
+  }
+
+  void _cameraFailed(String message) {
+    setState(() {
+      _scanning = false;
+      _error = message;
+    });
   }
 
   Future<void> _verify(GateRequest request) async {
@@ -154,13 +182,49 @@ class _CodeEntryState extends State<_CodeEntry> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    if (_scanning) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Scan the QR code', style: theme.textTheme.titleLarge),
+          const SizedBox(height: 4),
+          const Text(
+            "Point the camera at the QR code in the parent's Pikva app.",
+            style: TextStyle(color: AppColors.inkMuted),
+          ),
+          const SizedBox(height: 16),
+          AspectRatio(
+            aspectRatio: 1,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: ColoredBox(
+                color: Colors.black,
+                child: widget.scanner.build(
+                  context,
+                  onScan: _scanned,
+                  onError: _cameraFailed,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton(
+            onPressed: () => setState(() => _scanning = false),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+            ),
+            child: const Text('Cancel'),
+          ),
+        ],
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text('Check a pickup code', style: theme.textTheme.titleLarge),
         const SizedBox(height: 4),
         const Text(
-          'Type the 8-character code the person shows you.',
+          'Scan the QR code, or type the 8-character code the person shows you.',
           style: TextStyle(color: AppColors.inkMuted),
         ),
         const SizedBox(height: 16),
@@ -208,6 +272,20 @@ class _CodeEntryState extends State<_CodeEntry> {
                   ),
                 )
               : const Text('Check code'),
+        ),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: _checking
+              ? null
+              : () => setState(() {
+                  _scanning = true;
+                  _error = null;
+                }),
+          icon: const Icon(Icons.qr_code_scanner),
+          label: const Text('Scan QR code'),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(56),
+          ),
         ),
       ],
     );

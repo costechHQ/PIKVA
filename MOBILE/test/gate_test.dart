@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:pikva/core/qr_scanner.dart';
 import 'package:pikva/features/gate/data/gate_repository.dart';
 import 'package:pikva/features/gate/domain/gate.dart';
 import 'package:pikva/main.dart';
@@ -183,12 +185,13 @@ void main() {
   group('gate screen', () {
     Future<({FakeBackend backend})> openGate(
       WidgetTester tester,
-      Map<String, (int, Object)> routes,
-    ) async {
+      Map<String, (int, Object)> routes, {
+      FakeQrScanner? scanner,
+    }) async {
       tester.view.physicalSize = const Size(800, 2000);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
-      final a = parentApp(routes, role: 'gate_staff');
+      final a = parentApp(routes, role: 'gate_staff', scanner: scanner);
       await tester.pumpWidget(PikvaApp(auth: a.auth, repos: a.repos));
       await tester.pumpAndSettle();
       return (backend: a.backend);
@@ -404,6 +407,106 @@ void main() {
       await tester.tap(find.text('Release Chidi'));
       await tester.pumpAndSettle();
       expect(find.text('Chidi released'), findsOneWidget);
+    });
+
+    group('QR scanning', () {
+      const goodQr =
+          '{"code":"ABCD2345","code_date":"2026-11-12","expires_at":"2026-11-12T20:00:00Z"}';
+
+      testWidgets('Scan QR code opens the camera view, Cancel closes it', (
+        tester,
+      ) async {
+        await openGate(tester, {}, scanner: FakeQrScanner());
+
+        await tester.tap(find.text('Scan QR code'));
+        await tester.pumpAndSettle();
+        expect(find.text('Scan the QR code'), findsOneWidget);
+        expect(find.text('Pretend scan'), findsOneWidget);
+
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+        expect(find.text('Check a pickup code'), findsOneWidget);
+      });
+
+      testWidgets('a scanned pickup QR is verified as a QR check', (
+        tester,
+      ) async {
+        final g = await openGate(tester, {
+          'POST /pickup/verify': (200, verifyJson()),
+          'POST /pickup/release': (201, releaseJson()),
+        }, scanner: FakeQrScanner(text: goodQr));
+
+        await tester.tap(find.text('Scan QR code'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Pretend scan'));
+        await tester.pumpAndSettle();
+
+        expect(g.backend.bodies['POST /pickup/verify'], {
+          'method': 'qr',
+          'qr_data': goodQr,
+        });
+        expect(find.text('Code valid'), findsOneWidget);
+
+        await tester.tap(find.text('Release Chidi'));
+        await tester.pumpAndSettle();
+        expect(g.backend.bodies['POST /pickup/release'], {
+          'method': 'qr',
+          'qr_data': goodQr,
+        });
+        expect(find.text('Chidi released'), findsOneWidget);
+      });
+
+      testWidgets('some other QR code is refused without asking the server', (
+        tester,
+      ) async {
+        final g = await openGate(
+          tester,
+          {},
+          scanner: FakeQrScanner(text: 'https://example.com/menu'),
+        );
+
+        await tester.tap(find.text('Scan QR code'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Pretend scan'));
+        await tester.pumpAndSettle();
+
+        expect(find.text(notAPickupQr), findsOneWidget);
+        expect(g.backend.count('POST /pickup/verify'), 0);
+        expect(find.text('Check a pickup code'), findsOneWidget);
+      });
+
+      testWidgets('a camera problem returns to typing with the reason', (
+        tester,
+      ) async {
+        await openGate(
+          tester,
+          {},
+          scanner: FakeQrScanner(errorMessage: 'Camera access is blocked.'),
+        );
+
+        await tester.tap(find.text('Scan QR code'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Pretend camera error'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Camera access is blocked.'), findsOneWidget);
+        expect(find.text('Check a pickup code'), findsOneWidget);
+      });
+
+      test('camera errors have clear words', () {
+        expect(
+          cameraErrorText(MobileScannerErrorCode.permissionDenied),
+          contains('Allow the camera'),
+        );
+        expect(
+          cameraErrorText(MobileScannerErrorCode.unsupported),
+          contains('No camera was found'),
+        );
+        expect(
+          cameraErrorText(MobileScannerErrorCode.genericError),
+          contains('could not start'),
+        );
+      });
     });
 
     testWidgets('the Account tab is there for sign out', (tester) async {

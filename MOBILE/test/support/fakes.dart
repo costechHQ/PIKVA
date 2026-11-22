@@ -2,8 +2,11 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart' show TextButton;
 import 'package:pikva/core/api/api_client.dart';
 import 'package:pikva/core/photo_picker.dart';
+import 'package:pikva/core/qr_scanner.dart';
 import 'package:pikva/core/repositories.dart';
 import 'package:pikva/features/auth/data/auth_repository.dart';
 import 'package:pikva/features/auth/data/token_store.dart';
@@ -135,6 +138,7 @@ Map<String, dynamic> pickerJson({
 ({FakeBackend backend, AuthController auth, Repositories repos}) parentApp(
   Map<String, (int, Object)> routes, {
   PhotoPicker? photoPicker,
+  QrScanner? scanner,
   String role = 'parent',
 }) {
   final backend = FakeBackend({
@@ -158,7 +162,7 @@ Map<String, dynamic> pickerJson({
   return (
     backend: backend,
     auth: AuthController(AuthRepository(api: api, tokens: tokens)),
-    repos: Repositories.from(api, photoPicker: photoPicker),
+    repos: Repositories.from(api, photoPicker: photoPicker, scanner: scanner),
   );
 }
 
@@ -184,3 +188,30 @@ class FakePhotoPicker implements PhotoPicker {
 
 PickedPhoto jpegPhoto({String name = 'face.jpg', int size = 4}) =>
     PickedPhoto(bytes: Uint8List(size), name: name);
+
+/// A stand-in for the camera: two buttons that "scan" a chosen text or fail.
+class FakeQrScanner implements QrScanner {
+  FakeQrScanner({this.text = '', this.errorMessage = 'Camera blocked'});
+
+  String text;
+  String errorMessage;
+
+  @override
+  Widget build(
+    BuildContext context, {
+    required ValueChanged<String> onScan,
+    required ValueChanged<String> onError,
+  }) => Column(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      TextButton(
+        onPressed: () => onScan(text),
+        child: const Text('Pretend scan'),
+      ),
+      TextButton(
+        onPressed: () => onError(errorMessage),
+        child: const Text('Pretend camera error'),
+      ),
+    ],
+  );
+}
