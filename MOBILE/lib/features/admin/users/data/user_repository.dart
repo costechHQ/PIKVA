@@ -51,6 +51,18 @@ class UserRepository {
     );
   }
 
+  /// Every parent of the school, for choosing one (the server's largest
+  /// page is 500).
+  Future<List<SchoolUser>> parents() async {
+    final json = await _api.get<List<dynamic>>(
+      '/schools/users',
+      query: {'role': 'parent', 'limit': 500},
+    );
+    return json
+        .map((e) => SchoolUser.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   /// Creates a parent or gate staff member. They get an emailed link to set
   /// their own password; the admin never sees or chooses it.
   Future<CreatedUser> create(Map<String, Object?> body) async {

@@ -9,6 +9,8 @@ import '../../features/admin/alerts/presentation/alerts_screen.dart';
 import '../../features/admin/approvals/presentation/approvals_screen.dart';
 import '../../features/admin/dashboard/presentation/dashboard_screen.dart';
 import '../../features/admin/more/more_screen.dart';
+import '../../features/admin/pupils/presentation/admin_pupil_detail_screen.dart';
+import '../../features/admin/pupils/presentation/admin_pupils_screen.dart';
 import '../../features/admin/users/presentation/users_screen.dart';
 import '../../features/history/presentation/history_screen.dart';
 import '../../features/gate/presentation/gate_screen.dart';
@@ -171,6 +173,30 @@ GoRouter buildRouter(AuthController auth, Repositories repos) {
                 path: 'more',
                 builder: (_, _) => const MoreScreen(),
                 routes: [
+                  GoRoute(
+                    path: 'pupils',
+                    builder: (_, _) => AdminPupilsScreen(
+                      pupils: repos.pupils,
+                      pickers: repos.pickers,
+                      users: repos.users,
+                      photoPicker: repos.photoPicker,
+                    ),
+                    routes: [
+                      GoRoute(
+                        path: ':id',
+                        builder: (_, state) => AdminPupilDetailScreen(
+                          pupilId:
+                              int.tryParse(state.pathParameters['id'] ?? '') ??
+                              0,
+                          pupils: repos.pupils,
+                          pickers: repos.pickers,
+                          releases: repos.releases,
+                          users: repos.users,
+                          photoPicker: repos.photoPicker,
+                        ),
+                      ),
+                    ],
+                  ),
                   GoRoute(
                     path: 'users',
                     builder: (_, _) => UsersScreen(users: repos.users),

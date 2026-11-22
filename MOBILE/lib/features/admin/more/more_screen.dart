@@ -16,6 +16,12 @@ class MoreScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: const [
           _Entry(
+            icon: Icons.school_outlined,
+            title: 'Pupils',
+            subtitle: 'Pupils, their parents and who collects them',
+            path: '/admin/more/pupils',
+          ),
+          _Entry(
             icon: Icons.people_outline,
             title: 'Users',
             subtitle: 'Parents and gate staff: add, edit, deactivate',

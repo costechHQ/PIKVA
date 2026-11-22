@@ -14,8 +14,12 @@ class PickerRepository {
   final ApiClient _api;
   final PhotoLoader _photos;
 
-  Future<List<PickupPerson>> list() async {
-    final json = await _api.get<List<dynamic>>('/pickers');
+  /// Everyone the user may manage; [pupilId] limits to one pupil.
+  Future<List<PickupPerson>> list({int? pupilId}) async {
+    final json = await _api.get<List<dynamic>>(
+      '/pickers',
+      query: {'pupil_id': ?pupilId},
+    );
     return json
         .map((e) => PickupPerson.fromJson(e as Map<String, dynamic>))
         .toList();
