@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Flutter only adds INTERNET to debug and profile builds. Without this
+         line a release build installs but cannot reach the server. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="Pikva"
         android:name="${applicationName}"

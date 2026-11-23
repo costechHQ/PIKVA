@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/api/api_client.dart';
+import 'core/api/api_config.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/data/auth_repository.dart';
@@ -11,6 +13,16 @@ import 'features/auth/presentation/auth_controller.dart';
 import 'core/repositories.dart';
 
 void main() {
+  // A release build pointed at a local or insecure server would install fine
+  // and then fail on every request, so say so on screen instead.
+  if (kReleaseMode) {
+    final problem = ApiConfig.releaseProblem(ApiConfig.baseUrl);
+    if (problem != null) {
+      runApp(ConfigProblemApp(problem));
+      return;
+    }
+  }
+
   final tokens = SecureTokenStore();
 
   // The client needs the renewer and the controller, and both need the
@@ -85,6 +97,34 @@ class _PikvaAppState extends State<PikvaApp> with WidgetsBindingObserver {
       debugShowCheckedModeBanner: false,
       theme: buildAppTheme(),
       routerConfig: _router,
+    );
+  }
+}
+
+/// Shown instead of the app when a release build was made with a server
+/// address it cannot use (see [ApiConfig.releaseProblem]).
+class ConfigProblemApp extends StatelessWidget {
+  const ConfigProblemApp(this.message, {super.key});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              'This app was built with the wrong server address.\n\n'
+              '$message\n\n'
+              'Rebuild with --dart-define=API_BASE_URL=https://your-server/api/v1',
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
