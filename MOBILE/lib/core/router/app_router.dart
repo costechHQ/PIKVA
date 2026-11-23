@@ -7,6 +7,7 @@ import '../../features/home/splash_screen.dart';
 import '../../features/account/presentation/account_screen.dart';
 import '../../features/admin/alerts/presentation/alerts_screen.dart';
 import '../../features/admin/approvals/presentation/approvals_screen.dart';
+import '../../features/admin/audit/presentation/audit_log_screen.dart';
 import '../../features/admin/dashboard/presentation/dashboard_screen.dart';
 import '../../features/admin/more/more_screen.dart';
 import '../../features/admin/people/presentation/admin_people_screen.dart';
@@ -197,6 +198,23 @@ GoRouter buildRouter(AuthController auth, Repositories repos) {
                         ),
                       ),
                     ],
+                  ),
+                  GoRoute(
+                    path: 'audit-log',
+                    builder: (_, _) => AuditLogScreen(
+                      audit: repos.audit,
+                      pupils: repos.pupils,
+                      pickers: repos.pickers,
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'history',
+                    builder: (_, _) => HistoryScreen(
+                      pupils: repos.pupils,
+                      releases: repos.releases,
+                      admin: true,
+                      backTo: '/admin/more',
+                    ),
                   ),
                   GoRoute(
                     path: 'pickup-people',

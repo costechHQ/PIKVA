@@ -1,0 +1,14 @@
+# App icon for Android and iOS. Regenerate after changing the images with:
+#   dart run flutter_launcher_icons
+#
+# assets/icon/icon.png is the shield on white (1024 px, no transparency, as
+# the App Store requires). assets/icon/icon_foreground.png is the same shield
+# on a transparent canvas with room around it, because Android crops
+# adaptive icons to a circle or rounded square.
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/icon.png"
+  remove_alpha_ios: true
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/icon/icon_foreground.png"

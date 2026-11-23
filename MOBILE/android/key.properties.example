@@ -1,0 +1,11 @@
+# Copy this file to key.properties (same folder) and fill it in.
+# key.properties is ignored by git; never commit it or your .jks file.
+#
+# Make the key once with (see MOBILE/README.md):
+#   keytool -genkey -v -keystore C:/Users/YOU/pikva-upload-keystore.jks ^
+#     -storetype JKS -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+storePassword=the-password-you-chose
+keyPassword=the-password-you-chose
+keyAlias=upload
+# Forward slashes, even on Windows.
+storeFile=C:/Users/YOU/pikva-upload-keystore.jks
